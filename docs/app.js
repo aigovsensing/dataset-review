@@ -14,6 +14,21 @@
     "extra-notes",
   ];
 
+  // ---- 낮/밤 테마 토글 ----
+  const root = document.documentElement;
+  const themeToggle = $("#theme-toggle");
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+      root.setAttribute("data-theme", next);
+      try {
+        localStorage.setItem("theme", next);
+      } catch (e) {
+        /* localStorage 사용 불가 시 무시 */
+      }
+    });
+  }
+
   // ---- 저장소 링크 ----
   const repoLink = $("#repo-link");
   if (repoLink) repoLink.href = repoUrl;

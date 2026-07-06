@@ -1,4 +1,5 @@
 :root {
+  /* 기본(밤) 테마 */
   --bg: #0f1420;
   --surface: #1a2130;
   --surface-2: #222b3d;
@@ -11,6 +12,25 @@
   --warn: #fbbf24;
   --fail: #f87171;
   --radius: 12px;
+  --header-bg: linear-gradient(135deg, #182238 0%, #101726 100%);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] {
+  /* 낮 테마 */
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface-2: #eef2f9;
+  --border: #dbe2ee;
+  --text: #1b2436;
+  --text-dim: #5b6a83;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --accent: #059669;
+  --warn: #b45309;
+  --fail: #dc2626;
+  --header-bg: linear-gradient(135deg, #e6edf9 0%, #f4f6fb 100%);
+  --shadow: 0 6px 20px rgba(30, 50, 90, 0.10);
 }
 
 * { box-sizing: border-box; }
@@ -22,17 +42,46 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
 
 /* Header */
 .site-header {
-  background: linear-gradient(135deg, #182238 0%, #101726 100%);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--border);
   padding: 40px 0 32px;
+  transition: background 0.3s ease;
 }
+.site-header .wrap { position: relative; }
 .site-header h1 { margin: 0 0 8px; font-size: 1.8rem; }
+
+/* 낮/밤 테마 토글 */
+.theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 20px;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.3s ease, color 0.3s ease;
+}
+.theme-toggle:hover { transform: scale(1.08) rotate(-8deg); border-color: var(--primary); color: var(--primary); }
+.theme-toggle:active { transform: scale(0.96); }
+.theme-toggle .icon { display: block; }
+/* 밤 테마에서는 해(낮으로 전환) 아이콘, 낮 테마에서는 달(밤으로 전환) 아이콘 표시 */
+.theme-toggle .icon-moon { display: none; }
+:root[data-theme="light"] .theme-toggle .icon-sun { display: none; }
+:root[data-theme="light"] .theme-toggle .icon-moon { display: block; }
 .tagline { margin: 0; color: var(--text-dim); font-size: 1.02rem; }
 .tagline strong { color: var(--text); }
 
@@ -69,6 +118,8 @@ main { padding: 24px 0 40px; }
   border-radius: var(--radius);
   padding: 22px;
   margin-bottom: 18px;
+  box-shadow: var(--shadow);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 .card h3 { margin-top: 0; }
 
@@ -178,8 +229,9 @@ input[type="text"]:focus, textarea:focus {
   border-radius: 8px;
   padding: 14px;
   font-size: 0.9rem;
-  color: #f3d9a0;
+  color: var(--text);
 }
+.disclaimer strong { color: var(--warn); }
 
 /* Footer */
 .site-footer {

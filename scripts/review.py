@@ -55,11 +55,16 @@ def parse_issue_body(body: str) -> dict[str, str]:
     return fields
 
 
-def build_user_prompt(title: str, fields: dict[str, str]) -> str:
+def derive_dataset_name(title: str, fields: dict[str, str]) -> str:
+    """폼의 데이터셋 명칭을 우선 사용하고, 없으면 제목에서 접두어를 제거해 추정."""
     name = fields.get("dataset_name", "").strip()
     if not name and title:
-        # 제목에서 "[검토] " 접두어 제거하여 데이터셋명 추정
         name = re.sub(r"^\s*\[검토\]\s*", "", title).strip()
+    return name
+
+
+def build_user_prompt(title: str, fields: dict[str, str]) -> str:
+    name = derive_dataset_name(title, fields)
 
     lines = [
         "다음 오픈 데이터셋에 대해 시스템 지침에 따라 법적 리스크를 검토하라.",
@@ -136,6 +141,68 @@ def render_sources(sources: list[tuple[str, str]]) -> str:
     )
 
 
+# 판정 → (배지 이모지, 색상 라벨). 가장 보수적인 순서로 탐색한다.
+_VERDICTS = [
+    ("사용 비권고", "⛔"),
+    ("추가 검토 필요", "⚠️"),
+    ("사용 가능", "✅"),
+]
+
+_SECTION_RE = re.compile(r"^##\s+(\d+)\.\s*(.+?)\s*$", re.MULTILINE)
+
+
+def detect_verdict(text: str) -> tuple[str | None, str]:
+    """'내부 검토 결과' 판정을 추출. 못 찾으면 (None, 📋)."""
+    m = re.search(r"내부\s*검토\s*결과[^\n]*\n+\s*([^\n]+)", text)
+    region = m.group(1) if m else text[:500]
+    for label, emoji in _VERDICTS:
+        if label in region:
+            return label, emoji
+    for label, emoji in _VERDICTS:  # 폴백: 본문 전체에서 탐색
+        if label in text:
+            return label, emoji
+    return None, "📋"
+
+
+def restructure_review(text: str, name: str) -> str:
+    """모델 출력을 스캔하기 쉬운 형태로 재구성.
+
+    - 상단에 데이터셋명 + 판정 배지 배너를 붙인다.
+    - 1. 요약 결론은 펼친 상태로 노출.
+    - 2. 항목별 상세 분석 / 3. 근거 및 출처는 접이식(<details>)으로 감싸 어수선함을 줄인다.
+    - 예상 형식(## N. 제목)이 아니면 원문을 그대로 두어 안전하게 처리한다.
+    """
+    verdict, emoji = detect_verdict(text)
+    verdict_line = f"{emoji} **{verdict}**" if verdict else "📋 (판정 확인 불가)"
+    banner = (
+        "# 🛡️ 오픈 데이터셋 법적 리스크 검토 결과\n\n"
+        f"> **대상 데이터셋** &nbsp;`{name or '확인 불가'}`\n"
+        f"> **내부 검토 결과** &nbsp;{verdict_line}\n"
+    )
+
+    matches = list(_SECTION_RE.finditer(text))
+    if len(matches) < 2:
+        return banner + "\n---\n\n" + text  # 형식이 다르면 배너만 추가
+
+    icons = {"1": "🧭", "2": "🔍", "3": "📚"}
+    blocks: list[str] = []
+    for i, m in enumerate(matches):
+        num, sec_title = m.group(1), m.group(2).strip()
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        body = text[start:end].strip().strip("-").strip()
+        icon = icons.get(num, "📄")
+        if num == "1":
+            blocks.append(f"## {icon} 요약 결론\n\n{body}")
+        else:
+            open_attr = " open" if num == "2" else ""
+            blocks.append(
+                f"<details{open_attr}>\n<summary><b>{icon} {num}. {sec_title}</b></summary>\n\n"
+                f"{body}\n\n</details>"
+            )
+    return banner + "\n---\n\n" + "\n\n".join(blocks)
+
+
 def run_review(title: str, body: str) -> str:
     from google import genai
     from google.genai import types
@@ -151,6 +218,7 @@ def run_review(title: str, body: str) -> str:
     model = os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash"
     system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_issue_body(body)
+    name = derive_dataset_name(title, fields)
     user_prompt = build_user_prompt(title, fields)
 
     client = genai.Client(api_key=api_key)
@@ -171,16 +239,19 @@ def run_review(title: str, body: str) -> str:
 
     sources = get_grounding_sources(response)
     text = linkify_citations(text, sources)
+    text = restructure_review(text, name)
     parts = [text]
     if sources:
+        # 그라운딩 출처 목록은 길고 리다이렉트 URL 이라 어수선하므로 접이식으로 감싼다.
         parts.append(
-            "\n---\n\n### 🔎 참고 출처 (Google 검색 그라운딩)\n\n"
+            f"\n<details>\n<summary><b>🔎 참고 출처 (Google 검색 그라운딩) — {len(sources)}건</b></summary>\n\n"
             "본문의 `cite: N` 번호는 아래 동일 번호 출처로 연결됩니다.\n\n"
             + render_sources(sources)
+            + "\n\n</details>"
         )
     parts.append(
         "\n---\n"
-        f"<sub>🤖 자동 생성 (model: `{model}`, Google Search grounding). "
+        f"<sub>🤖 자동 생성 (model: <code>{model}</code>, Google Search grounding) · "
         "본 검토는 회사 내부 사전 리스크 검토용 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
     )
     return "\n".join(parts)

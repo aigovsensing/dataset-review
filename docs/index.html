@@ -6,10 +6,43 @@
   <title>오픈 데이터셋 법적 리스크 검토</title>
   <meta name="description" content="오픈 데이터셋의 라이선스·데이터 생성방식·개인정보 법적 리스크를 자동 검토합니다." />
   <link rel="stylesheet" href="style.css" />
+  <script>
+    // 렌더링 깜빡임(FOUC) 방지: 저장된/시스템 테마를 렌더 전에 적용.
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
 </head>
 <body>
   <header class="site-header">
     <div class="wrap">
+      <button id="theme-toggle" class="theme-toggle" type="button"
+              aria-label="낮/밤 테마 전환" title="낮/밤 테마 전환">
+        <svg class="icon icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.5" fill="currentColor"></circle>
+          <g stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="12" y1="1.5" x2="12" y2="4"></line>
+            <line x1="12" y1="20" x2="12" y2="22.5"></line>
+            <line x1="1.5" y1="12" x2="4" y2="12"></line>
+            <line x1="20" y1="12" x2="22.5" y2="12"></line>
+            <line x1="4.2" y1="4.2" x2="6" y2="6"></line>
+            <line x1="18" y1="18" x2="19.8" y2="19.8"></line>
+            <line x1="4.2" y1="19.8" x2="6" y2="18"></line>
+            <line x1="18" y1="6" x2="19.8" y2="4.2"></line>
+          </g>
+        </svg>
+        <svg class="icon icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z"></path>
+        </svg>
+      </button>
       <h1>🛡️ 오픈 데이터셋 법적 리스크 검토</h1>
       <p class="tagline">
         데이터셋 정보를 입력하면 <strong>라이선스 · 데이터 생성/수집 방식 · 개인정보 포함 여부</strong>를
