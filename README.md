@@ -54,19 +54,33 @@ GitHub 이슈에 검토 결과를 등록하는 프로젝트입니다.
 - **Settings → Actions → General → Workflow permissions**
 - **Read and write permissions** 활성화 (이슈에 댓글/라벨을 달기 위해 필요)
 
-### 4. 다른 저장소로 재배포하는 경우
+### 4. 라벨 생성 (필수) ⚠️
+> **중요:** 이슈 폼 템플릿은 저장소에 **이미 존재하는 라벨만** 자동 적용합니다.
+> `dataset-review` 라벨이 저장소에 없으면 검토 요청 이슈에 라벨이 붙지 않아 워크플로가
+> `Skipped` 됩니다. 아래 라벨을 **미리 생성**해 두어야 합니다.
+
+`gh` CLI로 한 번에 생성:
+```bash
+R=<owner>/<repo>
+gh label create dataset-review --repo $R --color 1d76db --description "검토 요청 (트리거)" --force
+gh label create reviewing      --repo $R --color fbca04 --description "검토 진행 중" --force
+gh label create reviewed       --repo $R --color 0e8a16 --description "검토 완료" --force
+gh label create review-failed  --repo $R --color d73a4a --description "검토 실패" --force
+gh label create rerun-review   --repo $R --color 5319e7 --description "재검토 강제 실행" --force
+```
+
+### 5. 다른 저장소로 재배포하는 경우
 - `docs/config.js` 의 `owner` / `repo` 값을 수정합니다.
+- 위 4번의 라벨 생성을 새 저장소에서도 수행합니다.
 
 ## 라벨
 
-워크플로가 자동으로 관리하는 라벨입니다(없으면 자동 생성됨).
-
 | 라벨 | 의미 |
 | --- | --- |
-| `dataset-review` | 검토 요청 이슈 (트리거) |
-| `reviewing` | 검토 진행 중 |
-| `reviewed` | 검토 완료 |
-| `review-failed` | 검토 실패 (API 키/쿼터 등 확인 필요) |
+| `dataset-review` | 검토 요청 이슈 (트리거). **사전 생성 필요** — 이슈 폼이 이 라벨을 부여 |
+| `reviewing` | 검토 진행 중 (워크플로가 자동 부여/제거) |
+| `reviewed` | 검토 완료 (워크플로가 자동 부여) |
+| `review-failed` | 검토 실패 — API 키/쿼터 등 확인 필요 (워크플로가 자동 부여) |
 | `rerun-review` | 이 라벨을 추가하면 재검토를 강제 실행 |
 
 ## 로컬 실행 / 테스트
