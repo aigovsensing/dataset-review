@@ -83,6 +83,34 @@ gh label create rerun-review   --repo $R --color 5319e7 --description "재검토
 | `review-failed` | 검토 실패 — API 키/쿼터 등 확인 필요 (워크플로가 자동 부여) |
 | `rerun-review` | 이 라벨을 추가하면 재검토를 강제 실행 |
 
+## Gemini API 쿼터 보호
+
+검토 1건 = Gemini API 호출 1회이므로, 무분별한 이슈 생성은 무료 티어 쿼터를 빠르게 소진시킬 수 있습니다.
+이 프로젝트는 다음 장치로 쿼터를 보호합니다.
+
+- **트리거 권한 제한 (핵심):** 워크플로는 이슈 작성자가 저장소 `OWNER` / `MEMBER` / `COLLABORATOR`
+  인 경우에만 검토를 실행합니다(`author_association` 검사). 외부인이 이슈를 열어도 검토(=Gemini 호출)가
+  실행되지 않습니다. 사외 사용자에게도 개방하려면 `.github/workflows/dataset-review.yml` 의 `if`
+  조건에서 이 검사를 완화하세요.
+- **중복 실행 방지:** `reviewed` 라벨이 붙은 이슈는 재검토되지 않습니다(재검토는 `rerun-review` 라벨로만).
+- **동시 실행 직렬화:** `concurrency` 설정으로 같은 이슈의 중복 이벤트를 취소해 이중 호출을 막습니다.
+
+> ⚠️ 참고: 저장소 설정의 **"Allow GitHub Actions to create and approve pull requests"** 옵션은
+> `GITHUB_TOKEN` 의 PR 생성/승인 권한만 제어하며, **워크플로 실행 횟수나 Gemini 호출과 무관**하므로
+> 쿼터 보호에는 효과가 없습니다. (이 프로젝트는 PR을 만들지 않으므로 꺼도 무방합니다.)
+
+## 소송 리스크 검토 (AI 학습 데이터 무단 활용)
+
+데이터셋이 AI 학습 데이터 무단 활용 소송의 대상인 경우, 검토 요청 시
+**관련 소송(CourtListener 등) URL** 을 함께 입력할 수 있습니다. 입력하면 검토 결과에
+`3. 소송 리스크` 섹션이 추가되어 다음을 정리합니다.
+
+- **원고가 침해를 어떻게 입증했는가**를 근거 강도 **강 / 중 / 약** 으로 분류
+  - **강(强)** — 피고의 논문·법정 문서 자인, 법원 사실인정·디스커버리
+  - **중(中)** — 제3자 조사, 모델 자기 진술, "on information and belief" 등 논증적 추론
+  - **약(弱)** — 명칭만 언급, 본문 근거 부재
+- 근거가 된 **소장 원문 문장 직접 인용 + 항 번호** 표기 후 한국어 요약
+
 ## 로컬 실행 / 테스트
 
 ```bash
@@ -103,3 +131,13 @@ python scripts/review.py            # review.md 생성
 
 - 검토 지침(시스템 프롬프트)은 `scripts/system_prompt.md` 에서 수정할 수 있습니다.
 - Gemini의 Google 검색 그라운딩을 사용하므로 검토 결과에는 참조한 공식 출처 URL이 함께 첨부됩니다.
+- API 키 동작 확인은 `tools/gemini_api_key_test.sh` 로 테스트할 수 있습니다.
+
+## 라이선스
+
+이 프로젝트는 [Apache License 2.0](LICENSE) 하에 배포됩니다.
+
+> 🍺 **The Beer Clause (선택 사항, 법적 효력 없음):**
+> 이 프로젝트가 마음에 들고 언젠가 제작자를 만나게 된다면, 맥주 한잔 사주셔도 좋습니다.
+> 물론 의무는 아닙니다 — 정식 라이선스는 위의 Apache 2.0 입니다. 🍻
+> _("법적 리스크 검토" 도구가 법적으로 모호한 Beerware를 쓸 수는 없어, 안전한 Apache 2.0 에 재미만 얹었습니다.)_

@@ -29,6 +29,7 @@ FIELD_LABELS = {
     "관련 / 원본 데이터셋": "related_datasets",
     "논문 주소 (URL)": "paper_urls",
     "공식 홈페이지 / 저장소 URL": "homepage_url",
+    "관련 소송 (CourtListener URL)": "litigation_url",
     "추가 참고 사항": "extra_notes",
 }
 
@@ -78,8 +79,15 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
         lines.append(f"- 논문 주소: {fields['paper_urls']}")
     if fields.get("homepage_url"):
         lines.append(f"- 공식 홈페이지 / 저장소: {fields['homepage_url']}")
+    if fields.get("litigation_url"):
+        lines.append(f"- 관련 소송 (CourtListener): {fields['litigation_url']}")
     if fields.get("extra_notes"):
         lines.append(f"- 추가 참고 사항: {fields['extra_notes']}")
+    if fields.get("litigation_url"):
+        lines.append(
+            "\n위 소송 URL 이 제공되었으므로 시스템 지침의 [소송 리스크 검토]를 반드시 수행하고, "
+            "출력의 '3. 소송 리스크' 섹션에 근거 강도(강/중/약)와 소장 원문 인용·요약을 포함한다."
+        )
     lines += [
         "",
         "출력은 시스템 지침의 [출력 형식]을 정확히 따른다.",
@@ -232,7 +240,7 @@ def restructure_review(text: str, name: str) -> str:
     if len(matches) < 2:
         return banner + "\n---\n\n" + text  # 형식이 다르면 배너만 추가
 
-    icons = {"1": "🧭", "2": "🔍", "3": "📚"}
+    icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "📚"}
     blocks: list[str] = []
     for i, m in enumerate(matches):
         num, sec_title = m.group(1), m.group(2).strip()

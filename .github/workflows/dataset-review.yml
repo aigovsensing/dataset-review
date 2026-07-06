@@ -16,9 +16,15 @@ permissions:
 
 jobs:
   review:
-    # 'dataset-review' 라벨이 있고 아직 'reviewed' 처리되지 않은 이슈만 검토.
-    # 수동 재검토는 'rerun-review' 라벨을 붙여 트리거한다.
+    # 검토 실행 조건:
+    #  1) 이슈 작성자가 저장소 OWNER/MEMBER/COLLABORATOR 여야 한다.
+    #     → 외부인의 무분별한 이슈 생성으로 인한 Gemini API 쿼터 소진을 방지.
+    #  2) 'dataset-review' 라벨이 있고 아직 'reviewed' 처리되지 않은 이슈만 검토.
+    #     수동 재검토는 'rerun-review' 라벨을 붙여 트리거한다.
     if: >
+      ( github.event.issue.author_association == 'OWNER' ||
+        github.event.issue.author_association == 'MEMBER' ||
+        github.event.issue.author_association == 'COLLABORATOR' ) &&
       contains(github.event.issue.labels.*.name, 'dataset-review') &&
       ( !contains(github.event.issue.labels.*.name, 'reviewed') ||
         github.event.label.name == 'rerun-review' )

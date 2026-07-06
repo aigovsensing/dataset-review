@@ -93,6 +93,16 @@
           </label>
 
           <label class="field">
+            <span class="field-label">관련 소송 (CourtListener URL)</span>
+            <textarea id="litigation-url" name="litigation-url" rows="2"
+                      placeholder="https://www.courtlistener.com/docket/... (AI 학습 데이터 무단 활용 소송 대상인 경우)"></textarea>
+            <span class="field-hint">
+              데이터셋이 AI 학습 데이터 무단 활용 소송의 대상인 경우, 해당 소송(소장) 주소를 입력하면
+              「원고가 침해를 어떻게 입증했는가(근거 강도)」와 소장 원문 인용·요약을 함께 검토합니다.
+            </span>
+          </label>
+
+          <label class="field">
             <span class="field-label">추가 참고 사항</span>
             <textarea id="extra-notes" name="extra-notes" rows="3"
                       placeholder="검토 시 참고할 특이사항이나 요청사항"></textarea>

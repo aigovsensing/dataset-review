@@ -48,6 +48,17 @@ body:
     validations:
       required: false
   - type: textarea
+    id: litigation-url
+    attributes:
+      label: 관련 소송 (CourtListener URL)
+      description: >
+        데이터셋이 AI 학습 데이터 무단 활용 소송의 대상인 경우 해당 소송(소장) 주소를 입력합니다.
+        입력 시 「원고가 침해를 어떻게 입증했는가(근거 강도: 강/중/약)」와 소장 원문 인용·요약을 함께 검토합니다.
+      placeholder: |
+        https://www.courtlistener.com/docket/...
+    validations:
+      required: false
+  - type: textarea
     id: extra-notes
     attributes:
       label: 추가 참고 사항
