@@ -149,6 +149,25 @@ _VERDICTS = [
 ]
 
 _SECTION_RE = re.compile(r"^##\s+(\d+)\.\s*(.+?)\s*$", re.MULTILINE)
+# 상세 분석 h2 헤더(번호 유무 무관)
+_DETAIL_H2_RE = re.compile(r"^##\s+(?:\d+\.\s*)?.*상세\s*분석", re.MULTILINE)
+# 상세 분석에 속하는 h3 서브섹션 시작 표지
+_DETAIL_H3_RE = re.compile(r"^###\s+(?:라이선스|데이터\s*생성|개인정보)", re.MULTILINE)
+
+
+def ensure_detail_section_header(text: str) -> str:
+    """모델이 '## 2. 항목별 상세 분석' 헤더를 생략한 경우 자동으로 삽입.
+
+    일부 실행에서 모델이 상세 분석 h2 헤더 없이 곧바로 h3 서브섹션을 출력해
+    상세 분석이 요약 섹션에 흡수되는 것을 방지한다.
+    """
+    if _DETAIL_H2_RE.search(text):
+        return text
+    m = _DETAIL_H3_RE.search(text)
+    if not m:
+        return text
+    idx = m.start()
+    return text[:idx] + "## 2. 항목별 상세 분석\n\n" + text[idx:]
 
 
 def detect_verdict(text: str) -> tuple[str | None, str]:
@@ -172,6 +191,7 @@ def restructure_review(text: str, name: str) -> str:
     - 2. 항목별 상세 분석 / 3. 근거 및 출처는 접이식(<details>)으로 감싸 어수선함을 줄인다.
     - 예상 형식(## N. 제목)이 아니면 원문을 그대로 두어 안전하게 처리한다.
     """
+    text = ensure_detail_section_header(text)
     verdict, emoji = detect_verdict(text)
     verdict_line = f"{emoji} **{verdict}**" if verdict else "📋 (판정 확인 불가)"
     banner = (
