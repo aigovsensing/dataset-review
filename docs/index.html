@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>오픈 데이터셋 법적 리스크 검토</title>
+  <meta name="description" content="오픈 데이터셋의 라이선스·데이터 생성방식·개인정보 법적 리스크를 자동 검토합니다." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1>🛡️ 오픈 데이터셋 법적 리스크 검토</h1>
+      <p class="tagline">
+        데이터셋 정보를 입력하면 <strong>라이선스 · 데이터 생성/수집 방식 · 개인정보 포함 여부</strong>를
+        자동 검토하여 GitHub 이슈에 결과를 등록합니다.
+      </p>
+    </div>
+  </header>
+
+  <nav class="tabs wrap" role="tablist">
+    <button class="tab active" data-tab="request" role="tab">📝 검토 요청</button>
+    <button class="tab" data-tab="results" role="tab">📋 검토 결과</button>
+    <button class="tab" data-tab="how" role="tab">ℹ️ 이용 안내</button>
+  </nav>
+
+  <main class="wrap">
+    <!-- 검토 요청 -->
+    <section id="tab-request" class="tab-panel active">
+      <div class="card">
+        <p class="notice">
+          아래 정보를 입력하고 <strong>검토 요청</strong>을 누르면 GitHub 이슈 작성 페이지가 열립니다.
+          내용을 확인한 뒤 <em>Submit new issue</em> 버튼을 누르면 검토가 자동으로 시작됩니다.
+          <span class="dim">(GitHub 로그인이 필요합니다.)</span>
+        </p>
+
+        <form id="review-form">
+          <label class="field">
+            <span class="field-label">데이터셋 명칭 <span class="req">*</span></span>
+            <input type="text" id="dataset-name" name="dataset-name" required
+                   placeholder="예) CelebA, LAION-5B, COCO, Common Voice" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">관련 / 원본 데이터셋</span>
+            <textarea id="related-datasets" name="related-datasets" rows="2"
+                      placeholder="예) COCO 2017 기반, ImageNet 일부 사용"></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">논문 주소 (URL)</span>
+            <textarea id="paper-urls" name="paper-urls" rows="2"
+                      placeholder="https://arxiv.org/abs/xxxx.xxxxx (여러 개면 줄바꿈)"></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">공식 홈페이지 / 저장소 URL</span>
+            <textarea id="homepage-url" name="homepage-url" rows="2"
+                      placeholder="https://github.com/...&#10;https://huggingface.co/datasets/..."></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">추가 참고 사항</span>
+            <textarea id="extra-notes" name="extra-notes" rows="3"
+                      placeholder="검토 시 참고할 특이사항이나 요청사항"></textarea>
+          </label>
+
+          <div class="actions">
+            <button type="submit" class="btn primary">🚀 검토 요청 (GitHub 이슈 생성)</button>
+            <button type="button" id="preview-btn" class="btn ghost">미리보기</button>
+          </div>
+        </form>
+
+        <details id="preview" class="preview">
+          <summary>이슈에 전달될 내용 미리보기</summary>
+          <pre id="preview-body"></pre>
+        </details>
+      </div>
+
+      <div class="card checklist">
+        <h3>자동 검토 항목</h3>
+        <ul>
+          <li><strong>라이선스</strong> — 라이선스 종류, 상업적 이용/AI 학습 가능 여부, 재배포 제한</li>
+          <li><strong>데이터 생성·수집 방식</strong> — 직접 수집 / 생성형 AI / 시뮬레이터, Upstream 데이터셋</li>
+          <li><strong>개인정보 포함 여부</strong> — 얼굴·음성·이름 등 식별정보, 동의·활용 범위</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 검토 결과 -->
+    <section id="tab-results" class="tab-panel">
+      <div class="card">
+        <div class="results-head">
+          <h3>검토 결과 목록</h3>
+          <button id="refresh-btn" class="btn ghost small">새로고침</button>
+        </div>
+        <p class="dim">최근 검토 요청 이슈입니다. 항목을 클릭하면 GitHub 이슈에서 상세 결과를 볼 수 있습니다.</p>
+        <div id="results-list" class="results-list">
+          <p class="dim">불러오는 중…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 이용 안내 -->
+    <section id="tab-how" class="tab-panel">
+      <div class="card">
+        <h3>이용 방법</h3>
+        <ol class="how">
+          <li><strong>검토 요청</strong> 탭에서 데이터셋 명칭과 관련 URL을 입력합니다.</li>
+          <li><strong>검토 요청</strong> 버튼을 누르면 GitHub 이슈 작성 페이지가 자동으로 채워진 채 열립니다.</li>
+          <li>내용을 확인하고 <em>Submit new issue</em>를 누르면 이슈가 생성됩니다.</li>
+          <li>GitHub Actions가 이슈를 감지하여 <strong>Gemini(Google AI Studio) + Google 검색</strong>으로 법적 리스크를 검토합니다.</li>
+          <li>검토 결과가 해당 이슈에 댓글로 자동 등록됩니다. <strong>검토 결과</strong> 탭에서 목록을 확인할 수 있습니다.</li>
+        </ol>
+        <div class="disclaimer">
+          ⚠️ 본 검토 결과는 <strong>회사 내부 사전 리스크 검토용 참고 자료</strong>이며,
+          법률 자문이나 법적 판단을 대체하지 않습니다. 확인되지 않은 사항은 "확인 불가"로 표기되며,
+          이 경우 내부 검토 기준에 따라 잠재적 법적 리스크가 있는 것으로 판단합니다.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <span>오픈 데이터셋 법적 리스크 검토 에이전트</span>
+    <a id="repo-link" href="#" target="_blank" rel="noopener">GitHub 저장소</a>
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

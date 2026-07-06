@@ -1,0 +1,78 @@
+name: 오픈 데이터셋 법적 리스크 검토
+
+on:
+  issues:
+    types: [opened, labeled]
+
+# 같은 이슈에 대해 opened/labeled 이벤트가 동시에 도착해도 중복 검토가 실행되지 않도록
+# 이슈 번호 기준으로 직렬화하고, 진행 중인 실행은 취소한다.
+concurrency:
+  group: dataset-review-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  review:
+    # 'dataset-review' 라벨이 있고 아직 'reviewed' 처리되지 않은 이슈만 검토.
+    # 수동 재검토는 'rerun-review' 라벨을 붙여 트리거한다.
+    if: >
+      contains(github.event.issue.labels.*.name, 'dataset-review') &&
+      ( !contains(github.event.issue.labels.*.name, 'reviewed') ||
+        github.event.label.name == 'rerun-review' )
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: pip install -r scripts/requirements.txt
+
+      - name: 검토 시작 알림
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-label "reviewing" --repo "$GITHUB_REPOSITORY" || true
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "🤖 자동 법적 리스크 검토를 시작합니다. 잠시만 기다려 주세요 (보통 1~3분 소요)."
+
+      - name: 법적 리스크 검토 실행
+        id: run_review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REVIEW_OUTPUT: review.md
+        run: python scripts/review.py
+        continue-on-error: true
+
+      - name: 검토 결과 이슈 댓글 등록
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file review.md
+
+      - name: 라벨 정리
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REVIEW_OUTCOME: ${{ steps.run_review.outcome }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "reviewing" || true
+          gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "rerun-review" || true
+          if [ "$REVIEW_OUTCOME" = "success" ]; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "reviewed" || true
+          else
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "review-failed" || true
+          fi

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 검토 요청 홈페이지
+    url: https://aigovsensing.github.io/dataset-review/
+    about: 웹 폼을 통해 데이터셋 정보를 입력하고 검토를 요청합니다.

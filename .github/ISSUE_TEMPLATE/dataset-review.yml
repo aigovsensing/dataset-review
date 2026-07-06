@@ -1,0 +1,62 @@
+name: 오픈 데이터셋 법적 리스크 검토 요청
+description: 오픈 데이터셋의 라이선스·생성방식·개인정보 법적 리스크 자동 검토를 요청합니다.
+title: "[검토] "
+labels: ["dataset-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 오픈 데이터셋 법적 리스크 검토 요청
+        아래 정보를 입력하면 자동 검토 에이전트(Gemini + Google 검색)가
+        **라이선스 / 데이터 생성·수집 방식 / 개인정보 포함 여부**를 검토하여
+        이 이슈에 검토 결과를 댓글로 등록합니다.
+
+        > 본 검토는 회사 내부 사전 리스크 검토용 참고 자료이며, 법률 자문을 대체하지 않습니다.
+  - type: input
+    id: dataset-name
+    attributes:
+      label: 데이터셋 명칭
+      description: 검토할 오픈 데이터셋의 정식 명칭
+      placeholder: 예) CelebA, LAION-5B, COCO, Common Voice
+    validations:
+      required: true
+  - type: textarea
+    id: related-datasets
+    attributes:
+      label: 관련 / 원본 데이터셋
+      description: 이 데이터셋이 기반으로 하는 원본(Upstream) 데이터셋이 있다면 입력합니다.
+      placeholder: 예) COCO 2017 기반, ImageNet 일부 사용
+    validations:
+      required: false
+  - type: textarea
+    id: paper-urls
+    attributes:
+      label: 논문 주소 (URL)
+      description: 데이터셋 논문 주소(arXiv, DOI 등). 여러 개면 줄바꿈으로 구분합니다.
+      placeholder: |
+        https://arxiv.org/abs/xxxx.xxxxx
+    validations:
+      required: false
+  - type: textarea
+    id: homepage-url
+    attributes:
+      label: 공식 홈페이지 / 저장소 URL
+      description: 공식 프로젝트 페이지, GitHub, Hugging Face, LICENSE 문서 등의 URL
+      placeholder: |
+        https://github.com/...
+        https://huggingface.co/datasets/...
+    validations:
+      required: false
+  - type: textarea
+    id: extra-notes
+    attributes:
+      label: 추가 참고 사항
+      description: 검토 시 참고할 특이사항이나 요청사항이 있다면 입력합니다.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        제출하면 자동으로 `dataset-review` 라벨이 부여되고 검토가 시작됩니다.
+        검토에는 보통 1~3분이 소요됩니다.
