@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -259,6 +260,31 @@ def restructure_review(text: str, name: str) -> str:
     return banner + "\n---\n\n" + "\n\n".join(blocks)
 
 
+# 일시적으로 재시도할 가치가 있는 오류(서버 과부하/속도 제한 등)
+_RETRIABLE_MARKERS = ("503", "500", "502", "504", "UNAVAILABLE", "high demand", "RESOURCE_EXHAUSTED", "429")
+
+
+def generate_with_retry(client, model, contents, config, attempts: int = 4, base_delay: float = 5.0):
+    """Gemini 호출을 일시적 오류(예: 503 high demand, 429)에 대해 지수 백오프로 재시도."""
+    delay = base_delay
+    last_exc: Exception | None = None
+    for i in range(attempts):
+        try:
+            return client.models.generate_content(model=model, contents=contents, config=config)
+        except Exception as exc:  # noqa: BLE001 - 재시도 판단 후 마지막에 재발생
+            last_exc = exc
+            code = getattr(exc, "code", None)
+            msg = str(exc)
+            retriable = code in (429, 500, 502, 503, 504) or any(m in msg for m in _RETRIABLE_MARKERS)
+            if not retriable or i == attempts - 1:
+                raise
+            print(f"일시적 오류로 재시도 ({i + 1}/{attempts - 1}), {delay:.0f}s 대기: {msg[:120]}", file=sys.stderr)
+            time.sleep(delay)
+            delay = min(delay * 2, 40.0)
+    assert last_exc is not None  # 도달하지 않음
+    raise last_exc
+
+
 def run_review(title: str, body: str) -> str:
     from google import genai
     from google.genai import types
@@ -283,11 +309,7 @@ def run_review(title: str, body: str) -> str:
         tools=[types.Tool(google_search=types.GoogleSearch())],
         temperature=0.2,
     )
-    response = client.models.generate_content(
-        model=model,
-        contents=user_prompt,
-        config=config,
-    )
+    response = generate_with_retry(client, model, user_prompt, config)
 
     text = (response.text or "").strip()
     if not text:
