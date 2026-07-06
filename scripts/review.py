@@ -113,7 +113,8 @@ def run_review(title: str, body: str) -> str:
             "저장소 Settings → Secrets → Actions 에 GEMINI_API_KEY 를 등록하세요."
         )
 
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    # 빈 문자열(예: 미설정 GitHub 변수 vars.GEMINI_MODEL)도 기본값으로 대체되도록 `or` 사용
+    model = os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash"
     system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_issue_body(body)
     user_prompt = build_user_prompt(title, fields)
