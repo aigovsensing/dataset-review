@@ -141,6 +141,34 @@ def render_sources(sources: list[tuple[str, str]]) -> str:
     )
 
 
+# GitHub 이슈/댓글 본문 최대 길이(65,536자)보다 안전 여유를 둔 상한
+MAX_COMMENT_CHARS = 64000
+
+
+def sanitize_markdown(text: str) -> str:
+    """모델 출력의 병리적 패턴을 정리한다.
+
+    - 표 구분선 등에서 나타나는 과도한 대시 연속(수천~수십만 개)을 3개로 축소.
+      (실제로 gemini 가 40만 자짜리 구분선을 생성해 댓글 길이 제한을 초과한 사례)
+    - 4개 이상 연속된 공백 줄을 2개로 축소.
+    """
+    text = re.sub(r"-{4,}", "---", text)
+    text = re.sub(r"={4,}", "===", text)
+    text = re.sub(r"\n{4,}", "\n\n\n", text)
+    return text
+
+
+def enforce_length_limit(text: str, limit: int = MAX_COMMENT_CHARS) -> str:
+    """GitHub 댓글 길이 제한을 넘으면 안전하게 잘라내고 안내를 덧붙인다."""
+    if len(text) <= limit:
+        return text
+    notice = (
+        "\n\n---\n> ⚠️ 검토 내용이 GitHub 댓글 길이 제한(65,536자)을 초과하여 "
+        "이후 내용이 생략되었습니다. 전체 내용은 검토 로그를 참고하세요."
+    )
+    return text[: limit - len(notice)].rstrip() + notice
+
+
 # 판정 → (배지 이모지, 색상 라벨). 가장 보수적인 순서로 탐색한다.
 _VERDICTS = [
     ("사용 비권고", "⛔"),
@@ -257,6 +285,7 @@ def run_review(title: str, body: str) -> str:
     if not text:
         raise RuntimeError("Gemini 응답이 비어 있습니다. 모델/쿼터 상태를 확인하세요.")
 
+    text = sanitize_markdown(text)
     sources = get_grounding_sources(response)
     text = linkify_citations(text, sources)
     text = restructure_review(text, name)
@@ -274,7 +303,7 @@ def run_review(title: str, body: str) -> str:
         f"<sub>🤖 자동 생성 (model: <code>{model}</code>, Google Search grounding) · "
         "본 검토는 회사 내부 사전 리스크 검토용 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
     )
-    return "\n".join(parts)
+    return enforce_length_limit("\n".join(parts))
 
 
 def main() -> int:
