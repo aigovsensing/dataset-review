@@ -25,10 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 저장소 체크아웃
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Python 설정
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -48,7 +48,9 @@ jobs:
         id: run_review
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          # 저장소 변수 vars.GEMINI_MODEL 이 없으면 빈 문자열이 되어 스크립트가 실패하므로
+          # 워크플로 레벨에서도 기본 모델로 대체한다(스크립트 내 방어와 이중 안전장치).
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           REVIEW_OUTPUT: review.md
@@ -76,3 +78,12 @@ jobs:
           else
             gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "review-failed" || true
           fi
+
+      - name: 검토 실패 시 run 을 실패로 표시
+        # 위 단계에서 실패 사유는 이미 이슈 댓글과 review-failed 라벨로 남긴다.
+        # 여기서 잡을 실패시켜, 검토가 실패했는데도 run 이 초록색(success)으로
+        # 보이는 오해를 방지한다.
+        if: steps.run_review.outcome != 'success'
+        run: |
+          echo "::error::법적 리스크 검토 실행이 실패했습니다. 이슈 댓글의 오류 메시지를 확인하세요."
+          exit 1
