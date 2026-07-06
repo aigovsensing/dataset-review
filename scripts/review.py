@@ -82,24 +82,58 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
-def extract_grounding_sources(response) -> list[str]:
-    """Gemini 응답의 그라운딩 메타데이터에서 참조 URL 목록을 추출."""
-    urls: list[str] = []
+def get_grounding_sources(response) -> list[tuple[str, str]]:
+    """그라운딩 메타데이터에서 (제목, URL) 목록을 원본 순서 그대로 반환.
+
+    반환 리스트의 인덱스 i 는 인용 번호 i+1 에 대응한다(중복 제거하지 않음).
+    모델이 본문에 남기는 `cite: N` 의 N 이 이 순서를 따르므로 순서를 보존한다.
+    """
+    sources: list[tuple[str, str]] = []
     try:
-        for cand in response.candidates or []:
-            meta = getattr(cand, "grounding_metadata", None)
-            if not meta:
-                continue
-            for chunk in getattr(meta, "grounding_chunks", None) or []:
-                web = getattr(chunk, "web", None)
-                if web and getattr(web, "uri", None):
-                    title = getattr(web, "title", "") or web.uri
-                    entry = f"- [{title}]({web.uri})"
-                    if entry not in urls:
-                        urls.append(entry)
+        cand = (response.candidates or [None])[0]
+        meta = getattr(cand, "grounding_metadata", None) if cand else None
+        for chunk in (getattr(meta, "grounding_chunks", None) or []) if meta else []:
+            web = getattr(chunk, "web", None)
+            if web and getattr(web, "uri", None):
+                title = (getattr(web, "title", "") or web.uri).strip()
+                sources.append((title, web.uri))
     except Exception:  # noqa: BLE001 - 그라운딩 메타데이터는 부가 정보이므로 실패해도 무시
         pass
-    return urls
+    return sources
+
+
+# 모델이 본문에 남기는 인용 표기(예: "cite: 2, 8", "cite:2") 를 잡아낸다.
+_CITE_RE = re.compile(r"(cite\s*:\s*)([0-9][0-9,\s]*)", re.IGNORECASE)
+
+
+def linkify_citations(text: str, sources: list[tuple[str, str]]) -> str:
+    """본문의 `cite: N` 안 숫자를 실제 출처 URL 로 가는 마크다운 링크로 변환.
+
+    - `cite:` 문맥 안의 숫자만 대상으로 하여 버전 번호(예: 'CC BY 4.0') 오인식을 방지한다.
+    - N 이 출처 개수 범위를 벗어나면 링크로 만들지 않고 원문 숫자를 유지한다.
+    - GitHub 이슈 댓글은 커스텀 앵커(id/name)를 제거하므로 외부 URL 로 직접 링크한다.
+    """
+    if not sources:
+        return text
+
+    def _num_to_link(num_match: re.Match) -> str:
+        n = int(num_match.group(0))
+        if 1 <= n <= len(sources):
+            return f"[{n}]({sources[n - 1][1]})"
+        return num_match.group(0)
+
+    def _repl(m: re.Match) -> str:
+        prefix, numbers = m.group(1), m.group(2)
+        return prefix + re.sub(r"\d+", _num_to_link, numbers)
+
+    return _CITE_RE.sub(_repl, text)
+
+
+def render_sources(sources: list[tuple[str, str]]) -> str:
+    """인용 번호와 일치하는 번호 매김 출처 목록을 마크다운으로 렌더링."""
+    return "\n".join(
+        f"{i + 1}. [{title}]({uri})" for i, (title, uri) in enumerate(sources)
+    )
 
 
 def run_review(title: str, body: str) -> str:
@@ -135,10 +169,15 @@ def run_review(title: str, body: str) -> str:
     if not text:
         raise RuntimeError("Gemini 응답이 비어 있습니다. 모델/쿼터 상태를 확인하세요.")
 
-    sources = extract_grounding_sources(response)
+    sources = get_grounding_sources(response)
+    text = linkify_citations(text, sources)
     parts = [text]
     if sources:
-        parts.append("\n---\n\n### 🔎 Google 검색 그라운딩 출처\n\n" + "\n".join(sources))
+        parts.append(
+            "\n---\n\n### 🔎 참고 출처 (Google 검색 그라운딩)\n\n"
+            "본문의 `cite: N` 번호는 아래 동일 번호 출처로 연결됩니다.\n\n"
+            + render_sources(sources)
+        )
     parts.append(
         "\n---\n"
         f"<sub>🤖 자동 생성 (model: `{model}`, Google Search grounding). "
