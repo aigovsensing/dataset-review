@@ -364,29 +364,37 @@ def run_review(title: str, body: str) -> str:
     except Exception:  # noqa: BLE001 - 구버전 SDK 호환
         config = types.GenerateContentConfig(**base_config)
 
-    response = generate_with_retry(client, model, user_prompt, config)
-
-    text = (response.text or "").strip()
-
-    # 진단 로깅은 빈-응답 판정보다 **먼저** 수행한다(빈 응답의 원인 파악을 위해).
+    # 출력이 MAX_TOKENS 로 잘리면(예: 표 구분선 대시 폭주) 최대 1회 재생성한다.
+    # 대시/반복 폭주는 간헐적이라 재시도로 온전한 결과를 얻을 확률이 높다.
+    response = None
+    text = ""
     finish_reason = ""
-    try:
-        finish_reason = str(response.candidates[0].finish_reason or "")
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        um = response.usage_metadata
-        print(
-            f"[diag] finish_reason={finish_reason} "
-            f"prompt={getattr(um, 'prompt_token_count', '?')} "
-            f"thoughts={getattr(um, 'thoughts_token_count', '?')} "
-            f"output={getattr(um, 'candidates_token_count', '?')} "
-            f"total={getattr(um, 'total_token_count', '?')} "
-            f"text_chars={len(text)}",
-            file=sys.stderr,
-        )
-    except Exception:  # noqa: BLE001
-        pass
+    for attempt in range(2):
+        response = generate_with_retry(client, model, user_prompt, config)
+        text = (response.text or "").strip()
+        finish_reason = ""
+        try:
+            finish_reason = str(response.candidates[0].finish_reason or "")
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            um = response.usage_metadata
+            print(
+                f"[diag] attempt={attempt + 1} finish_reason={finish_reason} "
+                f"prompt={getattr(um, 'prompt_token_count', '?')} "
+                f"thoughts={getattr(um, 'thoughts_token_count', '?')} "
+                f"output={getattr(um, 'candidates_token_count', '?')} "
+                f"total={getattr(um, 'total_token_count', '?')} "
+                f"text_chars={len(text)}",
+                file=sys.stderr,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        # 정상 종료이고 내용이 있으면 채택
+        if text and "MAX_TOKENS" not in finish_reason:
+            break
+        if attempt == 0:
+            print("출력이 잘려(MAX_TOKENS) 1회 재생성합니다.", file=sys.stderr)
 
     if not text:
         raise RuntimeError(
