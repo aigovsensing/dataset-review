@@ -5,23 +5,34 @@ GitHub 이슈에 검토 결과를 등록하는 프로젝트입니다.
 
 > 본 검토는 **회사 내부의 사전 리스크 검토용 참고 자료**이며, 법률 자문이나 법적 판단을 대체하지 않습니다.
 
+## 🧩 한눈에 보기
+
+**사용자 입력 → GitHub 이슈 → 자동 검토(Gemini) → 결과 열람** 이 하나의 서버리스 파이프라인으로 연결됩니다.
+
+```mermaid
+flowchart LR
+    U(["👤 사용자"]) -->|"정보 입력"| FORM["📝 검토 요청 폼<br/>docs/ 홈페이지"]
+    FORM -->|"이슈 폼 prefill"| ISSUE["🗂️ GitHub 이슈<br/>dataset-review 라벨"]
+    ISSUE -->|"생성 감지"| ACT["🤖 Actions · review.py<br/>Gemini + Google 검색 · 1회"]
+    ACT -->|"검토 보고서 등록"| COMMENT["💬 이슈 댓글<br/>+ reviewed 라벨"]
+    COMMENT -->|"열람"| BOARD["📋 결과 게시판<br/>검색 · 페이지네이션"]
+    BOARD --> U
+    classDef ai fill:#fff3cd,stroke:#e0a800,color:#111;
+    classDef gh fill:#dbeafe,stroke:#3b82f6,color:#111;
+    class ACT ai;
+    class ISSUE,COMMENT gh;
+```
+
+| 컴포넌트 | 역할 | 한 줄 설명 |
+| --- | --- | --- |
+| [`docs/`](docs/) | 🖥️ 입력·열람 | 검토 요청 폼 + 결과 게시판(검색·페이지네이션·낮밤 테마·접근 암호 게이트) |
+| [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/dataset-review.yml) | 📨 접수 | 홈페이지가 prefill 하는 검토 요청 이슈 폼 |
+| [`.github/workflows/`](.github/workflows/dataset-review.yml) | ⚙️ 자동화 | 이슈 감지 → 검토 실행 → 결과 댓글·라벨 처리(무료 쿼터 보호 포함) |
+| [`scripts/review.py`](scripts/review.py) + [`system_prompt.md`](scripts/system_prompt.md) | 🤖 검토 엔진 | Gemini(구글 검색 그라운딩) **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석 |
+
 ## 동작 방식
 
-```
-[사용자] ──▶ GitHub Pages 홈페이지(docs/) : 데이터셋 정보 입력
-        ──▶ "검토 요청" 클릭 → 이슈 폼이 자동 채워진 새 이슈 페이지 열림
-        ──▶ Submit → GitHub 이슈 생성 ('dataset-review' 라벨 부여)
-                    │
-                    ▼
-        [GitHub Actions] 이슈 감지 → scripts/review.py 실행 (Gemini 호출 1회)
-                    │  Google AI Studio(Gemini) + Google 검색 그라운딩
-                    │  (입력된 논문·홈페이지·저장소 URL 을 검색해 원문 근거로 인용)
-                    ▼
-        검토 결과를 해당 이슈에 댓글로 등록 → 'reviewed' 라벨
-                    │
-                    ▼
-[사용자] ──▶ 홈페이지 "검토 결과" 탭 또는 GitHub 이슈에서 결과 열람
-```
+위 파이프라인의 특징은 다음과 같습니다.
 
 - **백엔드 서버 없음**: 정적 홈페이지 + GitHub 이슈 폼 + GitHub Actions로만 동작합니다.
 - **API 키 노출 없음**: Gemini API 키는 GitHub Secrets에만 저장됩니다.
