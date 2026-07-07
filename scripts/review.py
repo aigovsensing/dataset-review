@@ -304,16 +304,38 @@ def run_review(title: str, body: str) -> str:
     user_prompt = build_user_prompt(title, fields)
 
     client = genai.Client(api_key=api_key)
-    config = types.GenerateContentConfig(
+    base_config = dict(
         system_instruction=system_prompt,
         tools=[types.Tool(google_search=types.GoogleSearch())],
         temperature=0.2,
+        max_output_tokens=32768,
     )
+    # gemini-2.5 계열의 동적 thinking 이 출력 토큰 예산을 모두 소진해 답변이 중간에
+    # 잘리는 문제를 방지하기 위해 thinking 예산을 제한한다(미지원 SDK/모델이면 무시).
+    try:
+        config = types.GenerateContentConfig(
+            **base_config,
+            thinking_config=types.ThinkingConfig(thinking_budget=8192),
+        )
+    except Exception:  # noqa: BLE001 - 구버전 SDK 호환
+        config = types.GenerateContentConfig(**base_config)
+
     response = generate_with_retry(client, model, user_prompt, config)
 
     text = (response.text or "").strip()
     if not text:
-        raise RuntimeError("Gemini 응답이 비어 있습니다. 모델/쿼터 상태를 확인하세요.")
+        raise RuntimeError(
+            "Gemini 응답이 비어 있습니다. 모델이 답변 없이 종료했거나 thinking 예산을 "
+            "모두 소진했을 수 있습니다. 잠시 후 재시도하세요."
+        )
+
+    # 출력이 토큰 한도로 중간에 잘렸는지 확인
+    finish_reason = ""
+    try:
+        finish_reason = str(response.candidates[0].finish_reason or "")
+    except Exception:  # noqa: BLE001
+        pass
+    truncated = "MAX_TOKENS" in finish_reason
 
     text = sanitize_markdown(text)
     sources = get_grounding_sources(response)
@@ -327,6 +349,11 @@ def run_review(title: str, body: str) -> str:
             "본문의 `cite: N` 번호는 아래 동일 번호 출처로 연결됩니다.\n\n"
             + render_sources(sources)
             + "\n\n</details>"
+        )
+    if truncated:
+        parts.append(
+            "\n> ⚠️ 모델 출력이 토큰 한도로 중간에 잘렸을 수 있습니다. "
+            "`rerun-review` 라벨로 재검토하거나 입력 범위를 좁혀 다시 시도하세요."
         )
     parts.append(
         "\n---\n"
