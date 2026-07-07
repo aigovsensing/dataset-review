@@ -67,9 +67,9 @@ jobs:
         id: run_review
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # 저장소 변수 vars.GEMINI_MODEL 이 없으면 빈 문자열이 되어 스크립트가 실패하므로
-          # 워크플로 레벨에서도 기본 모델로 대체한다(스크립트 내 방어와 이중 안전장치).
-          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-2.5-flash' }}
+          # 저장소 변수 vars.GEMINI_MODEL 이 없으면 최신 Flash 별칭으로 대체한다.
+          # (항상 최신 버전으로 검토 품질 확보. 특정 버전 고정은 vars.GEMINI_MODEL 로 지정.)
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-flash-latest' }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           REVIEW_OUTPUT: review.md
