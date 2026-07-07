@@ -154,6 +154,20 @@ def render_sources(sources: list[tuple[str, str]]) -> str:
 MAX_COMMENT_CHARS = 64000
 
 
+def strip_preamble(text: str) -> str:
+    """보고서 앞의 서두(사고 과정·영어 노트·'Now I will...')와 재작성 흔적을 제거.
+
+    보고서는 '## 1. 요약 결론' 으로 시작해야 한다. 모델이 서두를 붙이거나 보고서를
+    두 번 시작하는 경우, 마지막 '## 1.' 부터를 최종 보고서로 간주한다.
+    """
+    # 줄 시작 여부와 무관하게 '## 1.'(예: "...format.## 1.") 를 모두 찾아
+    # 마지막(최종 재작성본)부터를 보고서로 사용한다.
+    matches = list(re.finditer(r"##[ \t]+1\.", text))
+    if matches:
+        return text[matches[-1].start():].strip()
+    return text
+
+
 def sanitize_markdown(text: str) -> str:
     """모델 출력의 병리적 패턴을 정리한다.
 
@@ -329,14 +343,28 @@ def run_review(title: str, body: str) -> str:
             "모두 소진했을 수 있습니다. 잠시 후 재시도하세요."
         )
 
-    # 출력이 토큰 한도로 중간에 잘렸는지 확인
+    # 출력이 토큰 한도로 중간에 잘렸는지 확인 + 진단 로깅
     finish_reason = ""
     try:
         finish_reason = str(response.candidates[0].finish_reason or "")
     except Exception:  # noqa: BLE001
         pass
+    try:
+        um = response.usage_metadata
+        print(
+            f"[diag] finish_reason={finish_reason} "
+            f"prompt={getattr(um, 'prompt_token_count', '?')} "
+            f"thoughts={getattr(um, 'thoughts_token_count', '?')} "
+            f"output={getattr(um, 'candidates_token_count', '?')} "
+            f"total={getattr(um, 'total_token_count', '?')} "
+            f"text_chars={len(text)}",
+            file=sys.stderr,
+        )
+    except Exception:  # noqa: BLE001
+        pass
     truncated = "MAX_TOKENS" in finish_reason
 
+    text = strip_preamble(text)
     text = sanitize_markdown(text)
     sources = get_grounding_sources(response)
     text = linkify_citations(text, sources)
