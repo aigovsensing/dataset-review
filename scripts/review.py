@@ -19,6 +19,8 @@ import os
 import re
 import sys
 import time
+import urllib.request
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -65,13 +67,54 @@ def derive_dataset_name(title: str, fields: dict[str, str]) -> str:
     return name
 
 
-# arXiv 초록 페이지 URL → PDF 원문 URL 변환용 (url_context 로 논문 전문을 읽도록 유도)
-_ARXIV_ABS_RE = re.compile(r"https?://arxiv\.org/abs/([\w.\-/]+)")
+# arXiv abs/pdf URL 에서 논문 ID 추출.
+# 신형 ID(2210.08402) 및 구형 ID(hep-th/9901001) 지원, 버전 접미사(vN)는 제거.
+# ID 형태에서 매칭이 끝나므로 뒤따르는 .pdf·줄바꿈·경로 등에 영향받지 않는다.
+_ARXIV_ID_RE = re.compile(
+    r"arxiv\.org/(?:abs|pdf)/([a-z\-]+/\d{7}|\d{4}\.\d{4,5})(?:v\d+)?",
+    re.I,
+)
 
 
-def arxiv_pdf_variants(text: str) -> list[str]:
-    """텍스트 안의 arXiv abs URL 들에 대응하는 PDF 원문 URL 목록을 반환."""
-    return [f"https://arxiv.org/pdf/{m.group(1)}" for m in _ARXIV_ABS_RE.finditer(text)]
+def extract_arxiv_ids(text: str) -> list[str]:
+    """텍스트 안의 arXiv abs/pdf URL 에서 논문 ID 목록을 중복 없이 추출."""
+    ids: list[str] = []
+    for m in _ARXIV_ID_RE.finditer(text or ""):
+        aid = m.group(1)
+        if aid not in ids:
+            ids.append(aid)
+    return ids
+
+
+def fetch_arxiv_context(paper_urls: str, max_papers: int = 2, timeout: int = 12) -> str:
+    """arXiv API 로 논문 제목·초록을 **프로그램적으로(AI 없이)** 가져와 텍스트로 반환.
+
+    Gemini 가 논문 원문을 검색으로 찾도록 의존하는 대신, 확정적인 사실(제목·초록)을
+    직접 주입해 근거 품질을 높이고 검색 부담을 줄인다. 네트워크/파싱 실패 시 빈 문자열
+    을 반환하여(그레이스풀) 검토 자체는 계속 진행된다. Gemini 호출 수는 늘지 않는다.
+    """
+    ids = extract_arxiv_ids(paper_urls)[:max_papers]
+    if not ids:
+        return ""
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    blocks: list[str] = []
+    for aid in ids:
+        try:
+            url = f"http://export.arxiv.org/api/query?id_list={aid}&max_results=1"
+            req = urllib.request.Request(url, headers={"User-Agent": "dataset-review/1.0"})
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - 고정 arXiv 도메인
+                root = ET.fromstring(resp.read())
+            entry = root.find("a:entry", ns)
+            if entry is None:
+                continue
+            title = " ".join((entry.findtext("a:title", "", ns) or "").split())
+            summary = " ".join((entry.findtext("a:summary", "", ns) or "").split())
+            if title or summary:
+                blocks.append(f"[arXiv {aid}] 제목: {title}\n초록: {summary}")
+                print(f"arXiv 초록 주입: {aid} ({len(summary)} chars)", file=sys.stderr)
+        except Exception as exc:  # noqa: BLE001 - 네트워크/파싱 실패 시 조용히 생략
+            print(f"arXiv 초록 가져오기 실패({aid}): {exc}", file=sys.stderr)
+    return "\n\n".join(blocks)
 
 
 def build_user_prompt(title: str, fields: dict[str, str]) -> str:
@@ -79,23 +122,19 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
 
     lines = [
         "다음 오픈 데이터셋에 대해 시스템 지침에 따라 법적 리스크를 검토하라.",
-        "제공된 Google 검색 도구로 공식 자료를 직접 확인한 뒤 판단하라.",
-        "아래에 제공된 URL(논문·홈페이지·저장소 등)은 URL 컨텍스트 도구로 원문을 직접 열어 "
-        "실제 내용을 확인한 뒤 근거로 사용하라. URL 원문에서 확인한 내용을 인용할 때는 "
-        "해당 URL 을 출처로 함께 제시한다.",
+        "제공된 Google 검색 도구로 공식 자료(공식 홈페이지·LICENSE·Terms·논문·GitHub·Hugging Face)를 "
+        "확인한 뒤 판단하라. 아래 제공된 논문 초록과 URL 을 우선 근거로 활용하고, 인용 시 출처 URL 을 "
+        "함께 제시한다.",
         "",
         f"- 데이터셋 명칭: {name or '(미입력 — 검색으로 확인)'}",
     ]
     if fields.get("related_datasets"):
         lines.append(f"- 관련 / 원본 데이터셋: {fields['related_datasets']}")
+    arxiv_ctx = ""
     if fields.get("paper_urls"):
         lines.append(f"- 논문 주소: {fields['paper_urls']}")
-        pdf_urls = arxiv_pdf_variants(fields["paper_urls"])
-        if pdf_urls:
-            lines.append(
-                f"  - 논문 PDF 원문 (URL 컨텍스트 도구로 직접 읽고, 라이선스·데이터 수집 방법 관련 "
-                f"조항은 원문 문장을 그대로 인용할 것): {', '.join(pdf_urls)}"
-            )
+        # 논문 초록을 arXiv API 로 프로그램적으로(AI 없이) 가져와 근거로 주입
+        arxiv_ctx = fetch_arxiv_context(fields["paper_urls"])
     if fields.get("homepage_url"):
         lines.append(f"- 공식 홈페이지 / 저장소: {fields['homepage_url']}")
     if fields.get("litigation_url"):
@@ -107,6 +146,12 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
             "\n위 소송 URL 이 제공되었으므로 시스템 지침의 [소송 리스크 검토]를 반드시 수행하고, "
             "출력의 '3. 소송 리스크' 섹션에 근거 강도(강/중/약)와 소장 원문 인용·요약을 포함한다."
         )
+    if arxiv_ctx:
+        lines += [
+            "",
+            "── 논문 원문 정보 (arXiv API 로 프로그램적으로 수집, 우선 근거로 활용) ──",
+            arxiv_ctx,
+        ]
     lines += [
         "",
         "출력은 시스템 지침의 [출력 형식]을 정확히 따른다.",
@@ -360,13 +405,10 @@ def run_review(title: str, body: str) -> str:
     user_prompt = build_user_prompt(title, fields)
 
     client = genai.Client(api_key=api_key)
+    # Google 검색 그라운딩만 사용한다. (과거 url_context 도구를 함께 켰을 때 대용량 논문
+    # PDF 를 읽으며 응답이 비거나 실패하는 문제가 있어 제거했다. 논문 초록은 build_user_prompt
+    # 에서 arXiv API 로 프로그램적으로 주입하므로 별도 도구 없이도 근거를 확보한다.)
     tools = [types.Tool(google_search=types.GoogleSearch())]
-    # URL 컨텍스트 도구: 프롬프트에 포함된 논문(arXiv abs/PDF)·홈페이지 URL 의 실제 내용을
-    # 모델이 직접 가져와 읽게 한다. 미지원 SDK/모델이면 검색 그라운딩만으로 동작한다.
-    try:
-        tools.append(types.Tool(url_context=types.UrlContext()))
-    except Exception as exc:  # noqa: BLE001 - 구버전 SDK 호환
-        print(f"url_context 도구 미지원으로 생략: {exc}", file=sys.stderr)
     base_config = dict(
         system_instruction=system_prompt,
         tools=tools,
@@ -386,13 +428,8 @@ def run_review(title: str, body: str) -> str:
     response = generate_with_retry(client, model, user_prompt, config)
 
     text = (response.text or "").strip()
-    if not text:
-        raise RuntimeError(
-            "Gemini 응답이 비어 있습니다. 모델이 답변 없이 종료했거나 thinking 예산을 "
-            "모두 소진했을 수 있습니다. 잠시 후 재시도하세요."
-        )
 
-    # 출력이 토큰 한도로 중간에 잘렸는지 확인 + 진단 로깅
+    # 진단 로깅은 빈-응답 판정보다 **먼저** 수행한다(빈 응답의 원인 파악을 위해).
     finish_reason = ""
     try:
         finish_reason = str(response.candidates[0].finish_reason or "")
@@ -411,17 +448,14 @@ def run_review(title: str, body: str) -> str:
         )
     except Exception:  # noqa: BLE001
         pass
-    # url_context 도구가 실제로 어떤 URL 을 가져왔는지 진단 로깅 (성공/실패 상태 포함)
-    try:
-        ucm = getattr(response.candidates[0], "url_context_metadata", None)
-        for u in (getattr(ucm, "url_metadata", None) or []) if ucm else []:
-            print(
-                f"[diag] url_context: {getattr(u, 'retrieved_url', '?')} "
-                f"→ {getattr(u, 'url_retrieval_status', '?')}",
-                file=sys.stderr,
-            )
-    except Exception:  # noqa: BLE001
-        pass
+
+    if not text:
+        raise RuntimeError(
+            f"Gemini 응답이 비어 있습니다 (finish_reason={finish_reason or '알 수 없음'}). "
+            "모델이 답변 없이 종료했거나 thinking 예산을 모두 소진했을 수 있습니다. "
+            "'rerun-review' 라벨로 재시도하세요."
+        )
+
     truncated = "MAX_TOKENS" in finish_reason
 
     text = strip_preamble(text)
