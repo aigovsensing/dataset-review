@@ -103,6 +103,12 @@
   }
 
   // ---- 검토 결과 목록 ----
+  const CACHE_KEY = `dr_results_${owner}_${repo}`;
+  const issuesUrl = `${repoUrl}/issues?q=is%3Aissue+label%3A${encodeURIComponent(label)}`;
+  const ghLinkHtml =
+    `<p><a class="btn ghost small" target="_blank" rel="noopener" href="${issuesUrl}">` +
+    `GitHub에서 이슈 보기 →</a></p>`;
+
   let resultsLoaded = false;
   function loadResults(force) {
     const listEl = $("#results-list");
@@ -115,19 +121,67 @@
       label
     )}&state=all&per_page=30&sort=created&direction=desc`;
 
+    let status = 0;
+    let rateRemaining = null;
+    let rateReset = 0;
     fetch(api, { headers: { Accept: "application/vnd.github+json" } })
       .then((res) => {
+        status = res.status;
+        rateRemaining = res.headers.get("X-RateLimit-Remaining");
+        rateReset = parseInt(res.headers.get("X-RateLimit-Reset") || "0", 10);
         if (!res.ok) throw new Error(`GitHub API ${res.status}`);
         return res.json();
       })
-      .then((issues) => renderResults(issues, listEl))
-      .catch((err) => {
-        listEl.innerHTML =
-          `<p class="dim">목록을 불러오지 못했습니다 (${err.message}).</p>` +
-          `<p><a class="btn ghost small" target="_blank" rel="noopener" ` +
-          `href="${repoUrl}/issues?q=is%3Aissue+label%3A${encodeURIComponent(label)}">` +
-          `GitHub에서 이슈 보기 →</a></p>`;
-      });
+      .then((issues) => {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), issues }));
+        } catch (e) {
+          /* localStorage 사용 불가 시 무시 */
+        }
+        renderResults(issues, listEl);
+      })
+      .catch(() => renderError(listEl, status, rateRemaining, rateReset));
+  }
+
+  function fmtTime(epochSeconds) {
+    if (!epochSeconds) return "";
+    try {
+      return new Date(epochSeconds * 1000).toLocaleTimeString("ko-KR");
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function renderError(listEl, status, rateRemaining, rateReset) {
+    let msg;
+    if (status === 403 && rateRemaining === "0") {
+      const resetTxt = rateReset ? ` 약 ${fmtTime(rateReset)}에 초기화됩니다.` : "";
+      msg =
+        "GitHub 비인증 API 요청 한도(IP당 시간당 60회)를 초과했습니다." +
+        resetTxt +
+        " 회사 공용 IP를 공유하는 환경에서는 한도가 빠르게 소진될 수 있습니다. " +
+        "아래 링크에서 직접 확인하세요.";
+    } else if (status === 403) {
+      msg = "GitHub API 접근이 거부되었습니다 (403). 잠시 후 다시 시도하거나 아래 링크를 이용하세요.";
+    } else {
+      msg = `목록을 불러오지 못했습니다 (GitHub API ${status || "오류"}).`;
+    }
+
+    let html = `<p class="dim">${msg}</p>` + ghLinkHtml;
+
+    // 마지막으로 성공한 목록이 있으면 캐시로 표시
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+      if (cached && Array.isArray(cached.issues) && cached.issues.length) {
+        const when = new Date(cached.t).toLocaleString("ko-KR");
+        html +=
+          `<p class="dim" style="margin-top:14px">📁 아래는 마지막으로 불러온 캐시 목록입니다 (${when} 기준, 최신이 아닐 수 있음).</p>` +
+          rowsHtml(cached.issues);
+      }
+    } catch (e) {
+      /* 캐시 파싱 실패 무시 */
+    }
+    listEl.innerHTML = html;
   }
 
   function statusBadge(labels) {
@@ -138,15 +192,10 @@
     return '<span class="badge wait">대기</span>';
   }
 
-  function renderResults(issues, listEl) {
-    // PR 제외
+  function rowsHtml(issues) {
     const items = (issues || []).filter((i) => !i.pull_request);
-    if (!items.length) {
-      listEl.innerHTML =
-        '<p class="dim">아직 검토 요청이 없습니다. 첫 검토를 요청해 보세요.</p>';
-      return;
-    }
-    const rows = items
+    if (!items.length) return "";
+    return items
       .map((i) => {
         const date = new Date(i.created_at).toLocaleString("ko-KR");
         const state = i.state === "closed" ? "닫힘" : "열림";
@@ -159,7 +208,12 @@
         );
       })
       .join("");
-    listEl.innerHTML = rows;
+  }
+
+  function renderResults(issues, listEl) {
+    const rows = rowsHtml(issues);
+    listEl.innerHTML = rows ||
+      '<p class="dim">아직 검토 요청이 없습니다. 첫 검토를 요청해 보세요.</p>';
   }
 
   function escapeHtml(str) {
