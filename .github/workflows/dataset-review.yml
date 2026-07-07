@@ -70,6 +70,8 @@ jobs:
           # 저장소 변수 vars.GEMINI_MODEL 이 없으면 최신 Flash 별칭으로 대체한다.
           # (항상 최신 버전으로 검토 품질 확보. 특정 버전 고정은 vars.GEMINI_MODEL 로 지정.)
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-flash-latest' }}
+          # 검토 결과 상단에 표시할 '서비스 티어' 라벨(선택). 미설정 시 Standard.
+          GEMINI_SERVICE_TIER: ${{ vars.GEMINI_SERVICE_TIER || 'Standard' }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           REVIEW_OUTPUT: review.md
