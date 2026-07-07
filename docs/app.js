@@ -30,6 +30,87 @@
     });
   }
 
+  // ---- GitHub 토큰(선택): 비인증 60회/시간 → 인증 5,000회/시간 ----
+  const TOKEN_KEY = "dr_github_token";
+  function getToken() {
+    try {
+      return localStorage.getItem(TOKEN_KEY) || "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function setToken(v) {
+    try {
+      if (v) localStorage.setItem(TOKEN_KEY, v);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch (e) {
+      /* localStorage 사용 불가 시 무시 */
+    }
+  }
+  function apiHeaders() {
+    const h = { Accept: "application/vnd.github+json" };
+    const t = getToken();
+    if (t) h.Authorization = `Bearer ${t}`;
+    return h;
+  }
+
+  function setAuthStatus(text, kind) {
+    const el = $("#auth-status");
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = "dim" + (kind ? " " + kind : "");
+  }
+  function updateAuthUI() {
+    const btn = $("#auth-btn");
+    const authed = !!getToken();
+    if (btn) btn.textContent = authed ? "🔑 인증됨" : "🔑 인증";
+    const input = $("#gh-token");
+    if (input && authed) input.placeholder = "저장된 토큰 사용 중 (다시 입력하면 교체)";
+    setAuthStatus(
+      authed ? "인증 토큰이 저장되어 있습니다 (시간당 5,000회)." : "",
+      authed ? "ok" : ""
+    );
+  }
+
+  const authBtn = $("#auth-btn");
+  const authPanel = $("#auth-panel");
+  if (authBtn && authPanel) {
+    authBtn.addEventListener("click", () => {
+      authPanel.hidden = !authPanel.hidden;
+    });
+  }
+  const authSave = $("#auth-save");
+  if (authSave) {
+    authSave.addEventListener("click", () => {
+      const input = $("#gh-token");
+      const val = input ? input.value.trim() : "";
+      if (!val) {
+        setAuthStatus("토큰을 입력하세요.", "err");
+        return;
+      }
+      setToken(val);
+      if (input) input.value = "";
+      updateAuthUI();
+      setAuthStatus("토큰을 저장했습니다. 목록을 다시 불러옵니다…", "ok");
+      loadResults(true);
+    });
+  }
+  const authClear = $("#auth-clear");
+  if (authClear) {
+    authClear.addEventListener("click", () => {
+      setToken("");
+      const input = $("#gh-token");
+      if (input) {
+        input.value = "";
+        input.placeholder = "github_pat_... 또는 ghp_...";
+      }
+      updateAuthUI();
+      setAuthStatus("토큰을 삭제했습니다. 비인증 상태(시간당 60회)로 조회합니다.", "");
+      loadResults(true);
+    });
+  }
+  updateAuthUI();
+
   // ---- 저장소 링크 ----
   const repoLink = $("#repo-link");
   if (repoLink) repoLink.href = repoUrl;
@@ -124,7 +205,7 @@
     let status = 0;
     let rateRemaining = null;
     let rateReset = 0;
-    fetch(api, { headers: { Accept: "application/vnd.github+json" } })
+    fetch(api, { headers: apiHeaders() })
       .then((res) => {
         status = res.status;
         rateRemaining = res.headers.get("X-RateLimit-Remaining");
@@ -138,6 +219,7 @@
         } catch (e) {
           /* localStorage 사용 불가 시 무시 */
         }
+        if (getToken()) setAuthStatus("인증됨 (시간당 5,000회). 목록을 정상적으로 불러왔습니다.", "ok");
         renderResults(issues, listEl);
       })
       .catch(() => renderError(listEl, status, rateRemaining, rateReset));
@@ -153,18 +235,41 @@
   }
 
   function renderError(listEl, status, rateRemaining, rateReset) {
+    const hasToken = !!getToken();
     let msg;
-    if (status === 403 && rateRemaining === "0") {
-      const resetTxt = rateReset ? ` 약 ${fmtTime(rateReset)}에 초기화됩니다.` : "";
+    let openAuth = false;
+    if (status === 401) {
+      // 잘못되었거나 만료된 토큰
       msg =
-        "GitHub 비인증 API 요청 한도(IP당 시간당 60회)를 초과했습니다." +
-        resetTxt +
-        " 회사 공용 IP를 공유하는 환경에서는 한도가 빠르게 소진될 수 있습니다. " +
-        "아래 링크에서 직접 확인하세요.";
+        "GitHub 토큰이 유효하지 않거나 만료되었습니다 (401). '🔑 인증'에서 토큰을 다시 입력하거나 삭제하세요.";
+      openAuth = true;
+      setAuthStatus("토큰이 유효하지 않습니다 (401). 다시 입력하거나 삭제하세요.", "err");
+    } else if (status === 403 && rateRemaining === "0") {
+      const resetTxt = rateReset ? ` 약 ${fmtTime(rateReset)}에 초기화됩니다.` : "";
+      if (hasToken) {
+        msg =
+          "인증 상태에서도 API 요청 한도(시간당 5,000회)를 초과했습니다." +
+          resetTxt +
+          " 잠시 후 다시 시도하거나 아래 링크를 이용하세요.";
+      } else {
+        msg =
+          "GitHub 비인증 API 요청 한도(IP당 시간당 60회)를 초과했습니다." +
+          resetTxt +
+          " 회사 공용 IP를 공유하는 환경에서는 한도가 빠르게 소진될 수 있습니다. " +
+          "위 '🔑 인증'에서 본인의 GitHub 토큰을 입력하면 시간당 5,000회로 늘릴 수 있습니다. " +
+          "또는 아래 링크에서 직접 확인하세요.";
+        openAuth = true;
+      }
     } else if (status === 403) {
       msg = "GitHub API 접근이 거부되었습니다 (403). 잠시 후 다시 시도하거나 아래 링크를 이용하세요.";
     } else {
       msg = `목록을 불러오지 못했습니다 (GitHub API ${status || "오류"}).`;
+    }
+
+    // 인증이 도움이 되는 상황이면 토큰 패널을 자동으로 펼친다
+    if (openAuth) {
+      const panel = $("#auth-panel");
+      if (panel) panel.hidden = false;
     }
 
     let html = `<p class="dim">${msg}</p>` + ghLinkHtml;

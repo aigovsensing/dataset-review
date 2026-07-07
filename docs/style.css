@@ -198,6 +198,35 @@ input[type="text"]:focus, textarea:focus {
 
 /* Results */
 .results-head { display: flex; align-items: center; justify-content: space-between; }
+.results-actions { display: flex; gap: 8px; }
+
+/* 인증(토큰) 패널 */
+.auth-panel {
+  margin: 14px 0;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.auth-desc { margin: 0 0 10px; font-size: 0.9rem; }
+.auth-help { margin: 0 0 12px; padding-left: 20px; font-size: 0.84rem; color: var(--text-dim); }
+.auth-help li { margin-bottom: 5px; }
+.auth-help a { color: var(--primary); }
+.auth-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.auth-row input {
+  flex: 1 1 260px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+.auth-row input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(79,140,255,0.2); }
+#auth-status { margin: 10px 0 0; font-size: 0.84rem; }
+#auth-status.ok { color: var(--accent); }
+#auth-status.err { color: var(--fail); }
 .results-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
 .result-row {
   display: flex;
