@@ -322,8 +322,10 @@ def run_review(title: str, body: str) -> str:
             "저장소 Settings → Secrets → Actions 에 GEMINI_API_KEY 를 등록하세요."
         )
 
-    # 빈 문자열(예: 미설정 GitHub 변수 vars.GEMINI_MODEL)도 기본값으로 대체되도록 `or` 사용
-    model = os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash"
+    # 기본값은 'gemini-flash-latest' 별칭 — 항상 최신 Flash 버전으로 검토 품질을 확보한다.
+    # (별칭이 실제로 어떤 버전으로 해석됐는지는 응답의 model_version 으로 확인해 출력한다.)
+    # 빈 문자열(예: 미설정 GitHub 변수 vars.GEMINI_MODEL)도 기본값으로 대체되도록 `or` 사용.
+    model = os.environ.get("GEMINI_MODEL") or "gemini-flash-latest"
     system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_issue_body(body)
     name = derive_dataset_name(title, fields)
@@ -405,12 +407,30 @@ def run_review(title: str, body: str) -> str:
 
     truncated = "MAX_TOKENS" in finish_reason
 
+    # 별칭(gemini-flash-latest)이 실제로 어떤 버전으로 해석됐는지 응답에서 확인
+    resolved_model = ""
+    try:
+        resolved_model = (response.model_version or "").strip()
+    except Exception:  # noqa: BLE001
+        pass
+    if not resolved_model:
+        resolved_model = model  # API 가 버전을 주지 않으면 요청한 이름으로 대체
+    service_tier = os.environ.get("GEMINI_SERVICE_TIER") or "Standard"
+    print(f"[diag] requested_model={model} resolved_model={resolved_model}", file=sys.stderr)
+
+    # 검토 결과 최상단에 표시할 모델/티어 정보 헤더
+    if resolved_model != model:
+        model_line = f"**모델 정보:** `{resolved_model}` (요청: `{model}`)"
+    else:
+        model_line = f"**모델 정보:** `{resolved_model}`"
+    model_header = f"{model_line}\n**서비스 티어:** {service_tier}\n"
+
     text = strip_preamble(text)
     text = sanitize_markdown(text)
     sources = get_grounding_sources(response)
     text = linkify_citations(text, sources)
     text = restructure_review(text, name)
-    parts = [text]
+    parts = [model_header, text]
     if sources:
         # 그라운딩 출처 목록은 길고 리다이렉트 URL 이라 어수선하므로 접이식으로 감싼다.
         parts.append(
@@ -426,7 +446,7 @@ def run_review(title: str, body: str) -> str:
         )
     parts.append(
         "\n---\n"
-        f"<sub>🤖 자동 생성 (model: <code>{model}</code>, Google Search grounding) · "
+        f"<sub>🤖 자동 생성 (model: <code>{resolved_model}</code>, Google Search grounding) · "
         "본 검토는 회사 내부 사전 리스크 검토용 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
     )
     return enforce_length_limit("\n".join(parts))
