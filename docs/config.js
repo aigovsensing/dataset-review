@@ -12,6 +12,6 @@ window.DATASET_REVIEW_CONFIG = {
   // 암호 평문을 저장소에 두지 않도록 SHA-256 해시만 보관합니다.
   // 암호 변경: 터미널에서  printf '%s' '새암호' | sha256sum  실행 후 아래 값 교체.
   // 게이트를 끄려면 authHash 를 "" 로 두세요.
-  authHash: "a05f757677aa59387f11e957a42ed160dfab5539f7ce9f968daa66b7a29c0950", // guest2848
+  authHash: "a05f757677aa59387f11e957a42ed160dfab5539f7ce9f968daa66b7a29c0950", // g****2**8
   authHint: "관리자에게 문의하여 접근 암호를 받으세요.",
 };
