@@ -14,8 +14,8 @@ GitHub 이슈에 검토 결과를 등록하는 프로젝트입니다.
                     │
                     ▼
         [GitHub Actions] 이슈 감지 → scripts/review.py 실행 (Gemini 호출 1회)
-                    │  ① arXiv API 로 논문 제목·초록을 프로그램적으로 수집(AI 아님)
-                    │  ② Google AI Studio(Gemini) + Google 검색 그라운딩으로 분석
+                    │  Google AI Studio(Gemini) + Google 검색 그라운딩
+                    │  (입력된 논문·홈페이지·저장소 URL 을 검색해 원문 근거로 인용)
                     ▼
         검토 결과를 해당 이슈에 댓글로 등록 → 'reviewed' 라벨
                     │
@@ -29,10 +29,9 @@ GitHub 이슈에 검토 결과를 등록하는 프로젝트입니다.
 - **AI 호출 최소화 설계**: 검토 1건당 Gemini 호출은 **정확히 1회**이며, 그 외 모든 기능
   (이슈 파싱, 보고서 정리, 인용 링크, 결과 목록 등)은 AI 없이 일반 코드로 동작합니다.
   → 자세한 내용은 [무료 Gemini API 안정 운영](#-무료-gemini-api-안정-운영-호출-최소화-설계) 참고.
-- **논문 초록 프로그램 수집**: 이슈에 arXiv 논문 주소(`arxiv.org/abs/...`)를 입력하면
-  **arXiv API 로 논문 제목·초록을 코드로(AI 없이) 가져와** 프롬프트에 근거로 주입합니다.
-  Gemini 는 이 초록과 Google 검색을 함께 활용해 라이선스·데이터 수집 방법을 분석합니다
-  (별도 AI 호출 없음).
+- **논문 기반 분석**: 이슈에 논문 주소(예: `arxiv.org/abs/...`)를 입력하면 Gemini 가 Google
+  검색 그라운딩으로 해당 논문과 공식 자료를 찾아 라이선스·데이터 수집 방법을 분석하고, 근거
+  문장을 출처와 함께 인용합니다.
 
 ## 구성 요소
 
@@ -107,13 +106,12 @@ gh label create rerun-review   --repo $R --color 5319e7 --description "재검토
 4. **재검토** — 입력을 수정했거나 결과가 미흡하면 이슈에 `rerun-review` 라벨을 붙이세요.
    해당 이슈만 다시 검토됩니다. (Gemini 호출이 1회 추가되므로 필요할 때만 사용)
 
-### 입력 팁: 논문 주소는 arXiv `abs` 주소로
+### 입력 팁: 논문·공식 URL 을 함께 입력하면 정확도가 올라갑니다
 
-논문 주소에 `https://arxiv.org/abs/xxxx.xxxxx` 형식을 입력하면 시스템이 **arXiv API 로
-논문 제목·초록을 코드로(AI 없이) 가져와** 검토 근거로 주입합니다. Gemini 는 이 초록을
-우선 근거로, 초록에 없는 세부 사항(라이선스 조항·데이터 수집 방법 등)은 Google 검색으로
-보완해 분석하므로 검토 품질이 올라갑니다. 여러 논문은 줄바꿈으로 구분해 입력하며, 버전
-접미사(`v2`)나 `pdf` 주소도 자동 인식합니다.
+논문 주소(예: `https://arxiv.org/abs/xxxx.xxxxx`), 공식 홈페이지, LICENSE/Terms, GitHub·
+Hugging Face 주소를 입력하면 Gemini 가 Google 검색 그라운딩으로 그 자료들을 우선적으로
+찾아 라이선스 조항·데이터 수집 방법·개인정보 처리 서술을 원문 근거와 함께 인용합니다.
+URL 이 구체적일수록 검토 품질이 올라갑니다. 여러 개는 줄바꿈으로 구분해 입력합니다.
 
 ## 라벨
 
@@ -140,7 +138,6 @@ gh label create rerun-review   --repo $R --color 5319e7 --description "재검토
 | --- | --- | --- |
 | 이슈 폼 파싱 (명칭·URL 추출) | `scripts/review.py` `parse_issue_body()` | 정규식 |
 | 입력 사전 검증 (빈 이슈 차단) | `scripts/review.py` `run_review()` | 필드 검사 — 검토할 정보가 없으면 **API 호출 없이** 즉시 실패 처리 |
-| arXiv 논문 제목·초록 수집 | `scripts/review.py` `fetch_arxiv_context()` | arXiv API 호출 + XML 파싱 (AI 아님) |
 | 인용 번호 → 출처 링크 변환 | `scripts/review.py` `linkify_citations()` | 정규식 |
 | 보고서 재구성 (배지·접이식 섹션) | `scripts/review.py` `restructure_review()` | 문자열 처리 |
 | 판정(✅/⚠️/⛔) 추출·배너 생성 | `scripts/review.py` `detect_verdict()` | 패턴 매칭 |
@@ -277,8 +274,7 @@ python scripts/review.py            # review.md 생성
 
 - 검토 지침(시스템 프롬프트)은 `scripts/system_prompt.md` 에서 수정할 수 있습니다.
 - Gemini의 Google 검색 그라운딩을 사용하므로 검토 결과에는 참조한 공식 출처 URL이 함께 첨부됩니다.
-- 논문 초록은 `fetch_arxiv_context()` 가 arXiv API 로 코드로 수집해 프롬프트에 주입합니다(AI 아님).
-  Actions 로그의 `[diag] finish_reason=... prompt=... output=...` 줄에서 토큰 사용량과 종료 사유를
+- Actions 로그의 `[diag] finish_reason=... prompt=... output=...` 줄에서 토큰 사용량과 종료 사유를
   확인할 수 있어, 응답이 비거나 잘릴 때 원인을 진단할 수 있습니다.
 - API 키 동작 확인은 `tools/gemini_api_key_test.sh` 로 테스트할 수 있습니다.
 - 검토 결과 맨 위에는 요청자에게 바로 복사·회신할 수 있는 **`종합의견`**(라이선스·수집방법·개인정보
