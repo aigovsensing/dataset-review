@@ -287,3 +287,85 @@ input[type="text"]:focus, textarea:focus {
   .result-row { flex-direction: column; align-items: flex-start; }
   .result-meta { align-items: flex-start; text-align: left; }
 }
+
+/* ── 접근 암호 게이트 오버레이 ───────────────────────────────── */
+#login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--bg);
+}
+:root[data-auth="1"] #login-overlay { display: none; }
+.login-box {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px 24px;
+  text-align: center;
+}
+.login-box h2 { margin: 0 0 6px; font-size: 1.3rem; }
+.login-desc { margin: 0 0 18px; color: var(--text-dim); font-size: 0.9rem; }
+.login-box input[type="password"] {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 11px 12px;
+  font-size: 0.98rem;
+  font-family: inherit;
+  margin-bottom: 12px;
+}
+.login-box input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(79,140,255,0.2); }
+.login-box .btn { width: 100%; }
+.login-msg { min-height: 1.1em; margin: 12px 0 0; font-size: 0.86rem; color: var(--fail); }
+.login-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--text-dim); }
+
+/* ── 검토 결과: 검색 + 페이지당 개수 ─────────────────────────── */
+.results-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+}
+.results-search {
+  flex: 1 1 240px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 0.92rem;
+  font-family: inherit;
+}
+.results-search:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(79,140,255,0.2); }
+.page-size { font-size: 0.86rem; color: var(--text-dim); white-space: nowrap; }
+.page-size select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 7px 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  margin: 0 4px;
+}
+
+/* ── 검토 결과: 페이지네이션 ─────────────────────────────────── */
+.results-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+.results-pager .btn[disabled] { opacity: 0.4; cursor: default; }
+.page-info { font-size: 0.88rem; color: var(--text-dim); min-width: 8em; text-align: center; }

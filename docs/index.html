@@ -18,10 +18,28 @@
       } catch (e) {
         document.documentElement.setAttribute("data-theme", "dark");
       }
+      // 접근 게이트: 이미 인증된 브라우저면 로그인 오버레이를 즉시 숨김(깜빡임 방지)
+      try {
+        if (localStorage.getItem("dr_auth") === "1") {
+          document.documentElement.setAttribute("data-auth", "1");
+        }
+      } catch (e) {}
     })();
   </script>
 </head>
 <body>
+  <!-- 간이 접근 암호 게이트 (약한 클라이언트 측 차단) -->
+  <div id="login-overlay">
+    <form id="login-form" class="login-box" autocomplete="off">
+      <h2>🛡️ 접근 확인</h2>
+      <p class="login-desc">이 페이지를 이용하려면 접근 암호를 입력하세요.</p>
+      <input type="password" id="login-pw" placeholder="접근 암호" autocomplete="off"
+             spellcheck="false" aria-label="접근 암호" />
+      <button type="submit" class="btn primary">입장</button>
+      <p id="login-msg" class="login-msg"></p>
+      <p id="login-hint" class="login-hint"></p>
+    </form>
+  </div>
   <header class="site-header">
     <div class="wrap">
       <button id="theme-toggle" class="theme-toggle" type="button"
@@ -164,8 +182,34 @@
           <p id="auth-status" class="dim"></p>
         </div>
 
+        <div id="results-notice"></div>
+
+        <div id="results-controls" class="results-controls" hidden>
+          <input type="search" id="results-search" class="results-search"
+                 placeholder="🔍 데이터셋 명칭·제목으로 검색" aria-label="검토 결과 검색" />
+          <label class="page-size">
+            페이지당
+            <select id="page-size">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="15">15</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            개
+          </label>
+        </div>
+
         <div id="results-list" class="results-list">
           <p class="dim">불러오는 중…</p>
+        </div>
+
+        <div id="results-pager" class="results-pager" hidden>
+          <button id="page-prev" class="btn ghost small" type="button">← 이전</button>
+          <span id="page-info" class="page-info"></span>
+          <button id="page-next" class="btn ghost small" type="button">다음 →</button>
         </div>
       </div>
     </section>

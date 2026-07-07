@@ -200,7 +200,7 @@
 
     const api = `https://api.github.com/repos/${owner}/${repo}/issues?labels=${encodeURIComponent(
       label
-    )}&state=all&per_page=30&sort=created&direction=desc`;
+    )}&state=all&per_page=100&sort=created&direction=desc`;
 
     let status = 0;
     let rateRemaining = null;
@@ -220,9 +220,15 @@
           /* localStorage 사용 불가 시 무시 */
         }
         if (getToken()) setAuthStatus("인증됨 (시간당 5,000회). 목록을 정상적으로 불러왔습니다.", "ok");
-        renderResults(issues, listEl);
+        setNotice("");
+        setIssues(issues);
       })
       .catch(() => renderError(listEl, status, rateRemaining, rateReset));
+  }
+
+  function setNotice(html) {
+    const el = $("#results-notice");
+    if (el) el.innerHTML = html || "";
   }
 
   function fmtTime(epochSeconds) {
@@ -272,21 +278,28 @@
       if (panel) panel.hidden = false;
     }
 
-    let html = `<p class="dim">${msg}</p>` + ghLinkHtml;
+    let notice = `<p class="dim">${msg}</p>` + ghLinkHtml;
 
-    // 마지막으로 성공한 목록이 있으면 캐시로 표시
+    // 마지막으로 성공한 목록이 있으면 캐시를 (검색·페이지네이션 그대로) 표시
+    let cachedIssues = null;
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
       if (cached && Array.isArray(cached.issues) && cached.issues.length) {
         const when = new Date(cached.t).toLocaleString("ko-KR");
-        html +=
-          `<p class="dim" style="margin-top:14px">📁 아래는 마지막으로 불러온 캐시 목록입니다 (${when} 기준, 최신이 아닐 수 있음).</p>` +
-          rowsHtml(cached.issues);
+        notice += `<p class="dim" style="margin-top:14px">📁 아래는 마지막으로 불러온 캐시 목록입니다 (${when} 기준, 최신이 아닐 수 있음).</p>`;
+        cachedIssues = cached.issues;
       }
     } catch (e) {
       /* 캐시 파싱 실패 무시 */
     }
-    listEl.innerHTML = html;
+
+    setNotice(notice);
+    if (cachedIssues) {
+      setIssues(cachedIssues);
+    } else {
+      setIssues([]);
+      if (listEl) listEl.innerHTML = "";
+    }
   }
 
   function statusBadge(labels) {
@@ -315,10 +328,58 @@
       .join("");
   }
 
-  function renderResults(issues, listEl) {
-    const rows = rowsHtml(issues);
-    listEl.innerHTML = rows ||
-      '<p class="dim">아직 검토 요청이 없습니다. 첫 검토를 요청해 보세요.</p>';
+  // ---- 검색 + 페이지네이션(게시판) ----
+  let allIssues = []; // PR 제외 전체 목록
+  let currentPage = 1;
+  let pageSize = 10;
+  let searchTerm = "";
+
+  function setIssues(issues) {
+    allIssues = (issues || []).filter((i) => !i.pull_request);
+    currentPage = 1;
+    const controls = $("#results-controls");
+    if (controls) controls.hidden = allIssues.length === 0;
+    applyView();
+  }
+
+  function getFiltered() {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return allIssues;
+    return allIssues.filter((i) => (i.title || "").toLowerCase().includes(q));
+  }
+
+  function applyView() {
+    const listEl = $("#results-list");
+    if (!listEl) return;
+    const filtered = getFiltered();
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    if (currentPage > pages) currentPage = pages;
+    if (currentPage < 1) currentPage = 1;
+
+    if (!allIssues.length) {
+      listEl.innerHTML = '<p class="dim">아직 검토 요청이 없습니다. 첫 검토를 요청해 보세요.</p>';
+    } else if (!total) {
+      listEl.innerHTML = `<p class="dim">"${escapeHtml(searchTerm)}" 에 대한 검색 결과가 없습니다.</p>`;
+    } else {
+      const start = (currentPage - 1) * pageSize;
+      listEl.innerHTML = rowsHtml(filtered.slice(start, start + pageSize));
+    }
+
+    const pager = $("#results-pager");
+    if (pager) {
+      if (total <= 0) {
+        pager.hidden = true;
+      } else {
+        pager.hidden = false;
+        const info = $("#page-info");
+        const prev = $("#page-prev");
+        const next = $("#page-next");
+        if (info) info.textContent = `${currentPage} / ${pages} 페이지 · 총 ${total}건`;
+        if (prev) prev.disabled = currentPage <= 1;
+        if (next) next.disabled = currentPage >= pages;
+      }
+    }
   }
 
   function escapeHtml(str) {
@@ -327,6 +388,82 @@
     }[c]));
   }
 
+  // 컨트롤 이벤트 바인딩
+  const searchEl = $("#results-search");
+  if (searchEl) {
+    searchEl.addEventListener("input", () => {
+      searchTerm = searchEl.value;
+      currentPage = 1;
+      applyView();
+    });
+  }
+  const pageSizeEl = $("#page-size");
+  if (pageSizeEl) {
+    pageSizeEl.addEventListener("change", () => {
+      pageSize = parseInt(pageSizeEl.value, 10) || 10;
+      currentPage = 1;
+      applyView();
+    });
+  }
+  const pagePrev = $("#page-prev");
+  if (pagePrev) pagePrev.addEventListener("click", () => { currentPage -= 1; applyView(); });
+  const pageNext = $("#page-next");
+  if (pageNext) pageNext.addEventListener("click", () => { currentPage += 1; applyView(); });
+
   const refreshBtn = $("#refresh-btn");
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadResults(true));
+
+  // ---- 접근 암호 게이트 (약한 클라이언트 측 차단) ----
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  function initAuthGate() {
+    const overlay = $("#login-overlay");
+    const form = $("#login-form");
+    const pw = $("#login-pw");
+    const msg = $("#login-msg");
+    const hint = $("#login-hint");
+    const expected = (cfg.authHash || "").toLowerCase();
+
+    // 암호가 설정되지 않았으면 게이트를 열어 둔다
+    if (!expected) {
+      root.setAttribute("data-auth", "1");
+      if (overlay) overlay.remove();
+      return;
+    }
+    // 이미 인증됨(head 스크립트가 data-auth 설정)
+    if (root.getAttribute("data-auth") === "1") {
+      if (overlay) overlay.remove();
+      return;
+    }
+    if (hint && cfg.authHint) hint.textContent = cfg.authHint;
+    if (pw) pw.focus();
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const val = pw ? pw.value : "";
+        if (!val) return;
+        let ok = false;
+        try {
+          ok = (await sha256Hex(val)) === expected;
+        } catch (err) {
+          if (msg) msg.textContent = "이 브라우저에서 암호 확인을 지원하지 않습니다.";
+          return;
+        }
+        if (ok) {
+          try { localStorage.setItem("dr_auth", "1"); } catch (e2) {}
+          root.setAttribute("data-auth", "1");
+          if (overlay) overlay.remove();
+        } else {
+          if (msg) msg.textContent = "암호가 올바르지 않습니다.";
+          if (pw) { pw.value = ""; pw.focus(); }
+        }
+      });
+    }
+  }
+  initAuthGate();
 })();
