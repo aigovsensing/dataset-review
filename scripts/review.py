@@ -160,11 +160,12 @@ def strip_preamble(text: str) -> str:
     보고서는 '## 1. 요약 결론' 으로 시작해야 한다. 모델이 서두를 붙이거나 보고서를
     두 번 시작하는 경우, 마지막 '## 1.' 부터를 최종 보고서로 간주한다.
     """
-    # 줄 시작 여부와 무관하게 '## 1.'(예: "...format.## 1.") 를 모두 찾아
-    # 마지막(최종 재작성본)부터를 보고서로 사용한다.
-    matches = list(re.finditer(r"##[ \t]+1\.", text))
-    if matches:
-        return text[matches[-1].start():].strip()
+    # 보고서는 '## 종합의견' 으로 시작한다(없으면 '## 1.'). 줄 시작 여부와 무관하게
+    # (예: "...format.## 종합의견") 모두 찾아 마지막(최종 재작성본)부터를 보고서로 사용한다.
+    for pat in (r"##[ \t]+종합의견", r"##[ \t]+1\."):
+        matches = list(re.finditer(pat, text))
+        if matches:
+            return text[matches[-1].start():].strip()
     return text
 
 
@@ -238,8 +239,9 @@ def restructure_review(text: str, name: str) -> str:
     """모델 출력을 스캔하기 쉬운 형태로 재구성.
 
     - 상단에 데이터셋명 + 판정 배지 배너를 붙인다.
+    - 배너 바로 아래에 '종합의견'(복사·붙여넣기용 회신문)을 펼친 상태로 노출.
     - 1. 요약 결론은 펼친 상태로 노출.
-    - 2. 항목별 상세 분석 / 3. 근거 및 출처는 접이식(<details>)으로 감싸 어수선함을 줄인다.
+    - 2~4 상세/소송/근거 섹션은 접이식(<details>)으로 감싸 어수선함을 줄인다.
     - 예상 형식(## N. 제목)이 아니면 원문을 그대로 두어 안전하게 처리한다.
     """
     text = ensure_detail_section_header(text)
@@ -254,6 +256,9 @@ def restructure_review(text: str, name: str) -> str:
     matches = list(_SECTION_RE.finditer(text))
     if len(matches) < 2:
         return banner + "\n---\n\n" + text  # 형식이 다르면 배너만 추가
+
+    # 번호 섹션(## 1. ~) 앞의 lead 텍스트(= '## 종합의견' 블록)를 최상단에 그대로 노출한다.
+    lead = text[: matches[0].start()].strip()
 
     icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "📚"}
     blocks: list[str] = []
@@ -271,7 +276,12 @@ def restructure_review(text: str, name: str) -> str:
                 f"<details{open_attr}>\n<summary><b>{icon} {num}. {sec_title}</b></summary>\n\n"
                 f"{body}\n\n</details>"
             )
-    return banner + "\n---\n\n" + "\n\n".join(blocks)
+
+    pieces = [banner, "---"]
+    if lead:
+        pieces.append(lead)
+    pieces.append("\n\n".join(blocks))
+    return "\n\n".join(pieces)
 
 
 # 일시적으로 재시도할 가치가 있는 오류(서버 과부하/속도 제한 등)

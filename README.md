@@ -132,6 +132,8 @@ python scripts/review.py            # review.md 생성
 - 검토 지침(시스템 프롬프트)은 `scripts/system_prompt.md` 에서 수정할 수 있습니다.
 - Gemini의 Google 검색 그라운딩을 사용하므로 검토 결과에는 참조한 공식 출처 URL이 함께 첨부됩니다.
 - API 키 동작 확인은 `tools/gemini_api_key_test.sh` 로 테스트할 수 있습니다.
+- 검토 결과 맨 위에는 요청자에게 바로 복사·회신할 수 있는 **`종합의견`**(라이선스·수집방법·개인정보
+  3줄 요약 + 리스크 결론)이 표시되며, 상세 분석은 그 아래 접이식 섹션으로 정리됩니다.
 
 ## 라이선스
 
