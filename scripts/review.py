@@ -65,12 +65,24 @@ def derive_dataset_name(title: str, fields: dict[str, str]) -> str:
     return name
 
 
+# arXiv 초록 페이지 URL → PDF 원문 URL 변환용 (url_context 로 논문 전문을 읽도록 유도)
+_ARXIV_ABS_RE = re.compile(r"https?://arxiv\.org/abs/([\w.\-/]+)")
+
+
+def arxiv_pdf_variants(text: str) -> list[str]:
+    """텍스트 안의 arXiv abs URL 들에 대응하는 PDF 원문 URL 목록을 반환."""
+    return [f"https://arxiv.org/pdf/{m.group(1)}" for m in _ARXIV_ABS_RE.finditer(text)]
+
+
 def build_user_prompt(title: str, fields: dict[str, str]) -> str:
     name = derive_dataset_name(title, fields)
 
     lines = [
         "다음 오픈 데이터셋에 대해 시스템 지침에 따라 법적 리스크를 검토하라.",
         "제공된 Google 검색 도구로 공식 자료를 직접 확인한 뒤 판단하라.",
+        "아래에 제공된 URL(논문·홈페이지·저장소 등)은 URL 컨텍스트 도구로 원문을 직접 열어 "
+        "실제 내용을 확인한 뒤 근거로 사용하라. URL 원문에서 확인한 내용을 인용할 때는 "
+        "해당 URL 을 출처로 함께 제시한다.",
         "",
         f"- 데이터셋 명칭: {name or '(미입력 — 검색으로 확인)'}",
     ]
@@ -78,6 +90,12 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
         lines.append(f"- 관련 / 원본 데이터셋: {fields['related_datasets']}")
     if fields.get("paper_urls"):
         lines.append(f"- 논문 주소: {fields['paper_urls']}")
+        pdf_urls = arxiv_pdf_variants(fields["paper_urls"])
+        if pdf_urls:
+            lines.append(
+                f"  - 논문 PDF 원문 (URL 컨텍스트 도구로 직접 읽고, 라이선스·데이터 수집 방법 관련 "
+                f"조항은 원문 문장을 그대로 인용할 것): {', '.join(pdf_urls)}"
+            )
     if fields.get("homepage_url"):
         lines.append(f"- 공식 홈페이지 / 저장소: {fields['homepage_url']}")
     if fields.get("litigation_url"):
@@ -325,12 +343,33 @@ def run_review(title: str, body: str) -> str:
     system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_issue_body(body)
     name = derive_dataset_name(title, fields)
+
+    # ── 입력 사전 검증 (Gemini 무료 쿼터 절약) ─────────────────────────────
+    # 데이터셋 명칭도 URL 도 전혀 없는 이슈는 의미 있는 검토가 불가능하므로,
+    # API 를 호출하지 않고 즉시 실패 처리하여 무료 쿼터 낭비를 막는다.
+    if not name and not any(
+        fields.get(k)
+        for k in ("related_datasets", "paper_urls", "homepage_url", "litigation_url")
+    ):
+        raise RuntimeError(
+            "검토할 데이터셋 정보가 없습니다 (명칭·URL 모두 미입력). "
+            "Gemini API 를 호출하지 않고 종료했습니다. "
+            "이슈 폼 항목을 채워 이슈를 수정한 뒤 'rerun-review' 라벨을 붙여 재시도하세요."
+        )
+
     user_prompt = build_user_prompt(title, fields)
 
     client = genai.Client(api_key=api_key)
+    tools = [types.Tool(google_search=types.GoogleSearch())]
+    # URL 컨텍스트 도구: 프롬프트에 포함된 논문(arXiv abs/PDF)·홈페이지 URL 의 실제 내용을
+    # 모델이 직접 가져와 읽게 한다. 미지원 SDK/모델이면 검색 그라운딩만으로 동작한다.
+    try:
+        tools.append(types.Tool(url_context=types.UrlContext()))
+    except Exception as exc:  # noqa: BLE001 - 구버전 SDK 호환
+        print(f"url_context 도구 미지원으로 생략: {exc}", file=sys.stderr)
     base_config = dict(
         system_instruction=system_prompt,
-        tools=[types.Tool(google_search=types.GoogleSearch())],
+        tools=tools,
         temperature=0.2,
         max_output_tokens=32768,
     )
@@ -370,6 +409,17 @@ def run_review(title: str, body: str) -> str:
             f"text_chars={len(text)}",
             file=sys.stderr,
         )
+    except Exception:  # noqa: BLE001
+        pass
+    # url_context 도구가 실제로 어떤 URL 을 가져왔는지 진단 로깅 (성공/실패 상태 포함)
+    try:
+        ucm = getattr(response.candidates[0], "url_context_metadata", None)
+        for u in (getattr(ucm, "url_metadata", None) or []) if ucm else []:
+            print(
+                f"[diag] url_context: {getattr(u, 'retrieved_url', '?')} "
+                f"→ {getattr(u, 'url_retrieval_status', '?')}",
+                file=sys.stderr,
+            )
     except Exception:  # noqa: BLE001
         pass
     truncated = "MAX_TOKENS" in finish_reason

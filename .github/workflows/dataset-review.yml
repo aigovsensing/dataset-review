@@ -16,18 +16,25 @@ permissions:
 
 jobs:
   review:
-    # 검토 실행 조건:
+    # 검토 실행 조건 (Gemini 무료 쿼터 보호를 위해 호출 횟수를 최소화):
     #  1) 이슈 작성자가 저장소 OWNER/MEMBER/COLLABORATOR 여야 한다.
     #     → 외부인의 무분별한 이슈 생성으로 인한 Gemini API 쿼터 소진을 방지.
-    #  2) 'dataset-review' 라벨이 있고 아직 'reviewed' 처리되지 않은 이슈만 검토.
-    #     수동 재검토는 'rerun-review' 라벨을 붙여 트리거한다.
+    #  2) 'dataset-review' 라벨이 있는 이슈만 검토.
+    #  3) 이벤트별로 정확히 한 번만 실행:
+    #     - opened: 신규 이슈이고 아직 'reviewed' 가 아닐 때 1회 실행.
+    #     - labeled: 'rerun-review' 라벨이 새로 붙었을 때만 실행(수동 재검토).
+    #       ⚠️ 과거에는 labeled 이벤트 전체를 허용했는데, 워크플로 자신이 붙이는
+    #       'reviewing' 라벨이 두 번째 실행을 유발해 같은 이슈에 Gemini 가
+    #       이중 호출(첫 실행은 cancel-in-progress 로 중도 취소)되는 낭비가 있었다.
     if: >
       ( github.event.issue.author_association == 'OWNER' ||
         github.event.issue.author_association == 'MEMBER' ||
         github.event.issue.author_association == 'COLLABORATOR' ) &&
       contains(github.event.issue.labels.*.name, 'dataset-review') &&
-      ( !contains(github.event.issue.labels.*.name, 'reviewed') ||
-        github.event.label.name == 'rerun-review' )
+      ( ( github.event.action == 'opened' &&
+          !contains(github.event.issue.labels.*.name, 'reviewed') ) ||
+        ( github.event.action == 'labeled' &&
+          github.event.label.name == 'rerun-review' ) )
     runs-on: ubuntu-latest
     steps:
       - name: 저장소 체크아웃
