@@ -30,6 +30,38 @@ flowchart LR
 | [`.github/workflows/`](.github/workflows/dataset-review.yml) | ⚙️ 자동화 | 이슈 감지 → 검토 실행 → 결과 댓글·라벨 처리(무료 쿼터 보호 포함) |
 | [`scripts/review.py`](scripts/review.py) + [`system_prompt.md`](scripts/system_prompt.md) | 🤖 검토 엔진 | Gemini(구글 검색 그라운딩) **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석 |
 
+## 🔄 데이터 흐름 (Data Flow)
+
+이슈 하나가 생성되어 검토 결과가 등록되기까지의 상호작용 순서입니다.
+
+```mermaid
+sequenceDiagram
+    actor U as 👤 사용자
+    participant H as 📝 docs/ 홈페이지
+    participant I as 🗂️ GitHub 이슈
+    participant A as ⚙️ GitHub Actions
+    participant G as 🤖 review.py · Gemini
+
+    U->>H: ① 데이터셋 정보 입력 (명칭·논문·소송 URL)
+    H->>I: ② 이슈 폼 prefill → 이슈 생성 (dataset-review 라벨)
+    I->>A: ③ opened 이벤트로 워크플로 트리거
+    Note over A: 작성자 권한 확인(OWNER/MEMBER/COLLABORATOR)<br/>외부인 이슈는 skip → 무료 쿼터 보호
+    A->>I: ④ reviewing 라벨 + "검토 시작" 댓글
+    A->>G: ⑤ scripts/review.py 실행
+    G->>G: ⑥ Gemini 1회 호출 (Google 검색 그라운딩)<br/>MAX_TOKENS 잘림 시 1회 자동 재생성
+    alt 검토 성공
+        G->>I: ⑦ 검토 보고서 댓글 등록 + reviewed 라벨
+    else 검토 실패 (쿼터/오류)
+        G->>I: ⑦′ 실패 안내 댓글 + review-failed 라벨
+    end
+    U->>I: ⑧ 결과 열람 (홈페이지 게시판 또는 이슈 댓글)
+    Note over U,I: 재검토가 필요하면 rerun-review 라벨을 붙여 다시 실행
+```
+
+> **핵심 원칙**: *검토는 자동, 최종 판단의 책임은 사람.* 본 검토는 참고 자료이며 법률 자문을
+> 대체하지 않습니다. 무료 티어 보호를 위해 검토 1건당 Gemini 호출은 **정확히 1회**이고, 실패는
+> `review-failed` 라벨로 명확히 표시되며 재검토는 `rerun-review` 라벨로만 실행됩니다.
+
 ## 동작 방식
 
 위 파이프라인의 특징은 다음과 같습니다.
