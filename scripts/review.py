@@ -264,62 +264,73 @@ def _split_value_basis(rest: str) -> tuple[str, str]:
 _YOYAK_BULLET_RE = re.compile(r"^[-*]\s*\*\*(.+?)\*\*\s*[—–-]\s*(.+)$", re.MULTILINE)
 
 
-def _summary_table(verdict_line: str, items: list[tuple[str, str, str]]) -> str:
-    """(라벨, 값, 근거) 목록으로 종합의견 3열 표를 렌더."""
-    rows = [f"| 🏁 **내부 검토 결과** | {verdict_line} | — |"]
-    for label, value, basis in items:
+def _summary_table(verdict_line: str, items: list[tuple[str, str, str, str]]) -> str:
+    """(라벨, 확인 결과, 내부 판단, 판단 근거) 목록으로 종합의견 4열 표를 렌더."""
+    rows = [f"| 🏁 **내부 검토 결과** | — | {verdict_line} | — |"]
+    for label, checked, judgment, basis in items:
         icon = next((ic for key, ic in _SUMMARY_ICONS if key in label), "•")
         rows.append(
-            f"| {icon} **{_md_cell(label)}** | {_md_cell(value) or '—'} | {_md_cell(basis) or '—'} |"
+            f"| {icon} **{_md_cell(label)}** | {_md_cell(checked) or '—'} "
+            f"| {_md_cell(judgment) or '—'} | {_md_cell(basis) or '—'} |"
         )
     return (
         "## 📌 종합의견\n\n"
-        "| 검토 항목 | 종합 결론 | 판단근거 |\n| :-- | :-- | :-- |\n" + "\n".join(rows)
+        "| 검토 항목 | 확인 결과 | 내부 판단 | 판단 근거 |\n"
+        "| :-- | :-- | :-- | :-- |\n" + "\n".join(rows)
     )
 
 
-def summary_from_yoyak(section1_body: str, verdict_line: str) -> str:
-    """모델이 '## 종합의견' 을 생략한 경우, '요약 결론' 항목 불릿에서 종합의견 표를 만든다.
+def _field(rest: str, key: str, stop: str | None) -> str:
+    """'키: 값 / 다음키: ...' 형태에서 키의 값을 추출. stop 이 None 이면 끝까지."""
+    if stop:
+        m = re.search(rf"{key}\s*[:：]\s*(.+?)(?:\s*/\s*(?:{stop})\s*[:：]|$)", rest)
+    else:
+        m = re.search(rf"{key}\s*[:：]\s*(.+)$", rest)
+    return m.group(1).strip() if m else ""
 
-    요약 결론 각 항목은 '확인 결과 / 내부 판단 / 판단 근거' 를 담으므로,
-    확인 결과를 '종합 결론' 으로, 판단 근거를 '판단근거' 로 사용한다.
+
+def summary_from_yoyak(section1_body: str, verdict_line: str) -> str:
+    """'1. 요약 결론' 의 항목 불릿에서 종합의견 4열 표를 만든다.
+
+    요약 결론 각 항목은 '확인 결과 / 내부 판단 / 판단 근거' 를 모두 담으므로,
+    이 세 값을 그대로 표의 3개 열로 사용한다.
     """
-    items: list[tuple[str, str, str]] = []
+    items: list[tuple[str, str, str, str]] = []
     for m in _YOYAK_BULLET_RE.finditer(section1_body):
         label, rest = m.group(1).strip(), m.group(2).strip()
-        vm = re.search(r"확인\s*결과\s*[:：]\s*(.+?)(?:\s*/\s*(?:내부\s*판단|판단\s*근거)|$)", rest)
-        bm = re.search(r"판단\s*근거\s*[:：]\s*(.+)$", rest)
-        value = vm.group(1).strip() if vm else rest
-        basis = bm.group(1).strip() if bm else ""
-        items.append((label, value, basis))
+        checked = _field(rest, r"확인\s*결과", r"내부\s*판단|판단\s*근거")
+        judgment = _field(rest, r"내부\s*판단", r"판단\s*근거")
+        basis = _field(rest, r"판단\s*근거", None)
+        if not (checked or judgment or basis):
+            checked = rest  # 필드 구분이 없으면 전체를 확인 결과로
+        items.append((label, checked, judgment, basis))
     if len(items) < 2:
         return ""
     return _summary_table(verdict_line, items)
 
 
-def render_summary_opinion(lead: str, verdict_line: str) -> str:
-    """모델이 plain 텍스트로 출력한 '종합의견'을 **표**(검토 항목/종합 결론/판단근거)로 재렌더링.
-
-    모델 출력에는 표를 만들지 않게 하고(대시 폭주로 잘림 방지), 코드가 파싱해 고정된
-    구분선으로 표를 생성하므로 안전하다. 예상 형식이 아니면 원문을 그대로 반환한다.
-    """
+def summary_from_opinion(lead: str, verdict_line: str) -> str:
+    """(폴백) '## 종합의견' 항목(값 — 근거)에서 표를 만든다. 내부 판단 열은 값에 통합/생략."""
     if "종합의견" not in lead:
-        return lead
+        return ""
     matches = list(_SUMMARY_ITEM_RE.finditer(lead))
     if len(matches) < 2:
-        return lead  # 파싱 실패 → 원문 유지(안전)
-
+        return ""
     items = []
     for m in matches:
         value, basis = _split_value_basis(m.group(2).strip())
-        items.append((m.group(1).strip(), value, basis))
+        items.append((m.group(1).strip(), value, "—", basis))  # 확인 결과=값, 내부 판단 없음
+    return _summary_table(verdict_line, items)
 
-    out = _summary_table(verdict_line, items)
-    # 결론 문단: 마지막 번호 항목 뒤의 텍스트
-    conclusion = " ".join(lead[matches[-1].end():].split()).strip()
-    if conclusion:
-        out += f"\n\n> 💬 **결론** — {conclusion}"
-    return out
+
+def opinion_conclusion(lead: str) -> str:
+    """'## 종합의견' 의 마지막 결론 문단(번호 항목 뒤 텍스트)을 한 줄로 추출."""
+    if "종합의견" not in lead:
+        return ""
+    matches = list(_SUMMARY_ITEM_RE.finditer(lead))
+    if not matches:
+        return ""
+    return " ".join(lead[matches[-1].end():].split()).strip()
 
 
 def restructure_review(text: str, name: str) -> str:
@@ -344,14 +355,19 @@ def restructure_review(text: str, name: str) -> str:
     if len(matches) < 2:
         return banner + "\n---\n\n" + text  # 형식이 다르면 배너만 추가
 
-    # 번호 섹션(## 1. ~) 앞의 lead 텍스트(= '## 종합의견' 블록)를 표로 재렌더링해 노출한다.
-    lead = render_summary_opinion(text[: matches[0].start()].strip(), verdict_line)
-    # 모델이 '## 종합의견' 을 생략한 경우, '1. 요약 결론' 항목에서 종합의견 표를 생성(폴백).
-    if not lead.startswith("## 📌"):
-        sec1_end = matches[1].start() if len(matches) > 1 else len(text)
-        fallback = summary_from_yoyak(text[matches[0].end():sec1_end], verdict_line)
-        if fallback:
-            lead = fallback
+    # 종합의견 표(검토 항목/확인 결과/내부 판단/판단 근거)를 만든다.
+    #  - 표 데이터는 '1. 요약 결론' 항목(확인 결과·내부 판단·판단 근거를 모두 담음)에서 우선 생성.
+    #  - 요약 결론 파싱 실패 시 '## 종합의견' 항목에서 폴백(내부 판단 없음).
+    #  - 결론 문단은 '## 종합의견' 에서 가져와 콜아웃으로 덧붙인다.
+    lead_raw = text[: matches[0].start()].strip()
+    sec1_end = matches[1].start() if len(matches) > 1 else len(text)
+    table = summary_from_yoyak(text[matches[0].end():sec1_end], verdict_line) or \
+        summary_from_opinion(lead_raw, verdict_line)
+    if table:
+        conclusion = opinion_conclusion(lead_raw)
+        lead = table + (f"\n\n> 💬 **결론** — {conclusion}" if conclusion else "")
+    else:
+        lead = lead_raw  # 표를 못 만들면 원문 유지(안전)
 
     icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "📚"}
     blocks: list[str] = []
