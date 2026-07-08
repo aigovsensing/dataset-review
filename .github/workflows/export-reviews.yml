@@ -1,0 +1,48 @@
+name: 검토 결과 CSV 내보내기
+
+# 검토 결과(이슈)를 집계해 docs/data/reviews.csv · reviews.json 으로 커밋한다.
+#  - 수동 실행(Actions 탭 → Run workflow)
+#  - 매일 자동 갱신(스케줄)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 0 * * *" # 매일 00:17 UTC (한국 시각 09:17)
+
+# 동시 실행 방지(마지막 것만)
+concurrency:
+  group: export-reviews
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v5
+
+      - name: Python 설정
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: 검토 결과 내보내기 (CSV/JSON 생성)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/export_reviews.py
+
+      - name: 변경 시 커밋·푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/reviews.csv docs/data/reviews.json
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋 생략"
+          else
+            git commit -m "chore: 검토 결과 CSV 자동 갱신 [skip ci]"
+            git push
+          fi

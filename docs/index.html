@@ -154,11 +154,14 @@
         <div class="results-head">
           <h3>검토 결과 목록</h3>
           <div class="results-actions">
+            <a id="csv-link" class="btn ghost small" href="data/reviews.csv" download="reviews.csv"
+               title="검토 결과 전체를 CSV로 내려받기 (매일 자동 갱신)">⬇️ CSV</a>
             <button id="auth-btn" class="btn ghost small" type="button">🔑 인증</button>
             <button id="refresh-btn" class="btn ghost small" type="button">새로고침</button>
           </div>
         </div>
-        <p class="dim">최근 검토 요청 이슈입니다. 항목을 클릭하면 GitHub 이슈에서 상세 결과를 볼 수 있습니다.</p>
+        <p class="dim">최근 검토 요청 이슈입니다. 항목을 클릭하면 GitHub 이슈에서 상세 결과를 볼 수 있습니다.
+          <strong>⬇️ CSV</strong> 로 데이터셋·판정·라이선스·개인정보·소송 여부 등을 집계용으로 내려받을 수 있습니다(매일 자동 갱신).</p>
 
         <div id="auth-panel" class="auth-panel" hidden>
           <p class="auth-desc">

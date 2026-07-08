@@ -261,7 +261,9 @@ def _split_value_basis(rest: str) -> tuple[str, str]:
 
 
 # '## 1. 요약 결론' 의 항목 불릿: "- **라이선스** — 확인 결과: … / 내부 판단: … / 판단 근거: …"
-_YOYAK_BULLET_RE = re.compile(r"^[-*]\s*\*\*(.+?)\*\*\s*[—–-]\s*(.+)$", re.MULTILINE)
+# 들여쓰기 허용, 구분자는 em/en 대시만(하이픈 제외 — 별도 볼드 줄 다음 불릿의 '-' 를
+# 구분자로 삼아 항목을 삼키는 것을 방지), 대시 주변은 [ \t] 로 제한(줄바꿈 미포함).
+_YOYAK_BULLET_RE = re.compile(r"^[ \t]*[-*][ \t]+\*\*(.+?)\*\*[ \t]*[—–][ \t]*(.+)$", re.MULTILINE)
 
 
 def _summary_table(verdict_line: str, items: list[tuple[str, str, str, str]]) -> str:
@@ -283,7 +285,7 @@ def _summary_table(verdict_line: str, items: list[tuple[str, str, str, str]]) ->
 def _field(rest: str, key: str, stop: str | None) -> str:
     """'키: 값 / 다음키: ...' 형태에서 키의 값을 추출. stop 이 None 이면 끝까지."""
     if stop:
-        m = re.search(rf"{key}\s*[:：]\s*(.+?)(?:\s*/\s*(?:{stop})\s*[:：]|$)", rest)
+        m = re.search(rf"{key}\s*[:：]\s*(.+?)(?:\s*[/—–]\s*(?:{stop})\s*[:：]|$)", rest)
     else:
         m = re.search(rf"{key}\s*[:：]\s*(.+)$", rest)
     return m.group(1).strip() if m else ""
