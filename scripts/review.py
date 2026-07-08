@@ -24,6 +24,14 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 SYSTEM_PROMPT_PATH = SCRIPT_DIR / "system_prompt.md"
 
+# 비글 마스코트 이미지(이슈 댓글용). GitHub 댓글은 camo 프록시가 SVG 를 잘 렌더링하지
+# 못하므로 PNG(raw URL)를 사용한다. 저장소/브랜치는 GITHUB_REPOSITORY 로부터 유도.
+_REPO = os.environ.get("GITHUB_REPOSITORY") or "aigovsensing/dataset-review"
+BEAGLE_IMG = (
+    os.environ.get("BEAGLE_IMG_URL")
+    or f"https://raw.githubusercontent.com/{_REPO}/main/docs/beagle.png"
+)
+
 # 이슈 폼(dataset-review.yml)의 라벨 → 내부 필드 키 매핑
 FIELD_LABELS = {
     "데이터셋 명칭": "dataset_name",
@@ -375,7 +383,8 @@ def restructure_review(text: str, name: str) -> str:
     verdict, emoji = detect_verdict(text)
     verdict_line = f"{emoji} **{verdict}**" if verdict else "📋 (판정 확인 불가)"
     banner = (
-        "# 🛡️ 오픈 데이터셋 법적 리스크 검토 결과\n\n"
+        f'<img src="{BEAGLE_IMG}" align="right" width="76" alt="비글(Beagle)" />\n\n'
+        "# 🐶 비글 · 오픈 데이터셋 법적 리스크 검토 결과\n\n"
         f"> **대상 데이터셋** &nbsp;`{name or '확인 불가'}`\n"
         f"> **내부 검토 결과** &nbsp;{verdict_line}\n"
     )

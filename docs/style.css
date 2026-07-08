@@ -55,7 +55,20 @@ body {
   transition: background 0.3s ease;
 }
 .site-header .wrap { position: relative; }
-.site-header h1 { margin: 0 0 8px; font-size: 1.8rem; }
+.site-header h1 { margin: 0; font-size: 1.8rem; }
+
+/* 비글 브랜드 (로고 + 제목) */
+.brand { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.site-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  box-shadow: var(--shadow);
+  flex: 0 0 auto;
+}
+.brand-text { display: flex; flex-direction: column; gap: 2px; }
+.brand-en { font-size: 1rem; color: var(--text-dim); font-weight: 600; }
+.brand-sub { margin: 0; color: var(--text-dim); font-size: 0.95rem; }
 
 /* 낮/밤 테마 토글 */
 .theme-toggle {
