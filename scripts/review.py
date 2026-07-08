@@ -260,6 +260,43 @@ def _split_value_basis(rest: str) -> tuple[str, str]:
     return rest.strip(), ""
 
 
+# '## 1. 요약 결론' 의 항목 불릿: "- **라이선스** — 확인 결과: … / 내부 판단: … / 판단 근거: …"
+_YOYAK_BULLET_RE = re.compile(r"^[-*]\s*\*\*(.+?)\*\*\s*[—–-]\s*(.+)$", re.MULTILINE)
+
+
+def _summary_table(verdict_line: str, items: list[tuple[str, str, str]]) -> str:
+    """(라벨, 값, 근거) 목록으로 종합의견 3열 표를 렌더."""
+    rows = [f"| 🏁 **내부 검토 결과** | {verdict_line} | — |"]
+    for label, value, basis in items:
+        icon = next((ic for key, ic in _SUMMARY_ICONS if key in label), "•")
+        rows.append(
+            f"| {icon} **{_md_cell(label)}** | {_md_cell(value) or '—'} | {_md_cell(basis) or '—'} |"
+        )
+    return (
+        "## 📌 종합의견\n\n"
+        "| 검토 항목 | 종합 결론 | 판단근거 |\n| :-- | :-- | :-- |\n" + "\n".join(rows)
+    )
+
+
+def summary_from_yoyak(section1_body: str, verdict_line: str) -> str:
+    """모델이 '## 종합의견' 을 생략한 경우, '요약 결론' 항목 불릿에서 종합의견 표를 만든다.
+
+    요약 결론 각 항목은 '확인 결과 / 내부 판단 / 판단 근거' 를 담으므로,
+    확인 결과를 '종합 결론' 으로, 판단 근거를 '판단근거' 로 사용한다.
+    """
+    items: list[tuple[str, str, str]] = []
+    for m in _YOYAK_BULLET_RE.finditer(section1_body):
+        label, rest = m.group(1).strip(), m.group(2).strip()
+        vm = re.search(r"확인\s*결과\s*[:：]\s*(.+?)(?:\s*/\s*(?:내부\s*판단|판단\s*근거)|$)", rest)
+        bm = re.search(r"판단\s*근거\s*[:：]\s*(.+)$", rest)
+        value = vm.group(1).strip() if vm else rest
+        basis = bm.group(1).strip() if bm else ""
+        items.append((label, value, basis))
+    if len(items) < 2:
+        return ""
+    return _summary_table(verdict_line, items)
+
+
 def render_summary_opinion(lead: str, verdict_line: str) -> str:
     """모델이 plain 텍스트로 출력한 '종합의견'을 **표**(검토 항목/종합 결론/판단근거)로 재렌더링.
 
@@ -272,22 +309,14 @@ def render_summary_opinion(lead: str, verdict_line: str) -> str:
     if len(matches) < 2:
         return lead  # 파싱 실패 → 원문 유지(안전)
 
-    rows = [f"| 🏁 **내부 검토 결과** | {verdict_line} | — |"]
+    items = []
     for m in matches:
-        label = m.group(1).strip()
         value, basis = _split_value_basis(m.group(2).strip())
-        icon = next((ic for key, ic in _SUMMARY_ICONS if key in label), "•")
-        rows.append(
-            f"| {icon} **{_md_cell(label)}** | {_md_cell(value)} | {_md_cell(basis) or '—'} |"
-        )
+        items.append((m.group(1).strip(), value, basis))
 
+    out = _summary_table(verdict_line, items)
     # 결론 문단: 마지막 번호 항목 뒤의 텍스트
     conclusion = " ".join(lead[matches[-1].end():].split()).strip()
-
-    out = (
-        "## 📌 종합의견\n\n"
-        "| 검토 항목 | 종합 결론 | 판단근거 |\n| :-- | :-- | :-- |\n" + "\n".join(rows)
-    )
     if conclusion:
         out += f"\n\n> 💬 **결론** — {conclusion}"
     return out
@@ -317,6 +346,12 @@ def restructure_review(text: str, name: str) -> str:
 
     # 번호 섹션(## 1. ~) 앞의 lead 텍스트(= '## 종합의견' 블록)를 표로 재렌더링해 노출한다.
     lead = render_summary_opinion(text[: matches[0].start()].strip(), verdict_line)
+    # 모델이 '## 종합의견' 을 생략한 경우, '1. 요약 결론' 항목에서 종합의견 표를 생성(폴백).
+    if not lead.startswith("## 📌"):
+        sec1_end = matches[1].start() if len(matches) > 1 else len(text)
+        fallback = summary_from_yoyak(text[matches[0].end():sec1_end], verdict_line)
+        if fallback:
+            lead = fallback
 
     icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "📚"}
     blocks: list[str] = []
