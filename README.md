@@ -175,6 +175,44 @@ Hugging Face 주소를 입력하면 Gemini 가 Google 검색 그라운딩으로 
 찾아 라이선스 조항·데이터 수집 방법·개인정보 처리 서술을 원문 근거와 함께 인용합니다.
 URL 이 구체적일수록 검토 품질이 올라갑니다. 여러 개는 줄바꿈으로 구분해 입력합니다.
 
+### 논문 주소(arXiv)는 어떻게 분석되나?
+
+> **결론부터**: 코드가 arXiv PDF 를 직접 다운로드·파싱하지는 **않습니다.** 그 URL 을 Gemini 에
+> 넘겨, **Gemini 가 Google 검색 그라운딩으로 논문을 찾아 분석·인용**하도록 되어 있습니다.
+
+**처리 흐름 (arXiv 주소 입력 시)**
+
+1. **폼에서 URL 추출 (코드, AI 아님)** — [`parse_issue_body()`](scripts/review.py#L31)가 이슈 본문의
+   `### 논문 주소 (URL)` 섹션을 정규식으로 파싱해 `fields["paper_urls"]` 에 담습니다.
+2. **프롬프트에 URL 그대로 삽입** — [`build_user_prompt()`](scripts/review.py#L82):
+   ```python
+   if fields.get("paper_urls"):
+       lines.append(f"- 논문 주소: {fields['paper_urls']}")
+   ```
+   arXiv 전용 처리(PDF 변환·다운로드)는 없습니다. URL 을 텍스트로 넣고, "Google 검색 도구로 논문 등
+   공식 자료를 직접 확인 · 이 URL 을 우선 근거로 활용 · 인용 시 출처 URL 함께 제시"라고 지시합니다.
+3. **시스템 지침이 논문 활용 방식을 규정** — [`system_prompt.md`](scripts/system_prompt.md#L27):
+   *"논문·공식 홈페이지·LICENSE… URL 이 제공되면 Google 검색 도구로 해당 자료를 우선적으로 찾아,
+   라이선스 조항·데이터 수집 방법(크롤링·출처·필터링)·개인정보 서술을 원문에서 확인하고 그 문장을
+   그대로 인용한다."* → 논문에서 **라이선스 / 데이터 수집 방식 / 개인정보** 3대 항목의 근거를 찾습니다.
+4. **Gemini 1회 호출 (google_search 그라운딩)** — [`review.py`](scripts/review.py#L478):
+   ```python
+   tools = [types.Tool(google_search=types.GoogleSearch())]
+   ```
+   Gemini 가 이 도구로 arXiv 논문(및 관련 공식 자료)을 **실제 검색·열람해 분석**합니다. 논문 내용을
+   이해하는 "분석"은 여기서 일어납니다.
+5. **후처리로 인용을 링크화 (코드, AI 아님)** — Gemini 가 근거 문장 끝에 `[cite: N]` 을 붙이면
+   ([`system_prompt.md`](scripts/system_prompt.md#L54)), `linkify_citations()` 가 그 번호를 실제
+   출처 URL 링크로 변환하고 그라운딩 출처 목록을 결과 하단에 첨부합니다.
+
+**참고 (이력):** 과거 두 방식을 시도했다가 무료 티어 안정성 문제로 되돌렸습니다.
+- `url_context` 도구(모델이 PDF 원문을 직접 읽기) → 대용량 논문 PDF 에서 **빈 응답 실패**
+- arXiv API 로 초록을 코드로 가져와 주입 → 모델이 초록을 출력에 되풀이하는 **무한 반복 루프**
+
+그래서 현재는 가장 안정적인 **google_search 그라운딩 단독** 방식입니다. 정리하면 — arXiv URL 은
+"Gemini 에게 이 논문을 찾아 근거로 쓰라"는 **지시의 입력**으로 쓰이고, 실제 논문 읽기·분석은
+Gemini 의 Google 검색 그라운딩이 수행하며, 코드는 그 앞뒤(URL 추출·인용 링크화·출처 첨부)를 담당합니다.
+
 ## 라벨
 
 | 라벨 | 의미 |
