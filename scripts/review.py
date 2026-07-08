@@ -286,12 +286,47 @@ def restructure_review(text: str, name: str) -> str:
     return "\n\n".join(pieces)
 
 
-# 일시적으로 재시도할 가치가 있는 오류(서버 과부하/속도 제한 등)
-_RETRIABLE_MARKERS = ("503", "500", "502", "504", "UNAVAILABLE", "high demand", "RESOURCE_EXHAUSTED", "429")
+# 같은 모델을 재시도할 가치가 있는 일시적 서버 오류. (429/쿼터는 여기서 재시도하지 않고
+#  build_model_chain 의 '다음 모델 폴백'으로 처리한다 — 일일 쿼터는 대기해도 회복되지 않으므로.)
+_RETRIABLE_MARKERS = ("503", "500", "502", "504", "UNAVAILABLE", "high demand", "INTERNAL")
+
+# 쿼터 소진(429) 또는 모델 사용 불가(404/미지원) → 다른 모델로 폴백해야 하는 오류
+_FALLBACK_MARKERS = ("429", "resource_exhausted", "quota", "404", "not_found", "not found", "not supported")
 
 
-def generate_with_retry(client, model, contents, config, attempts: int = 4, base_delay: float = 5.0):
-    """Gemini 호출을 일시적 오류(예: 503 high demand, 429)에 대해 지수 백오프로 재시도."""
+def is_fallbackable(exc: Exception) -> bool:
+    """다른(구세대) 모델로 폴백하면 해결될 수 있는 오류인지 판단."""
+    code = getattr(exc, "code", None)
+    msg = str(exc).lower()
+    return code in (429, 404) or any(m in msg for m in _FALLBACK_MARKERS)
+
+
+def build_model_chain(primary: str) -> list[str]:
+    """사용자 지정 모델을 최우선으로, 무료 쿼터가 더 큰 구세대 모델을 폴백으로 잇는 체인.
+
+    무료 티어 일일 쿼터(RPD)는 모델별로 분리되므로, 한 모델이 429(쿼터 소진)면
+    다음 모델로 넘어가면 계속 검토할 수 있다. GEMINI_MODEL_FALLBACKS 로 폴백 목록을
+    커스터마이즈할 수 있다(쉼표 구분).
+    """
+    chain = [primary]
+    env_fb = (os.environ.get("GEMINI_MODEL_FALLBACKS") or "").strip()
+    fallbacks = (
+        [m.strip() for m in env_fb.split(",") if m.strip()]
+        if env_fb
+        else ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+    )
+    for m in fallbacks:
+        if m not in chain:
+            chain.append(m)
+    return chain
+
+
+def generate_with_retry(client, model, contents, config, attempts: int = 3, base_delay: float = 5.0):
+    """Gemini 호출을 일시적 서버 오류(503/500 등)에 대해 지수 백오프로 재시도.
+
+    429/쿼터·모델 불가 오류는 재시도하지 않고 즉시 raise 하여, 호출부의 모델 폴백이
+    다음 모델로 넘어가도록 한다.
+    """
     delay = base_delay
     last_exc: Exception | None = None
     for i in range(attempts):
@@ -301,7 +336,7 @@ def generate_with_retry(client, model, contents, config, attempts: int = 4, base
             last_exc = exc
             code = getattr(exc, "code", None)
             msg = str(exc)
-            retriable = code in (429, 500, 502, 503, 504) or any(m in msg for m in _RETRIABLE_MARKERS)
+            retriable = code in (500, 502, 503, 504) or any(m in msg for m in _RETRIABLE_MARKERS)
             if not retriable or i == attempts - 1:
                 raise
             print(f"일시적 오류로 재시도 ({i + 1}/{attempts - 1}), {delay:.0f}s 대기: {msg[:120]}", file=sys.stderr)
@@ -366,38 +401,61 @@ def run_review(title: str, body: str) -> str:
     except Exception:  # noqa: BLE001 - 구버전 SDK 호환
         config = types.GenerateContentConfig(**base_config)
 
-    # 출력이 MAX_TOKENS 로 잘리면(예: 표 구분선 대시 폭주) 최대 1회 재생성한다.
-    # 대시/반복 폭주는 간헐적이라 재시도로 온전한 결과를 얻을 확률이 높다.
+    # 현재 사용 가능한 모델을 순서대로 시도한다: 기본 모델(최신 Flash)이 429(쿼터 소진)
+    # 이거나 사용 불가하면 무료 쿼터가 더 큰 구세대 모델로 자동 폴백한다.
+    # 각 모델에서 출력이 MAX_TOKENS 로 잘리면(대시/반복 폭주) 같은 모델로 최대 1회 재생성한다.
+    model_chain = build_model_chain(model)
+    print(f"[diag] model_chain={model_chain}", file=sys.stderr)
     response = None
     text = ""
     finish_reason = ""
-    for attempt in range(2):
-        response = generate_with_retry(client, model, user_prompt, config)
-        text = (response.text or "").strip()
-        finish_reason = ""
-        try:
-            finish_reason = str(response.candidates[0].finish_reason or "")
-        except Exception:  # noqa: BLE001
-            pass
-        try:
-            um = response.usage_metadata
-            print(
-                f"[diag] attempt={attempt + 1} finish_reason={finish_reason} "
-                f"prompt={getattr(um, 'prompt_token_count', '?')} "
-                f"thoughts={getattr(um, 'thoughts_token_count', '?')} "
-                f"output={getattr(um, 'candidates_token_count', '?')} "
-                f"total={getattr(um, 'total_token_count', '?')} "
-                f"text_chars={len(text)}",
-                file=sys.stderr,
-            )
-        except Exception:  # noqa: BLE001
-            pass
-        # 정상 종료이고 내용이 있으면 채택
-        if text and "MAX_TOKENS" not in finish_reason:
-            break
-        if attempt == 0:
-            print("출력이 잘려(MAX_TOKENS) 1회 재생성합니다.", file=sys.stderr)
+    used_model = model
+    gen_error: Exception | None = None
 
+    for ci, cand in enumerate(model_chain):
+        used_model = cand
+        try:
+            for attempt in range(2):
+                response = generate_with_retry(client, cand, user_prompt, config)
+                text = (response.text or "").strip()
+                finish_reason = ""
+                try:
+                    finish_reason = str(response.candidates[0].finish_reason or "")
+                except Exception:  # noqa: BLE001
+                    pass
+                try:
+                    um = response.usage_metadata
+                    print(
+                        f"[diag] model={cand} attempt={attempt + 1} finish_reason={finish_reason} "
+                        f"prompt={getattr(um, 'prompt_token_count', '?')} "
+                        f"thoughts={getattr(um, 'thoughts_token_count', '?')} "
+                        f"output={getattr(um, 'candidates_token_count', '?')} "
+                        f"total={getattr(um, 'total_token_count', '?')} "
+                        f"text_chars={len(text)}",
+                        file=sys.stderr,
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
+                if text and "MAX_TOKENS" not in finish_reason:
+                    break
+                if attempt == 0:
+                    print(f"출력이 잘려(MAX_TOKENS) {cand} 로 1회 재생성합니다.", file=sys.stderr)
+            gen_error = None
+            break  # 이 모델로 응답(텍스트) 확보 → 폴백 중단
+        except Exception as exc:  # noqa: BLE001 - 폴백 판단
+            gen_error = exc
+            if is_fallbackable(exc) and ci < len(model_chain) - 1:
+                nxt = model_chain[ci + 1]
+                print(
+                    f"모델 `{cand}` 호출 실패({type(exc).__name__}: {str(exc)[:80]}) "
+                    f"→ 다음 모델 `{nxt}` 로 폴백합니다.",
+                    file=sys.stderr,
+                )
+                continue
+            raise  # 폴백 불가 오류이거나 마지막 모델까지 실패 → 그대로 전파
+
+    if gen_error is not None:
+        raise gen_error
     if not text:
         raise RuntimeError(
             f"Gemini 응답이 비어 있습니다 (finish_reason={finish_reason or '알 수 없음'}). "
@@ -407,19 +465,31 @@ def run_review(title: str, body: str) -> str:
 
     truncated = "MAX_TOKENS" in finish_reason
 
-    # 별칭(gemini-flash-latest)이 실제로 어떤 버전으로 해석됐는지 응답에서 확인
+    # 실제 사용된 모델 버전 확인(별칭 해석 + 폴백 결과 반영)
     resolved_model = ""
     try:
         resolved_model = (response.model_version or "").strip()
     except Exception:  # noqa: BLE001
         pass
     if not resolved_model:
-        resolved_model = model  # API 가 버전을 주지 않으면 요청한 이름으로 대체
-    service_tier = os.environ.get("GEMINI_SERVICE_TIER") or "Standard"
-    print(f"[diag] requested_model={model} resolved_model={resolved_model}", file=sys.stderr)
+        resolved_model = used_model
+
+    # 서비스 티어: 응답 메타데이터의 실제 값 우선, 없으면 환경변수/Standard
+    service_tier = (os.environ.get("GEMINI_SERVICE_TIER") or "").strip()
+    if not service_tier:
+        try:
+            tv = getattr(response.usage_metadata, "service_tier", None)
+            if tv and str(tv).lower() != "none":
+                service_tier = str(tv).capitalize()
+        except Exception:  # noqa: BLE001
+            pass
+    service_tier = service_tier or "Standard"
+    print(f"[diag] requested={model} used={used_model} resolved={resolved_model} tier={service_tier}", file=sys.stderr)
 
     # 검토 결과 최상단에 표시할 모델/티어 정보 헤더
-    if resolved_model != model:
+    if used_model != model:
+        model_line = f"**모델 정보:** `{resolved_model}` (요청 `{model}` 쿼터 소진/불가 → 폴백)"
+    elif resolved_model != model:
         model_line = f"**모델 정보:** `{resolved_model}` (요청: `{model}`)"
     else:
         model_line = f"**모델 정보:** `{resolved_model}`"
