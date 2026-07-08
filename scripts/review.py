@@ -243,6 +243,20 @@ _SUMMARY_ITEM_RE = re.compile(r"^\s*\d+\.\s*([^:：\n]+?)\s*[:：]\s*(.+?)\s*$",
 _SUMMARY_ICONS = (("라이선스", "⚖️"), ("수집", "🛠️"), ("생성", "🛠️"), ("원본", "🛠️"), ("개인정보", "🔐"))
 
 
+def _item_key(label: str) -> str | None:
+    """검토 항목 라벨을 표준 키로 매핑. 알려진 3개 항목이 아니면 None.
+
+    (판정 문구 '사용 가능/추가 검토 필요/사용 비권고' 등이 항목 행으로 잘못 섞이는 것을 방지)
+    """
+    if "라이선스" in label:
+        return "license"
+    if "수집" in label or "생성" in label or "원본" in label:
+        return "collection"
+    if "개인정보" in label:
+        return "privacy"
+    return None
+
+
 def _md_cell(s: str) -> str:
     """표 셀 안전화: 파이프 이스케이프 + 개행 제거."""
     return " ".join(s.split()).replace("|", "\\|")
@@ -298,8 +312,13 @@ def summary_from_yoyak(section1_body: str, verdict_line: str) -> str:
     이 세 값을 그대로 표의 3개 열로 사용한다.
     """
     items: list[tuple[str, str, str, str]] = []
+    seen: set[str] = set()
     for m in _YOYAK_BULLET_RE.finditer(section1_body):
         label, rest = m.group(1).strip(), m.group(2).strip()
+        key = _item_key(label)  # 알려진 검토 항목만 행으로 인정(판정/잡음 불릿 배제)
+        if not key or key in seen:
+            continue
+        seen.add(key)
         checked = _field(rest, r"확인\s*결과", r"내부\s*판단|판단\s*근거")
         judgment = _field(rest, r"내부\s*판단", r"판단\s*근거")
         basis = _field(rest, r"판단\s*근거", None)
@@ -319,9 +338,17 @@ def summary_from_opinion(lead: str, verdict_line: str) -> str:
     if len(matches) < 2:
         return ""
     items = []
+    seen: set[str] = set()
     for m in matches:
+        label = m.group(1).strip()
+        key = _item_key(label)  # 알려진 검토 항목만 인정
+        if not key or key in seen:
+            continue
+        seen.add(key)
         value, basis = _split_value_basis(m.group(2).strip())
-        items.append((m.group(1).strip(), value, "—", basis))  # 확인 결과=값, 내부 판단 없음
+        items.append((label, value, "—", basis))  # 확인 결과=값, 내부 판단 없음
+    if len(items) < 2:
+        return ""
     return _summary_table(verdict_line, items)
 
 
