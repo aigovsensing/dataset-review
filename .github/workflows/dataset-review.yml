@@ -23,24 +23,28 @@ permissions:
 jobs:
   review:
     # 검토 실행 조건 (Gemini 무료 쿼터 보호를 위해 호출 횟수를 최소화):
-    #  1) 이슈 작성자가 저장소 OWNER/MEMBER/COLLABORATOR 여야 한다.
-    #     → 외부인의 무분별한 이슈 생성으로 인한 Gemini API 쿼터 소진을 방지.
-    #  2) 'dataset-review' 라벨이 있는 이슈만 검토.
+    #  1) 'dataset-review' 라벨이 있는 이슈만 검토.
+    #  2) 실행 권한: 이슈 작성자가 OWNER/MEMBER/COLLABORATOR 이거나,
+    #     'review-approved' 라벨이 붙어 있어야 한다.
+    #     → 외부인(NONE)의 무분별한 이슈로 인한 쿼터 소진 방지. 다만 멤버가
+    #       'review-approved' 라벨을 붙이면 외부인 이슈도 승인·실행할 수 있다
+    #       (라벨은 write/triage 권한자만 붙일 수 있으므로 승인 게이트 역할).
     #  3) 이벤트별로 정확히 한 번만 실행:
-    #     - opened: 신규 이슈이고 아직 'reviewed' 가 아닐 때 1회 실행.
-    #     - labeled: 'rerun-review' 라벨이 새로 붙었을 때만 실행(수동 재검토).
-    #       ⚠️ 과거에는 labeled 이벤트 전체를 허용했는데, 워크플로 자신이 붙이는
-    #       'reviewing' 라벨이 두 번째 실행을 유발해 같은 이슈에 Gemini 가
-    #       이중 호출(첫 실행은 cancel-in-progress 로 중도 취소)되는 낭비가 있었다.
+    #     - opened: 신규(멤버) 이슈이고 아직 'reviewed' 가 아닐 때 1회.
+    #     - labeled: 'rerun-review'(재검토) 또는 'review-approved'(외부인 승인)가
+    #       새로 붙었을 때만 실행. (워크플로 자신이 붙이는 reviewing/reviewed 라벨은
+    #       제외되어 자기 재트리거를 막는다.)
     if: >
+      contains(github.event.issue.labels.*.name, 'dataset-review') &&
       ( github.event.issue.author_association == 'OWNER' ||
         github.event.issue.author_association == 'MEMBER' ||
-        github.event.issue.author_association == 'COLLABORATOR' ) &&
-      contains(github.event.issue.labels.*.name, 'dataset-review') &&
+        github.event.issue.author_association == 'COLLABORATOR' ||
+        contains(github.event.issue.labels.*.name, 'review-approved') ) &&
       ( ( github.event.action == 'opened' &&
           !contains(github.event.issue.labels.*.name, 'reviewed') ) ||
         ( github.event.action == 'labeled' &&
-          github.event.label.name == 'rerun-review' ) )
+          ( github.event.label.name == 'rerun-review' ||
+            github.event.label.name == 'review-approved' ) ) )
     runs-on: ubuntu-latest
     steps:
       - name: 저장소 체크아웃
