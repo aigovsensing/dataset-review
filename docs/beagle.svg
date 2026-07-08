@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="비글 마스코트">
+  <title>비글 (Beagle) — 데이터셋 리스크 탐지견</title>
+  <!-- 배경 원 (단색: 렌더러 호환성) -->
+  <circle cx="128" cy="128" r="124" fill="#e8f0ff"/>
+  <circle cx="128" cy="128" r="124" fill="none" stroke="#c3d4f2" stroke-width="4"/>
+
+  <!-- 귀 (긴 늘어진 갈색 귀) -->
+  <ellipse cx="60" cy="140" rx="30" ry="66" fill="#8a5a2b" transform="rotate(14 60 140)"/>
+  <ellipse cx="196" cy="140" rx="30" ry="66" fill="#8a5a2b" transform="rotate(-14 196 140)"/>
+  <ellipse cx="60" cy="150" rx="20" ry="50" fill="#6f4620" transform="rotate(14 60 150)"/>
+  <ellipse cx="196" cy="150" rx="20" ry="50" fill="#6f4620" transform="rotate(-14 196 150)"/>
+
+  <!-- 머리 (크림색) -->
+  <ellipse cx="128" cy="120" rx="74" ry="70" fill="#f7edd8"/>
+
+  <!-- 이마/정수리 갈색 반점 -->
+  <path d="M128 52
+           C 92 52, 66 74, 62 104
+           C 90 92, 166 92, 194 104
+           C 190 74, 164 52, 128 52 Z" fill="#c8843c"/>
+  <!-- 이마 중앙 흰 줄무늬 -->
+  <path d="M120 58 h16 c-2 20 -2 34 0 48 h-16 c2 -14 2 -28 0 -48 Z" fill="#f7edd8"/>
+
+  <!-- 눈 주변 옅은 갈색 -->
+  <ellipse cx="100" cy="120" rx="22" ry="20" fill="#e7c79a"/>
+  <ellipse cx="156" cy="120" rx="22" ry="20" fill="#e7c79a"/>
+
+  <!-- 눈 -->
+  <circle cx="102" cy="120" r="10" fill="#3a2a1a"/>
+  <circle cx="154" cy="120" r="10" fill="#3a2a1a"/>
+  <circle cx="105" cy="116" r="3.4" fill="#ffffff"/>
+  <circle cx="157" cy="116" r="3.4" fill="#ffffff"/>
+
+  <!-- 주둥이 -->
+  <ellipse cx="128" cy="158" rx="46" ry="36" fill="#fbf4e6"/>
+
+  <!-- 코 -->
+  <ellipse cx="128" cy="150" rx="16" ry="12" fill="#2b2b2b"/>
+  <ellipse cx="123" cy="147" rx="4" ry="3" fill="#5b5b5b"/>
+
+  <!-- 입 -->
+  <path d="M128 162 v14" stroke="#3a2a1a" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M128 176 c-12 12 -30 8 -36 -2" stroke="#3a2a1a" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M128 176 c12 12 30 8 36 -2" stroke="#3a2a1a" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+
+  <!-- 돋보기 (리스크 탐지) -->
+  <g transform="rotate(18 196 196)">
+    <circle cx="196" cy="192" r="30" fill="#bfe0ff" fill-opacity="0.55" stroke="#3f6fb0" stroke-width="7"/>
+    <circle cx="196" cy="192" r="30" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.7"/>
+    <rect x="192" y="220" width="12" height="30" rx="6" fill="#3f6fb0"/>
+  </g>
+</svg>
