@@ -248,8 +248,20 @@ def _md_cell(s: str) -> str:
     return " ".join(s.split()).replace("|", "\\|")
 
 
+# 종합의견 항목의 '값 — 근거: 근거' 를 값과 근거로 분리
+_SUMMARY_BASIS_RE = re.compile(r"\s+[—–-]\s*근거\s*[:：]\s*(.+)$")
+
+
+def _split_value_basis(rest: str) -> tuple[str, str]:
+    """'값 — 근거: 근거' → (값, 근거). 마커가 없으면 (전체, '')."""
+    m = _SUMMARY_BASIS_RE.search(rest)
+    if m:
+        return rest[: m.start()].strip(), m.group(1).strip()
+    return rest.strip(), ""
+
+
 def render_summary_opinion(lead: str, verdict_line: str) -> str:
-    """모델이 plain 텍스트로 출력한 '종합의견'을 **표**로 재렌더링한다.
+    """모델이 plain 텍스트로 출력한 '종합의견'을 **표**(검토 항목/종합 결론/판단근거)로 재렌더링.
 
     모델 출력에는 표를 만들지 않게 하고(대시 폭주로 잘림 방지), 코드가 파싱해 고정된
     구분선으로 표를 생성하므로 안전하다. 예상 형식이 아니면 원문을 그대로 반환한다.
@@ -260,16 +272,22 @@ def render_summary_opinion(lead: str, verdict_line: str) -> str:
     if len(matches) < 2:
         return lead  # 파싱 실패 → 원문 유지(안전)
 
-    rows = [f"| 🏁 **내부 검토 결과** | {verdict_line} |"]
+    rows = [f"| 🏁 **내부 검토 결과** | {verdict_line} | — |"]
     for m in matches:
-        label, value = m.group(1).strip(), m.group(2).strip()
+        label = m.group(1).strip()
+        value, basis = _split_value_basis(m.group(2).strip())
         icon = next((ic for key, ic in _SUMMARY_ICONS if key in label), "•")
-        rows.append(f"| {icon} **{_md_cell(label)}** | {_md_cell(value)} |")
+        rows.append(
+            f"| {icon} **{_md_cell(label)}** | {_md_cell(value)} | {_md_cell(basis) or '—'} |"
+        )
 
     # 결론 문단: 마지막 번호 항목 뒤의 텍스트
     conclusion = " ".join(lead[matches[-1].end():].split()).strip()
 
-    out = "## 📌 종합의견\n\n| 검토 항목 | 종합 결론 |\n| :-- | :-- |\n" + "\n".join(rows)
+    out = (
+        "## 📌 종합의견\n\n"
+        "| 검토 항목 | 종합 결론 | 판단근거 |\n| :-- | :-- | :-- |\n" + "\n".join(rows)
+    )
     if conclusion:
         out += f"\n\n> 💬 **결론** — {conclusion}"
     return out
