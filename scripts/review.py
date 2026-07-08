@@ -237,6 +237,44 @@ def detect_verdict(text: str) -> tuple[str | None, str]:
     return None, "📋"
 
 
+# 종합의견의 번호 항목(예: "1. 라이선스: ...")을 파싱
+_SUMMARY_ITEM_RE = re.compile(r"^\s*\d+\.\s*([^:：\n]+?)\s*[:：]\s*(.+?)\s*$", re.MULTILINE)
+# 항목 라벨 → 아이콘
+_SUMMARY_ICONS = (("라이선스", "⚖️"), ("수집", "🛠️"), ("생성", "🛠️"), ("원본", "🛠️"), ("개인정보", "🔐"))
+
+
+def _md_cell(s: str) -> str:
+    """표 셀 안전화: 파이프 이스케이프 + 개행 제거."""
+    return " ".join(s.split()).replace("|", "\\|")
+
+
+def render_summary_opinion(lead: str, verdict_line: str) -> str:
+    """모델이 plain 텍스트로 출력한 '종합의견'을 **표**로 재렌더링한다.
+
+    모델 출력에는 표를 만들지 않게 하고(대시 폭주로 잘림 방지), 코드가 파싱해 고정된
+    구분선으로 표를 생성하므로 안전하다. 예상 형식이 아니면 원문을 그대로 반환한다.
+    """
+    if "종합의견" not in lead:
+        return lead
+    matches = list(_SUMMARY_ITEM_RE.finditer(lead))
+    if len(matches) < 2:
+        return lead  # 파싱 실패 → 원문 유지(안전)
+
+    rows = [f"| 🏁 **내부 검토 결과** | {verdict_line} |"]
+    for m in matches:
+        label, value = m.group(1).strip(), m.group(2).strip()
+        icon = next((ic for key, ic in _SUMMARY_ICONS if key in label), "•")
+        rows.append(f"| {icon} **{_md_cell(label)}** | {_md_cell(value)} |")
+
+    # 결론 문단: 마지막 번호 항목 뒤의 텍스트
+    conclusion = " ".join(lead[matches[-1].end():].split()).strip()
+
+    out = "## 📌 종합의견\n\n| 검토 항목 | 종합 결론 |\n| :-- | :-- |\n" + "\n".join(rows)
+    if conclusion:
+        out += f"\n\n> 💬 **결론** — {conclusion}"
+    return out
+
+
 def restructure_review(text: str, name: str) -> str:
     """모델 출력을 스캔하기 쉬운 형태로 재구성.
 
@@ -259,8 +297,8 @@ def restructure_review(text: str, name: str) -> str:
     if len(matches) < 2:
         return banner + "\n---\n\n" + text  # 형식이 다르면 배너만 추가
 
-    # 번호 섹션(## 1. ~) 앞의 lead 텍스트(= '## 종합의견' 블록)를 최상단에 그대로 노출한다.
-    lead = text[: matches[0].start()].strip()
+    # 번호 섹션(## 1. ~) 앞의 lead 텍스트(= '## 종합의견' 블록)를 표로 재렌더링해 노출한다.
+    lead = render_summary_opinion(text[: matches[0].start()].strip(), verdict_line)
 
     icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "📚"}
     blocks: list[str] = []
