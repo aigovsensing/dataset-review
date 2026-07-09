@@ -115,18 +115,107 @@
   const repoLink = $("#repo-link");
   if (repoLink) repoLink.href = repoUrl;
 
-  // ---- 탭 전환 ----
+  // ---- 탭 전환 (URL 해시 기반 딥링크: #request/#results/#dashboard/#how) ----
+  const TAB_LABELS = {
+    request: "📝 검토 요청",
+    results: "📋 검토 결과",
+    dashboard: "📊 대시보드",
+    how: "ℹ️ 이용 안내",
+  };
+  const VALID_TABS = Object.keys(TAB_LABELS);
+
+  function currentTab() {
+    const h = (location.hash || "").replace(/^#/, "");
+    return VALID_TABS.includes(h) ? h : "request";
+  }
+  function tabUrl(tab) {
+    return location.origin + location.pathname + "#" + tab;
+  }
+  function applyTabFromHash() {
+    const target = currentTab();
+    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === target));
+    document.querySelectorAll(".tab-panel").forEach((p) => {
+      p.classList.toggle("active", p.id === `tab-${target}`);
+    });
+    if (target === "results") loadResults();
+    if (target === "dashboard") loadDashboard();
+  }
+
   document.querySelectorAll(".tab").forEach((btn) => {
     btn.addEventListener("click", () => {
       const target = btn.dataset.tab;
-      document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b === btn));
-      document.querySelectorAll(".tab-panel").forEach((p) => {
-        p.classList.toggle("active", p.id === `tab-${target}`);
-      });
-      if (target === "results") loadResults();
-      if (target === "dashboard") loadDashboard();
+      if ("#" + target === location.hash) applyTabFromHash(); // 같은 탭 재클릭 시에도 상태 보정
+      else location.hash = target; // hashchange 이벤트가 applyTabFromHash 를 호출
     });
   });
+  window.addEventListener("hashchange", applyTabFromHash);
+
+  // ---- 메뉴별 공유 링크 ----
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) {
+      /* 아래 폴백 사용 */
+    }
+    return false;
+  }
+
+  function buildShareMenu() {
+    const menu = $("#share-menu");
+    if (!menu) return;
+    const rows = VALID_TABS.map((t) =>
+      `<div class="share-row">` +
+      `<span class="sr-label">${TAB_LABELS[t]}</span>` +
+      `<input class="sr-url" type="text" readonly value="${escapeHtml(tabUrl(t))}" ` +
+      `aria-label="${TAB_LABELS[t]} 링크" />` +
+      `<button class="btn primary small sr-copy" type="button" data-copy="${t}">복사</button>` +
+      `</div>`
+    ).join("");
+    menu.innerHTML =
+      `<h4>🔗 메뉴별 공유 링크</h4>${rows}` +
+      `<p id="share-copied" class="share-copied"></p>`;
+  }
+
+  const shareBtn = $("#share-btn");
+  const shareMenu = $("#share-menu");
+  if (shareBtn && shareMenu) {
+    shareBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (shareMenu.hidden) {
+        buildShareMenu();
+        shareMenu.hidden = false;
+      } else {
+        shareMenu.hidden = true;
+      }
+    });
+    shareMenu.addEventListener("click", async (e) => {
+      const input = e.target.closest(".sr-url");
+      if (input) { input.focus(); input.select(); return; }
+      const btn = e.target.closest("[data-copy]");
+      if (!btn) return;
+      const t = btn.getAttribute("data-copy");
+      const url = tabUrl(t);
+      const msg = $("#share-copied");
+      const ok = await copyText(url);
+      if (!ok) {
+        // 폴백: 해당 입력창을 선택해 사용자가 직접 복사(Ctrl/⌘+C)하도록 유도
+        const row = btn.closest(".share-row");
+        const inp = row && row.querySelector(".sr-url");
+        if (inp) { inp.focus(); inp.select(); }
+      }
+      if (msg) msg.textContent = ok
+        ? `복사되었습니다 — ${TAB_LABELS[t]} 링크`
+        : `링크가 선택되었습니다. Ctrl/⌘+C 로 복사하세요.`;
+    });
+    // 바깥 클릭 시 닫기
+    document.addEventListener("click", (e) => {
+      if (shareMenu.hidden) return;
+      if (!e.target.closest(".share-wrap")) shareMenu.hidden = true;
+    });
+  }
 
   // ---- 폼 값 수집 ----
   function collectValues() {
@@ -818,6 +907,10 @@
 
   const dashRefresh = $("#dash-refresh");
   if (dashRefresh) dashRefresh.addEventListener("click", () => loadDashboard(true));
+
+  // 최초 진입 시 해시가 가리키는 탭을 활성화(공유 링크로 바로 진입 지원).
+  // 모든 상태 변수(dashState 등) 초기화 이후에 호출해야 TDZ 오류가 없다.
+  applyTabFromHash();
 
   // ---- 접근 암호 게이트 (약한 클라이언트 측 차단) ----
   async function sha256Hex(text) {

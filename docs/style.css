@@ -104,6 +104,46 @@ body {
   gap: 6px;
   margin-top: 20px;
   border-bottom: 1px solid var(--border);
+  align-items: center;
+  position: relative;
+  flex-wrap: wrap;
+}
+
+/* 메뉴별 공유 링크 */
+.share-wrap { margin-left: auto; position: relative; }
+.share-btn { white-space: nowrap; }
+.share-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 60;
+  width: min(94vw, 440px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+.share-menu h4 { margin: 2px 4px 10px; font-size: 0.92rem; }
+.share-row { display: flex; align-items: center; gap: 8px; padding: 5px 4px; }
+.share-row .sr-label { font-size: 0.85rem; white-space: nowrap; min-width: 92px; }
+.share-row .sr-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+.share-row .sr-url:focus { outline: none; border-color: var(--primary); color: var(--text); }
+.share-row .sr-copy { flex: 0 0 auto; }
+.share-copied { min-height: 1.1em; margin: 8px 4px 2px; font-size: 0.82rem; color: var(--accent); }
+@media (max-width: 560px) {
+  .share-wrap { margin-left: 0; }
+  .share-row .sr-label { min-width: 76px; }
 }
 .tab {
   background: none;
