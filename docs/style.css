@@ -45,7 +45,7 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-.wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
 
 /* Header */
 .site-header {
