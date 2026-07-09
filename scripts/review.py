@@ -160,6 +160,86 @@ def render_sources(sources: list[tuple[str, str]]) -> str:
     )
 
 
+def insert_grounding_citations(raw_text: str, response) -> str:
+    """근거가 있는 문장 끝에 출처 링크 `[N]` 을 자동 삽입한다.
+
+    Gemini 의 그라운딩 메타데이터(`grounding_supports`)는 각 지원 구간(segment)의
+    바이트 오프셋과 그 구간을 뒷받침하는 `grounding_chunks` 인덱스를 제공한다.
+    이를 이용해 해당 문장 끝에 `[N](출처 URL)` 형태의 클릭 가능한 각주를 삽입한다.
+    N 은 chunk 인덱스+1 로, '참고 출처' 목록(render_sources)의 번호와 일치한다.
+
+    모델이 스스로 인용 번호를 매기는 방식은 그라운딩 청크의 최종 순서를 알 수 없어
+    부정확하다. 반면 이 메타데이터는 "어느 문장이 어느 출처에 근거하는가"를 API 가
+    정확히 알려주므로, 문장→출처 매핑이 신뢰할 수 있다.
+
+    주의: segment 오프셋은 원본 응답 텍스트(response.text) 기준이므로, strip_preamble·
+    sanitize 등 전처리로 텍스트가 바뀌기 **전에** raw_text 에 적용해야 한다.
+    """
+    if not raw_text:
+        return raw_text
+    try:
+        cand = (response.candidates or [None])[0]
+        meta = getattr(cand, "grounding_metadata", None) if cand else None
+    except Exception:  # noqa: BLE001 - 그라운딩 메타데이터는 부가 정보
+        return raw_text
+    if not meta:
+        return raw_text
+    supports = getattr(meta, "grounding_supports", None) or []
+    chunks = getattr(meta, "grounding_chunks", None) or []
+    if not supports or not chunks:
+        return raw_text
+
+    # 멀티 파트 대비: segment.end_index 는 segment.part_index 파트 기준의 바이트 오프셋.
+    try:
+        parts = list(getattr(getattr(cand, "content", None), "parts", None) or [])
+    except Exception:  # noqa: BLE001
+        parts = []
+    part_prefix: list[int] = []
+    acc = 0
+    for p in parts:
+        part_prefix.append(acc)
+        acc += len((getattr(p, "text", None) or "").encode("utf-8"))
+
+    data = raw_text.encode("utf-8")
+    at: dict[int, list[tuple[int, str]]] = {}  # 바이트 위치 -> [(번호, uri), ...]
+    for s in supports:
+        seg = getattr(s, "segment", None)
+        if not seg:
+            continue
+        end = getattr(seg, "end_index", None)
+        if end is None:
+            continue
+        pi = getattr(seg, "part_index", None) or 0
+        base = part_prefix[pi] if 0 <= pi < len(part_prefix) else 0
+        pos = base + int(end)
+        if pos < 0 or pos > len(data):
+            continue
+        for ci in (getattr(s, "grounding_chunk_indices", None) or []):
+            if 0 <= ci < len(chunks):
+                web = getattr(chunks[ci], "web", None)
+                uri = getattr(web, "uri", None) if web else None
+                if uri:
+                    at.setdefault(pos, []).append((ci + 1, uri))
+
+    if not at:
+        return raw_text
+    # 뒤에서부터 삽입해 앞쪽 오프셋을 보존한다.
+    for pos in sorted(at.keys(), reverse=True):
+        seen: set[int] = set()
+        marks: list[str] = []
+        for n, uri in at[pos]:
+            if n in seen:
+                continue
+            seen.add(n)
+            marks.append(f"[{n}]({uri})")
+        if not marks:
+            continue
+        # 문장 끝에 이미 공백/개행이 있으면 앞 공백을 넣지 않아 이중 공백을 피한다.
+        lead = b"" if (pos > 0 and data[pos - 1:pos] in (b" ", b"\n", b"\t")) else b" "
+        data = data[:pos] + lead + "".join(marks).encode("utf-8") + data[pos:]
+    return data.decode("utf-8", errors="ignore")
+
+
 # GitHub 이슈/댓글 본문 최대 길이(65,536자)보다 안전 여유를 둔 상한
 MAX_COMMENT_CHARS = 64000
 
@@ -640,17 +720,20 @@ def run_review(title: str, body: str) -> str:
         model_line = f"**모델 정보:** `{resolved_model}`"
     model_header = f"{model_line}\n**서비스 티어:** {service_tier}\n"
 
+    # 근거가 있는 문장 끝에 출처 링크([N])를 자동 삽입한다. 그라운딩 supports 의
+    # 바이트 오프셋은 원본 응답(response.text) 기준이므로, 전처리(strip/sanitize) 전에 적용.
+    text = insert_grounding_citations(response.text or text, response)
     text = strip_preamble(text)
     text = sanitize_markdown(text)
     sources = get_grounding_sources(response)
-    text = linkify_citations(text, sources)
+    text = linkify_citations(text, sources)  # 모델이 남긴 잔여 `cite: N` 도 링크로(있으면)
     text = restructure_review(text, name)
     parts = [model_header, text]
     if sources:
         # 그라운딩 출처 목록은 길고 리다이렉트 URL 이라 어수선하므로 접이식으로 감싼다.
         parts.append(
             f"\n<details>\n<summary><b>🔎 참고 출처 (Google 검색 그라운딩) — {len(sources)}건</b></summary>\n\n"
-            "본문의 `cite: N` 번호는 아래 동일 번호 출처로 연결됩니다.\n\n"
+            "본문 문장 끝의 `[N]` 링크는 아래 동일 번호 출처로 연결됩니다.\n\n"
             + render_sources(sources)
             + "\n\n</details>"
         )
