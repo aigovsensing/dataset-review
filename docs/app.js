@@ -457,7 +457,8 @@
     return classifyRisk(j && j.trim() ? j : c);
   }
 
-  const dashState = { rows: [], filter: null, search: "", loaded: false };
+  const dashState = { rows: [], filter: null, search: "", loaded: false, page: 1, pageSize: 15 };
+  const DASH_PAGE_SIZES = [5, 10, 15, 30, 50, 70, 100];
 
   function loadDashboard(force) {
     const body = $("#dash-body");
@@ -653,15 +654,26 @@
         return `<button class="chip${active}" data-verdict="${escapeHtml(val)}">${c.label}</button>`;
       }).join("");
 
+    const sizeOpts = DASH_PAGE_SIZES.map((n) =>
+      `<option value="${n}"${n === dashState.pageSize ? " selected" : ""}>${n}</option>`
+    ).join("");
+
     return (
       `<div class="dash-section"><h4>🗂️ 데이터셋별 검토 결과</h4>` +
       `<div class="dash-filter">${chips}` +
       `<input type="search" id="dash-search" class="results-search" placeholder="🔍 데이터셋 검색" ` +
-      `value="${escapeHtml(dashState.search)}" aria-label="데이터셋 검색" /></div>` +
+      `value="${escapeHtml(dashState.search)}" aria-label="데이터셋 검색" />` +
+      `<label class="page-size">페이지당 <select id="dash-page-size">${sizeOpts}</select> 개</label>` +
+      `</div>` +
       `<div class="dash-table-wrap"><table class="dash-table">` +
       `<thead><tr><th>데이터셋</th><th>판정</th><th>라이선스</th><th>수집·생성</th>` +
       `<th>개인정보</th><th>소송</th><th>모델</th><th>요청일</th></tr></thead>` +
       `<tbody id="dash-tbody"></tbody></table></div>` +
+      `<div id="dash-pager" class="results-pager" hidden>` +
+      `<button id="dash-prev" class="btn ghost small" type="button">← 이전</button>` +
+      `<span id="dash-page-info" class="page-info"></span>` +
+      `<button id="dash-next" class="btn ghost small" type="button">다음 →</button>` +
+      `</div>` +
       `<p class="dim" style="font-size:0.82rem;margin-top:10px">행을 클릭하면 종합의견(확인 결과 · 내부 판단 · 판단 근거)이 펼쳐집니다.</p>` +
       `</div>`
     );
@@ -686,14 +698,38 @@
     );
   }
 
+  function updateDashPager(total, pages) {
+    const pager = $("#dash-pager");
+    if (!pager) return;
+    if (total <= 0) { pager.hidden = true; return; }
+    pager.hidden = false;
+    const info = $("#dash-page-info");
+    const prev = $("#dash-prev");
+    const next = $("#dash-next");
+    if (info) info.textContent = `${dashState.page} / ${pages} 페이지 · 총 ${total}건`;
+    if (prev) prev.disabled = dashState.page <= 1;
+    if (next) next.disabled = dashState.page >= pages;
+  }
+
   function renderDashTbody() {
     const tbody = $("#dash-tbody");
     if (!tbody) return;
-    const rows = filteredRows();
-    if (!rows.length) {
+    const all = filteredRows();
+    const total = all.length;
+    const pages = Math.max(1, Math.ceil(total / dashState.pageSize));
+    if (dashState.page > pages) dashState.page = pages;
+    if (dashState.page < 1) dashState.page = 1;
+
+    if (!total) {
       tbody.innerHTML = `<tr><td colspan="8" class="dim">조건에 맞는 데이터셋이 없습니다.</td></tr>`;
+      updateDashPager(0, pages);
       return;
     }
+
+    const start = (dashState.page - 1) * dashState.pageSize;
+    const rows = all.slice(start, start + dashState.pageSize);
+    updateDashPager(total, pages);
+
     tbody.innerHTML = rows.map((r, idx) => {
       const vm = verdictMeta(r.verdict);
       const date = r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "-";
@@ -741,6 +777,7 @@
       chip.addEventListener("click", () => {
         const v = chip.getAttribute("data-verdict");
         dashState.filter = v || null;
+        dashState.page = 1;
         document.querySelectorAll("#dash-body .chip").forEach((c) => {
           c.classList.toggle("active", (c.getAttribute("data-verdict") || "") === (v || ""));
         });
@@ -749,8 +786,24 @@
     });
     const search = $("#dash-search");
     if (search) {
-      search.addEventListener("input", () => { dashState.search = search.value; renderDashTbody(); });
+      search.addEventListener("input", () => {
+        dashState.search = search.value;
+        dashState.page = 1;
+        renderDashTbody();
+      });
     }
+    const sizeSel = $("#dash-page-size");
+    if (sizeSel) {
+      sizeSel.addEventListener("change", () => {
+        dashState.pageSize = parseInt(sizeSel.value, 10) || 15;
+        dashState.page = 1;
+        renderDashTbody();
+      });
+    }
+    const prev = $("#dash-prev");
+    if (prev) prev.addEventListener("click", () => { dashState.page -= 1; renderDashTbody(); });
+    const next = $("#dash-next");
+    if (next) next.addEventListener("click", () => { dashState.page += 1; renderDashTbody(); });
     const tbody = $("#dash-tbody");
     if (tbody) {
       tbody.addEventListener("click", (e) => {
