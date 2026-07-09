@@ -79,6 +79,7 @@
   <nav class="tabs wrap" role="tablist">
     <button class="tab active" data-tab="request" role="tab">📝 검토 요청</button>
     <button class="tab" data-tab="results" role="tab">📋 검토 결과</button>
+    <button class="tab" data-tab="dashboard" role="tab">📊 대시보드</button>
     <button class="tab" data-tab="how" role="tab">ℹ️ 이용 안내</button>
   </nav>
 
@@ -220,6 +221,28 @@
           <button id="page-prev" class="btn ghost small" type="button">← 이전</button>
           <span id="page-info" class="page-info"></span>
           <button id="page-next" class="btn ghost small" type="button">다음 →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 대시보드 -->
+    <section id="tab-dashboard" class="tab-panel">
+      <div class="card">
+        <div class="results-head">
+          <h3>📊 검토 대시보드</h3>
+          <div class="results-actions">
+            <a class="btn ghost small" href="data/reviews.csv" download="reviews.csv"
+               title="집계 데이터를 CSV로 내려받기">⬇️ CSV</a>
+            <a class="btn ghost small" href="data/reviews.json" download="reviews.json"
+               title="집계 데이터를 JSON으로 내려받기">⬇️ JSON</a>
+            <button id="dash-refresh" class="btn ghost small" type="button">새로고침</button>
+          </div>
+        </div>
+        <p class="dim">검토 완료된 데이터셋의 <strong>종합의견</strong>(라이선스 · 데이터 생성/수집 방식 · 개인정보 포함 여부)을
+          집계·시각화한 현황입니다. 각 항목의 <strong>확인 결과 · 내부 판단 · 판단 근거</strong>를 데이터셋별로 열람할 수 있습니다.
+          집계 데이터는 <strong>매일 자동 갱신</strong>됩니다.</p>
+        <div id="dash-body">
+          <p class="dim">불러오는 중…</p>
         </div>
       </div>
     </section>

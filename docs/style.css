@@ -372,6 +372,123 @@ input[type="text"]:focus, textarea:focus {
   margin: 0 4px;
 }
 
+/* ── 대시보드 ─────────────────────────────────────────────────── */
+.dash-updated { font-size: 0.82rem; margin: 0 0 4px; }
+.dash-section { margin-top: 28px; }
+.dash-section > h4 {
+  margin: 0 0 14px; font-size: 1.05rem;
+  display: flex; align-items: center; gap: 7px;
+}
+
+/* 요약 통계 카드 */
+.dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.stat-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 15px 16px; border-left-width: 4px;
+}
+.stat-card .stat-num { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+.stat-card .stat-label { font-size: 0.85rem; color: var(--text-dim); margin-top: 4px; }
+.stat-card.total { border-left-color: var(--primary); }
+.stat-card.total .stat-num { color: var(--primary); }
+.stat-card.ok    { border-left-color: var(--accent); }
+.stat-card.ok .stat-num { color: var(--accent); }
+.stat-card.warn  { border-left-color: var(--warn); }
+.stat-card.warn .stat-num { color: var(--warn); }
+.stat-card.fail  { border-left-color: var(--fail); }
+.stat-card.fail .stat-num { color: var(--fail); }
+.dash-meta-line {
+  margin: 14px 0 0; font-size: 0.88rem; color: var(--text-dim);
+  display: flex; gap: 18px; flex-wrap: wrap;
+}
+.dash-meta-line strong { color: var(--text); }
+
+/* 차트 박스 (도넛 + 스택바) */
+.dash-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-box {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 18px;
+}
+.chart-box h5 { margin: 0 0 14px; font-size: 0.95rem; }
+.donut-wrap { display: flex; align-items: center; gap: 18px; }
+.donut-legend { display: flex; flex-direction: column; gap: 7px; font-size: 0.86rem; flex: 1; min-width: 0; }
+.donut-legend .lg { display: flex; align-items: center; gap: 8px; }
+.donut-legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+.donut-legend .lg-count { margin-left: auto; color: var(--text-dim); white-space: nowrap; }
+
+/* 항목별 리스크 스택 막대 */
+.risk-item { margin-bottom: 15px; }
+.risk-item:last-child { margin-bottom: 0; }
+.risk-item .ri-label { font-size: 0.86rem; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+.stack-bar { display: flex; height: 22px; border-radius: 5px; overflow: hidden; background: var(--bg); }
+.stack-seg { height: 100%; min-width: 0; }
+.seg-low     { background: var(--accent); }
+.seg-mid     { background: var(--warn); }
+.seg-high    { background: var(--fail); }
+.seg-unknown { background: var(--text-dim); }
+.seg-none    { background: var(--border); }
+.risk-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 0.8rem; color: var(--text-dim); }
+.risk-legend .lg { display: flex; align-items: center; gap: 6px; }
+.risk-legend .sw { width: 10px; height: 10px; border-radius: 2px; }
+
+/* 검토 추이 */
+.trend { display: flex; align-items: flex-end; gap: 5px; height: 140px; padding-top: 6px; }
+.trend-col { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; justify-content: flex-end; height: 100%; }
+.trend-bar { width: 62%; max-width: 30px; background: var(--primary); border-radius: 4px 4px 0 0; min-height: 3px; transition: height 0.3s; }
+.trend-cnt { font-size: 0.72rem; color: var(--text-dim); }
+.trend-date { font-size: 0.66rem; color: var(--text-dim); white-space: nowrap; }
+
+/* 데이터셋별 상세 테이블 */
+.dash-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.dash-filter .results-search { flex: 1 1 200px; }
+.chip {
+  border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+  border-radius: 999px; padding: 5px 13px; font-size: 0.82rem; cursor: pointer; font-family: inherit;
+}
+.chip:hover { border-color: var(--primary); color: var(--text); }
+.chip.active { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+.dash-table-wrap { overflow-x: auto; }
+table.dash-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+table.dash-table th, table.dash-table td {
+  text-align: left; padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: top;
+}
+table.dash-table th { color: var(--text-dim); font-weight: 600; white-space: nowrap; font-size: 0.8rem; }
+table.dash-table tbody tr.ds-row { cursor: pointer; }
+table.dash-table tbody tr.ds-row:hover { background: var(--surface-2); }
+.cell-risk { display: flex; align-items: flex-start; gap: 6px; }
+.risk-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; }
+.risk-dot.low     { background: var(--accent); }
+.risk-dot.mid     { background: var(--warn); }
+.risk-dot.high    { background: var(--fail); }
+.risk-dot.unknown { background: var(--text-dim); }
+.risk-dot.none    { background: var(--border); }
+.cell-text { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.ds-link { color: var(--primary); text-decoration: none; font-weight: 600; }
+.ds-link:hover { text-decoration: underline; }
+.row-toggle { color: var(--text-dim); font-size: 0.8rem; }
+.vbadge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
+.vbadge.ok   { background: rgba(52, 211, 153, 0.15); color: var(--accent); }
+.vbadge.warn { background: rgba(251, 191, 36, 0.18); color: var(--warn); }
+.vbadge.fail { background: rgba(248, 113, 113, 0.15); color: var(--fail); }
+.vbadge.none { background: rgba(154, 166, 189, 0.15); color: var(--text-dim); }
+
+/* 상세 드릴다운(종합의견 4×3) */
+tr.detail-row > td { background: var(--bg); padding: 0; }
+.detail-inner { padding: 14px 16px; }
+.detail-inner .di-verdict { margin: 0 0 12px; font-size: 0.9rem; }
+table.detail-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+table.detail-table th, table.detail-table td {
+  border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top;
+}
+table.detail-table th { background: var(--surface-2); color: var(--text-dim); font-weight: 600; white-space: nowrap; }
+table.detail-table td:first-child { white-space: nowrap; font-weight: 600; }
+.detail-inner .di-foot { margin: 12px 0 0; font-size: 0.84rem; }
+
+@media (max-width: 700px) {
+  .dash-stats { grid-template-columns: repeat(2, 1fr); }
+  .dash-charts { grid-template-columns: 1fr; }
+  .cell-text { max-width: 140px; }
+}
+
 /* ── 검토 결과: 페이지네이션 ─────────────────────────────────── */
 .results-pager {
   display: flex;

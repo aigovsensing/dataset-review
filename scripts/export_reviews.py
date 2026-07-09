@@ -26,9 +26,9 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "docs" / "data"
 
 CSV_FIELDS = [
     "issue", "dataset", "verdict", "model", "status",
-    "license_check", "license_judgment",
-    "collection_check", "collection_judgment",
-    "privacy_check", "privacy_judgment",
+    "license_check", "license_judgment", "license_basis",
+    "collection_check", "collection_judgment", "collection_basis",
+    "privacy_check", "privacy_judgment", "privacy_basis",
     "litigation", "author", "created_at", "updated_at", "url",
 ]
 
@@ -115,9 +115,9 @@ def parse_review(body: str) -> dict:
     """검토 댓글 본문에서 구조화 필드 추출."""
     data = {k: "" for k in (
         "verdict", "model", "dataset",
-        "license_check", "license_judgment",
-        "collection_check", "collection_judgment",
-        "privacy_check", "privacy_judgment", "litigation",
+        "license_check", "license_judgment", "license_basis",
+        "collection_check", "collection_judgment", "collection_basis",
+        "privacy_check", "privacy_judgment", "privacy_basis", "litigation",
     )}
     if not body:
         return data
@@ -141,13 +141,14 @@ def parse_review(body: str) -> dict:
             return "privacy"
         return None
 
-    # (1) 불릿 형식: "- **라벨** — 확인 결과: … / 내부 판단: …"
+    # (1) 불릿 형식: "- **라벨** — 확인 결과: … / 내부 판단: … / 판단 근거: …"
     for label, rest in _BULLET_RE.findall(body):
         key = key_of(label.strip())
         if not key or data[f"{key}_check"]:
             continue
         data[f"{key}_check"] = clean(_field(rest, r"확인\s*결과", r"내부\s*판단|판단\s*근거") or rest)
         data[f"{key}_judgment"] = clean(_field(rest, r"내부\s*판단", r"판단\s*근거"))
+        data[f"{key}_basis"] = clean(_field(rest, r"판단\s*근거", None))
 
     # (2) 표 형식(구버전 요약 결론/종합의견 표): | 라벨 | 확인 결과 | 내부 판단 | 근거 |
     #     불릿에서 못 채운 항목만 보완. 셀은 파이프로 안전하게 분리한다.
@@ -166,6 +167,8 @@ def parse_review(body: str) -> dict:
             continue
         data[f"{key}_check"] = clean(cells[1])
         data[f"{key}_judgment"] = clean(cells[2])
+        if len(cells) >= 4:
+            data[f"{key}_basis"] = clean(cells[3])
 
     # 소송: 소송 근거 강도(강/중/약) 표기가 있으면 '있음', 아니면 '해당 없음'
     data["litigation"] = "있음" if "근거 강도" in body else "해당 없음"
@@ -199,10 +202,13 @@ def main() -> int:
             "status": status_from_labels(labels),
             "license_check": parsed["license_check"],
             "license_judgment": parsed["license_judgment"],
+            "license_basis": parsed["license_basis"],
             "collection_check": parsed["collection_check"],
             "collection_judgment": parsed["collection_judgment"],
+            "collection_basis": parsed["collection_basis"],
             "privacy_check": parsed["privacy_check"],
             "privacy_judgment": parsed["privacy_judgment"],
+            "privacy_basis": parsed["privacy_basis"],
             "litigation": parsed["litigation"] if body else "",
             "author": (it.get("user") or {}).get("login", ""),
             "created_at": it.get("created_at", ""),

@@ -124,6 +124,7 @@
         p.classList.toggle("active", p.id === `tab-${target}`);
       });
       if (target === "results") loadResults();
+      if (target === "dashboard") loadDashboard();
     });
   });
 
@@ -412,6 +413,358 @@
 
   const refreshBtn = $("#refresh-btn");
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadResults(true));
+
+  // ==========================================================================
+  //  대시보드 — 검토 현황 집계 · 시각화 · 데이터셋별 상세
+  //  데이터 소스: docs/data/reviews.json (매일 자동 갱신, GitHub API 인증 불필요)
+  // ==========================================================================
+  const VERDICTS = [
+    { key: "사용 가능", cls: "ok", color: "var(--accent)", icon: "✅" },
+    { key: "추가 검토 필요", cls: "warn", color: "var(--warn)", icon: "⚠️" },
+    { key: "사용 비권고", cls: "fail", color: "var(--fail)", icon: "⛔" },
+    { key: "미판정", cls: "none", color: "var(--text-dim)", icon: "❔" },
+  ];
+  const ITEMS = [
+    { key: "license", label: "라이선스" },
+    { key: "collection", label: "데이터 생성·수집 방식" },
+    { key: "privacy", label: "개인정보 포함 여부" },
+  ];
+  const RISK_META = {
+    low: { label: "리스크 낮음", cls: "low" },
+    mid: { label: "주의", cls: "mid" },
+    high: { label: "리스크 있음", cls: "high" },
+    unknown: { label: "확인 불가", cls: "unknown" },
+    none: { label: "정보 없음", cls: "none" },
+  };
+
+  function verdictMeta(v) {
+    return VERDICTS.find((x) => x.key === v) || VERDICTS[3];
+  }
+
+  // 확인 결과·내부 판단 텍스트를 리스크 수준으로 분류(키워드 휴리스틱)
+  function classifyRisk(text) {
+    const t = String(text || "").trim();
+    if (!t) return "none";
+    if (/확인\s*불가|확인\s*필요|확인이\s*필요|미확인|불명|불분명|알\s*수\s*없/.test(t)) return "unknown";
+    if (/불가|제한|비상업|비권고|침해|위반|위험|높음|부재|리스크\s*있음|잠재적|동의\s*범위/.test(t)) return "high";
+    if (/가능|낮음|문제\s*없음|문제없음|허용|무관|해당\s*없음|양호/.test(t)) return "low";
+    return "mid";
+  }
+  // 항목 리스크: 내부 판단을 우선, 비면 확인 결과로 판단
+  function itemRisk(row, key) {
+    const j = row[key + "_judgment"];
+    const c = row[key + "_check"];
+    return classifyRisk(j && j.trim() ? j : c);
+  }
+
+  const dashState = { rows: [], filter: null, search: "", loaded: false };
+
+  function loadDashboard(force) {
+    const body = $("#dash-body");
+    if (!body) return;
+    if (dashState.loaded && !force) return;
+    dashState.loaded = true;
+    body.innerHTML = '<p class="dim">불러오는 중…</p>';
+    // 캐시 무효화용 쿼리(매일 갱신되므로 날짜 단위면 충분)
+    fetch("data/reviews.json", { cache: "no-cache" })
+      .then((res) => {
+        if (!res.ok) throw new Error("reviews.json " + res.status);
+        return res.json();
+      })
+      .then((rows) => {
+        dashState.rows = Array.isArray(rows) ? rows : [];
+        renderDashboard();
+      })
+      .catch(() => {
+        body.innerHTML =
+          '<p class="dim">집계 데이터를 아직 불러올 수 없습니다. 검토가 1건 이상 완료되고 ' +
+          '일일 집계(export)가 실행된 뒤 표시됩니다.</p>' + ghLinkHtml;
+      });
+  }
+
+  function renderDashboard() {
+    const body = $("#dash-body");
+    if (!body) return;
+    const rows = dashState.rows;
+    if (!rows.length) {
+      body.innerHTML = '<p class="dim">아직 집계된 검토 결과가 없습니다.</p>';
+      return;
+    }
+    // 최신 갱신 시각 = updated_at 최대값
+    let latest = "";
+    rows.forEach((r) => { if ((r.updated_at || "") > latest) latest = r.updated_at; });
+    const latestTxt = latest ? new Date(latest).toLocaleString("ko-KR") : "-";
+
+    body.innerHTML =
+      `<p class="dash-updated dim">최근 갱신: ${escapeHtml(latestTxt)} · 총 <strong>${rows.length}</strong>건</p>` +
+      statsSection(rows) +
+      chartsSection(rows) +
+      trendSection(rows) +
+      tableSection();
+
+    bindDashTable();
+  }
+
+  // ── ① 요약 통계 카드 ────────────────────────────────────────
+  function statsSection(rows) {
+    const counts = { "사용 가능": 0, "추가 검토 필요": 0, "사용 비권고": 0, "미판정": 0 };
+    rows.forEach((r) => { counts[verdictMeta(r.verdict).key]++; });
+    const privacyRisk = rows.filter((r) => itemRisk(r, "privacy") === "high").length;
+    const litig = rows.filter((r) => r.litigation === "있음").length;
+    const reviewed = rows.filter((r) => r.status === "reviewed").length;
+
+    const card = (cls, num, label) =>
+      `<div class="stat-card ${cls}"><div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`;
+
+    return (
+      `<div class="dash-section">` +
+      `<h4>🧭 검토 현황</h4>` +
+      `<div class="dash-stats">` +
+      card("total", rows.length, "총 검토 데이터셋") +
+      card("ok", counts["사용 가능"], "✅ 사용 가능") +
+      card("warn", counts["추가 검토 필요"], "⚠️ 추가 검토 필요") +
+      card("fail", counts["사용 비권고"], "⛔ 사용 비권고") +
+      `</div>` +
+      `<p class="dash-meta-line">` +
+      `<span>🔒 개인정보 리스크 <strong>${privacyRisk}</strong>건</span>` +
+      `<span>⚖️ 소송 관련 <strong>${litig}</strong>건</span>` +
+      `<span>❔ 미판정 <strong>${counts["미판정"]}</strong>건</span>` +
+      `<span>📄 검토 완료 <strong>${reviewed}</strong>/${rows.length}</span>` +
+      `</p></div>`
+    );
+  }
+
+  // ── ② 시각화: 판정 분포(도넛) + 항목별 리스크(스택 막대) ──────
+  function chartsSection(rows) {
+    const counts = {};
+    VERDICTS.forEach((v) => { counts[v.key] = 0; });
+    rows.forEach((r) => { counts[verdictMeta(r.verdict).key]++; });
+    const total = rows.length;
+    const segs = VERDICTS.filter((v) => counts[v.key] > 0)
+      .map((v) => ({ value: counts[v.key], color: v.color, label: v.key }));
+
+    const legend = VERDICTS.map((v) => {
+      const c = counts[v.key];
+      const pct = total ? Math.round((c / total) * 100) : 0;
+      return (
+        `<div class="lg"><span class="sw" style="background:${v.color}"></span>` +
+        `<span>${v.icon} ${v.key}</span>` +
+        `<span class="lg-count">${c}건 · ${pct}%</span></div>`
+      );
+    }).join("");
+
+    // 항목별 리스크 스택
+    const levels = ["low", "mid", "high", "unknown", "none"];
+    const riskBars = ITEMS.map((it) => {
+      const c = { low: 0, mid: 0, high: 0, unknown: 0, none: 0 };
+      rows.forEach((r) => { c[itemRisk(r, it.key)]++; });
+      const segsHtml = levels
+        .filter((lv) => c[lv] > 0)
+        .map((lv) => {
+          const pct = (c[lv] / total) * 100;
+          return `<span class="stack-seg seg-${lv}" style="width:${pct.toFixed(1)}%" ` +
+            `title="${RISK_META[lv].label}: ${c[lv]}건"></span>`;
+        }).join("");
+      const risky = c.high + c.unknown;
+      return (
+        `<div class="risk-item">` +
+        `<div class="ri-label"><span>${it.label}</span>` +
+        `<span class="dim">주의 이상 ${risky}건</span></div>` +
+        `<div class="stack-bar">${segsHtml}</div></div>`
+      );
+    }).join("");
+
+    const riskLegend =
+      `<div class="risk-legend">` +
+      `<span class="lg"><span class="sw seg-low"></span>리스크 낮음</span>` +
+      `<span class="lg"><span class="sw seg-mid"></span>주의</span>` +
+      `<span class="lg"><span class="sw seg-high"></span>리스크 있음</span>` +
+      `<span class="lg"><span class="sw seg-unknown"></span>확인 불가</span>` +
+      `</div>`;
+
+    return (
+      `<div class="dash-section"><h4>📈 시각화</h4><div class="dash-charts">` +
+      `<div class="chart-box"><h5>내부 판단 분포</h5>` +
+      `<div class="donut-wrap">${donutSvg(segs, total)}<div class="donut-legend">${legend}</div></div></div>` +
+      `<div class="chart-box"><h5>검토 항목별 리스크</h5>${riskBars}${riskLegend}</div>` +
+      `</div></div>`
+    );
+  }
+
+  function donutSvg(segs, total) {
+    const r = 48, cx = 60, cy = 60, C = 2 * Math.PI * r;
+    let offset = 0, arcs = "";
+    if (total > 0) {
+      segs.forEach((s) => {
+        if (!s.value) return;
+        const len = (s.value / total) * C;
+        arcs +=
+          `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="16" ` +
+          `stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" ` +
+          `stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"></circle>`;
+        offset += len;
+      });
+    } else {
+      arcs = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="16"></circle>`;
+    }
+    return (
+      `<svg viewBox="0 0 120 120" width="128" height="128" role="img" aria-label="판정 분포">` +
+      arcs +
+      `<text x="60" y="58" text-anchor="middle" style="font-size:22px;font-weight:700;fill:var(--text)">${total}</text>` +
+      `<text x="60" y="74" text-anchor="middle" style="font-size:9px;fill:var(--text-dim)">건 검토</text>` +
+      `</svg>`
+    );
+  }
+
+  // ── ③ 검토 추이 (요청일 기준) ────────────────────────────────
+  function trendSection(rows) {
+    const map = new Map();
+    rows.forEach((r) => {
+      const d = (r.created_at || "").slice(0, 10);
+      if (d) map.set(d, (map.get(d) || 0) + 1);
+    });
+    const days = Array.from(map.keys()).sort().slice(-14);
+    if (!days.length) return "";
+    const max = Math.max(...days.map((d) => map.get(d)));
+    const bars = days.map((d) => {
+      const cnt = map.get(d);
+      const h = max ? Math.round((cnt / max) * 100) : 0;
+      const md = d.slice(5); // MM-DD
+      return (
+        `<div class="trend-col" title="${d}: ${cnt}건">` +
+        `<span class="trend-cnt">${cnt}</span>` +
+        `<div class="trend-bar" style="height:${h}%"></div>` +
+        `<span class="trend-date">${md}</span></div>`
+      );
+    }).join("");
+    return (
+      `<div class="dash-section"><h4>🗓️ 검토 추이 <span class="dim" style="font-size:0.8rem">(최근 ${days.length}일)</span></h4>` +
+      `<div class="chart-box"><div class="trend">${bars}</div></div></div>`
+    );
+  }
+
+  // ── ④ 데이터셋별 상세 (필터 + 드릴다운 테이블) ───────────────
+  function tableSection() {
+    const chips = [{ key: null, label: "전체" }]
+      .concat(VERDICTS.map((v) => ({ key: v.key, label: `${v.icon} ${v.key}` })))
+      .map((c) => {
+        const active = dashState.filter === c.key ? " active" : "";
+        const val = c.key === null ? "" : c.key;
+        return `<button class="chip${active}" data-verdict="${escapeHtml(val)}">${c.label}</button>`;
+      }).join("");
+
+    return (
+      `<div class="dash-section"><h4>🗂️ 데이터셋별 검토 결과</h4>` +
+      `<div class="dash-filter">${chips}` +
+      `<input type="search" id="dash-search" class="results-search" placeholder="🔍 데이터셋 검색" ` +
+      `value="${escapeHtml(dashState.search)}" aria-label="데이터셋 검색" /></div>` +
+      `<div class="dash-table-wrap"><table class="dash-table">` +
+      `<thead><tr><th>데이터셋</th><th>판정</th><th>라이선스</th><th>수집·생성</th>` +
+      `<th>개인정보</th><th>소송</th><th>모델</th><th>요청일</th></tr></thead>` +
+      `<tbody id="dash-tbody"></tbody></table></div>` +
+      `<p class="dim" style="font-size:0.82rem;margin-top:10px">행을 클릭하면 종합의견(확인 결과 · 내부 판단 · 판단 근거)이 펼쳐집니다.</p>` +
+      `</div>`
+    );
+  }
+
+  function filteredRows() {
+    const q = dashState.search.trim().toLowerCase();
+    return dashState.rows.filter((r) => {
+      if (dashState.filter && verdictMeta(r.verdict).key !== dashState.filter) return false;
+      if (q && !String(r.dataset || "").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
+
+  function riskCell(row, key) {
+    const lv = itemRisk(row, key);
+    const txt = (row[key + "_check"] || row[key + "_judgment"] || "").replace(/`/g, "");
+    const full = [row[key + "_check"], row[key + "_judgment"]].filter(Boolean).join(" · ");
+    return (
+      `<div class="cell-risk"><span class="risk-dot ${lv}" title="${RISK_META[lv].label}"></span>` +
+      `<span class="cell-text" title="${escapeHtml(full)}">${escapeHtml(txt) || "<span class='dim'>-</span>"}</span></div>`
+    );
+  }
+
+  function renderDashTbody() {
+    const tbody = $("#dash-tbody");
+    if (!tbody) return;
+    const rows = filteredRows();
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="dim">조건에 맞는 데이터셋이 없습니다.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map((r, idx) => {
+      const vm = verdictMeta(r.verdict);
+      const date = r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "-";
+      const litig = r.litigation === "있음"
+        ? `<span class="vbadge fail">있음</span>`
+        : `<span class="dim">-</span>`;
+      const main =
+        `<tr class="ds-row" data-idx="${idx}">` +
+        `<td><span class="ds-link">${escapeHtml(r.dataset || ("#" + r.issue))}</span></td>` +
+        `<td><span class="vbadge ${vm.cls}">${vm.icon} ${r.verdict || "미판정"}</span></td>` +
+        `<td>${riskCell(r, "license")}</td>` +
+        `<td>${riskCell(r, "collection")}</td>` +
+        `<td>${riskCell(r, "privacy")}</td>` +
+        `<td>${litig}</td>` +
+        `<td class="dim" style="white-space:nowrap">${escapeHtml(r.model || "-")}</td>` +
+        `<td class="dim" style="white-space:nowrap">${date}</td></tr>`;
+      const detail =
+        `<tr class="detail-row" data-detail="${idx}" hidden><td colspan="8">${detailHtml(r)}</td></tr>`;
+      return main + detail;
+    }).join("");
+  }
+
+  function detailHtml(r) {
+    const vm = verdictMeta(r.verdict);
+    const cell = (v) => (v && String(v).trim() ? escapeHtml(String(v)) : '<span class="dim">-</span>');
+    const rowsHtml = ITEMS.map((it) =>
+      `<tr><td>${it.label}</td>` +
+      `<td>${cell(r[it.key + "_check"])}</td>` +
+      `<td>${cell(r[it.key + "_judgment"])}</td>` +
+      `<td>${cell(r[it.key + "_basis"])}</td></tr>`
+    ).join("");
+    return (
+      `<div class="detail-inner">` +
+      `<p class="di-verdict">종합 판정: <span class="vbadge ${vm.cls}">${vm.icon} ${r.verdict || "미판정"}</span></p>` +
+      `<table class="detail-table"><thead><tr><th>검토 항목</th><th>확인 결과</th>` +
+      `<th>내부 판단</th><th>판단 근거</th></tr></thead><tbody>${rowsHtml}</tbody></table>` +
+      `<p class="di-foot"><a class="btn ghost small" href="${escapeHtml(r.url || "#")}" target="_blank" rel="noopener">GitHub 이슈 #${r.issue} 상세 보기 →</a></p>` +
+      `</div>`
+    );
+  }
+
+  function bindDashTable() {
+    renderDashTbody();
+    document.querySelectorAll("#dash-body .chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const v = chip.getAttribute("data-verdict");
+        dashState.filter = v || null;
+        document.querySelectorAll("#dash-body .chip").forEach((c) => {
+          c.classList.toggle("active", (c.getAttribute("data-verdict") || "") === (v || ""));
+        });
+        renderDashTbody();
+      });
+    });
+    const search = $("#dash-search");
+    if (search) {
+      search.addEventListener("input", () => { dashState.search = search.value; renderDashTbody(); });
+    }
+    const tbody = $("#dash-tbody");
+    if (tbody) {
+      tbody.addEventListener("click", (e) => {
+        const row = e.target.closest("tr.ds-row");
+        if (!row) return;
+        const idx = row.getAttribute("data-idx");
+        const detail = tbody.querySelector(`tr.detail-row[data-detail="${idx}"]`);
+        if (detail) detail.hidden = !detail.hidden;
+      });
+    }
+  }
+
+  const dashRefresh = $("#dash-refresh");
+  if (dashRefresh) dashRefresh.addEventListener("click", () => loadDashboard(true));
 
   // ---- 접근 암호 게이트 (약한 클라이언트 측 차단) ----
   async function sha256Hex(text) {
