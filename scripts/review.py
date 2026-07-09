@@ -186,6 +186,7 @@ def insert_grounding_citations(raw_text: str, response) -> str:
         return raw_text
     supports = getattr(meta, "grounding_supports", None) or []
     chunks = getattr(meta, "grounding_chunks", None) or []
+    print(f"[diag] grounding supports={len(supports)} chunks={len(chunks)}", file=sys.stderr)
     if not supports or not chunks:
         return raw_text
 
@@ -221,6 +222,7 @@ def insert_grounding_citations(raw_text: str, response) -> str:
                 if uri:
                     at.setdefault(pos, []).append((ci + 1, uri))
 
+    print(f"[diag] citation insert positions={len(at)} data_bytes={len(data)}", file=sys.stderr)
     if not at:
         return raw_text
     # 뒤에서부터 삽입해 앞쪽 오프셋을 보존한다.
