@@ -546,7 +546,7 @@
     return classifyRisk(j && j.trim() ? j : c);
   }
 
-  const dashState = { rows: [], filter: null, search: "", loaded: false, page: 1, pageSize: 15 };
+  const dashState = { rows: [], filter: null, search: "", loaded: false, page: 1, pageSize: 5 };
   const DASH_PAGE_SIZES = [5, 10, 15, 30, 50, 70, 100];
 
   function loadDashboard(force) {
