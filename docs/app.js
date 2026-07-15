@@ -525,6 +525,16 @@
     unknown: { label: "확인 불가", cls: "unknown" },
     none: { label: "정보 없음", cls: "none" },
   };
+  const CONFIDENCE = [
+    { key: "high", label: "High", icon: "😊", cls: "high", color: "var(--accent)" },
+    { key: "medium", label: "Medium", icon: "😐", cls: "medium", color: "var(--warn)" },
+    { key: "low", label: "Low", icon: "😞", cls: "low", color: "var(--fail)" },
+    { key: "none", label: "미응답", icon: "❔", cls: "none", color: "var(--text-dim)" },
+  ];
+
+  function confidenceMeta(value) {
+    return CONFIDENCE.find((x) => x.key === value) || CONFIDENCE[3];
+  }
 
   function verdictMeta(v) {
     return VERDICTS.find((x) => x.key === v) || VERDICTS[3];
@@ -546,7 +556,9 @@
     return classifyRisk(j && j.trim() ? j : c);
   }
 
-  const dashState = { rows: [], filter: null, search: "", loaded: false, page: 1, pageSize: 5 };
+  const dashState = {
+    rows: [], exportedAt: "", filter: null, confidence: null, search: "", loaded: false, page: 1, pageSize: 5,
+  };
   const DASH_PAGE_SIZES = [5, 10, 15, 30, 50, 70, 100];
 
   function loadDashboard(force) {
@@ -561,8 +573,10 @@
         if (!res.ok) throw new Error("reviews.json " + res.status);
         return res.json();
       })
-      .then((rows) => {
-        dashState.rows = Array.isArray(rows) ? rows : [];
+      .then((data) => {
+        // 구버전(JSON 배열)과 신버전({ exported_at, rows })을 모두 지원한다.
+        dashState.rows = Array.isArray(data) ? data : (Array.isArray(data.rows) ? data.rows : []);
+        dashState.exportedAt = Array.isArray(data) ? "" : (data.exported_at || "");
         renderDashboard();
       })
       .catch(() => {
@@ -580,14 +594,17 @@
       body.innerHTML = '<p class="dim">아직 집계된 검토 결과가 없습니다.</p>';
       return;
     }
-    // 최신 갱신 시각 = updated_at 최대값
-    let latest = "";
-    rows.forEach((r) => { if ((r.updated_at || "") > latest) latest = r.updated_at; });
+    // 실제 집계 완료 시각. 구버전 데이터는 이슈 updated_at 최댓값을 폴백으로 사용한다.
+    let latest = dashState.exportedAt;
+    if (!latest) {
+      rows.forEach((r) => { if ((r.updated_at || "") > latest) latest = r.updated_at; });
+    }
     const latestTxt = latest ? new Date(latest).toLocaleString("ko-KR") : "-";
 
     body.innerHTML =
-      `<p class="dash-updated dim">최근 갱신: ${escapeHtml(latestTxt)} · 총 <strong>${rows.length}</strong>건</p>` +
+      `<p class="dash-updated dim">최근 집계: ${escapeHtml(latestTxt)} · 총 <strong>${rows.length}</strong>건</p>` +
       statsSection(rows) +
+      confidenceSection(rows) +
       chartsSection(rows) +
       trendSection(rows) +
       tableSection();
@@ -624,7 +641,30 @@
     );
   }
 
-  // ── ② 시각화: 판정 분포(도넛) + 항목별 리스크(스택 막대) ──────
+  // ── ② AI 자동리뷰 결과 만족도 ───────────────────────────────
+  function confidenceSection(rows) {
+    const counts = { high: 0, medium: 0, low: 0, none: 0 };
+    rows.forEach((r) => { counts[confidenceMeta(r.review_confidence).key]++; });
+    const responses = rows.length - counts.none;
+    const responseRate = rows.length ? Math.round((responses / rows.length) * 100) : 0;
+    const bars = CONFIDENCE.map((m) => {
+      const count = counts[m.key];
+      const pct = rows.length ? (count / rows.length) * 100 : 0;
+      return `<div class="confidence-item">` +
+        `<div class="confidence-head"><span>${m.icon} ${m.label}</span>` +
+        `<strong>${count}건 · ${Math.round(pct)}%</strong></div>` +
+        `<div class="confidence-track"><span class="confidence-fill ${m.cls}" style="width:${pct.toFixed(1)}%"></span></div>` +
+        `</div>`;
+    }).join("");
+    return (
+      `<div class="dash-section"><h4>💬 AI 자동리뷰 결과 만족도</h4>` +
+      `<div class="chart-box confidence-box">${bars}</div>` +
+      `<p class="dash-meta-line"><span>응답 <strong>${responses}</strong>/${rows.length}건</span>` +
+      `<span>응답률 <strong>${responseRate}%</strong></span></p></div>`
+    );
+  }
+
+  // ── ③ 시각화: 판정 분포(도넛) + 항목별 리스크(스택 막대) ──────
   function chartsSection(rows) {
     const counts = {};
     VERDICTS.forEach((v) => { counts[v.key] = 0; });
@@ -706,7 +746,7 @@
     );
   }
 
-  // ── ③ 검토 추이 (요청일 기준) ────────────────────────────────
+  // ── ④ 검토 추이 (요청일 기준) ────────────────────────────────
   function trendSection(rows) {
     const map = new Map();
     rows.forEach((r) => {
@@ -733,7 +773,7 @@
     );
   }
 
-  // ── ④ 데이터셋별 상세 (필터 + 드릴다운 테이블) ───────────────
+  // ── ⑤ 데이터셋별 상세 (필터 + 드릴다운 테이블) ───────────────
   function tableSection() {
     const chips = [{ key: null, label: "전체" }]
       .concat(VERDICTS.map((v) => ({ key: v.key, label: `${v.icon} ${v.key}` })))
@@ -746,17 +786,22 @@
     const sizeOpts = DASH_PAGE_SIZES.map((n) =>
       `<option value="${n}"${n === dashState.pageSize ? " selected" : ""}>${n}</option>`
     ).join("");
+    const confidenceOpts = CONFIDENCE.map((m) =>
+      `<option value="${m.key}">${m.icon} 만족도 ${m.label}</option>`
+    ).join("");
 
     return (
       `<div class="dash-section"><h4>🗂️ 데이터셋별 검토 결과</h4>` +
       `<div class="dash-filter">${chips}` +
       `<input type="search" id="dash-search" class="results-search" placeholder="🔍 데이터셋 검색" ` +
       `value="${escapeHtml(dashState.search)}" aria-label="데이터셋 검색" />` +
+      `<select id="dash-confidence" class="dash-select" aria-label="AI 자동리뷰 만족도 필터">` +
+      `<option value="">만족도 전체</option>${confidenceOpts}</select>` +
       `<label class="page-size">페이지당 <select id="dash-page-size">${sizeOpts}</select> 개</label>` +
       `</div>` +
       `<div class="dash-table-wrap"><table class="dash-table">` +
       `<thead><tr><th>데이터셋</th><th>판정</th><th>라이선스</th><th>수집·생성</th>` +
-      `<th>개인정보</th><th>소송</th><th>모델</th><th>요청일</th></tr></thead>` +
+      `<th>개인정보</th><th>만족도</th><th>소송</th><th>모델</th><th>요청일</th></tr></thead>` +
       `<tbody id="dash-tbody"></tbody></table></div>` +
       `<div id="dash-pager" class="results-pager" hidden>` +
       `<button id="dash-prev" class="btn ghost small" type="button">← 이전</button>` +
@@ -772,6 +817,7 @@
     const q = dashState.search.trim().toLowerCase();
     return dashState.rows.filter((r) => {
       if (dashState.filter && verdictMeta(r.verdict).key !== dashState.filter) return false;
+      if (dashState.confidence && confidenceMeta(r.review_confidence).key !== dashState.confidence) return false;
       if (q && !String(r.dataset || "").toLowerCase().includes(q)) return false;
       return true;
     });
@@ -810,7 +856,7 @@
     if (dashState.page < 1) dashState.page = 1;
 
     if (!total) {
-      tbody.innerHTML = `<tr><td colspan="8" class="dim">조건에 맞는 데이터셋이 없습니다.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="dim">조건에 맞는 데이터셋이 없습니다.</td></tr>`;
       updateDashPager(0, pages);
       return;
     }
@@ -825,6 +871,7 @@
       const litig = r.litigation === "있음"
         ? `<span class="vbadge fail">있음</span>`
         : `<span class="dim">-</span>`;
+      const cm = confidenceMeta(r.review_confidence);
       const main =
         `<tr class="ds-row" data-idx="${idx}">` +
         `<td><span class="ds-link">${escapeHtml(r.dataset || ("#" + r.issue))}</span></td>` +
@@ -832,17 +879,19 @@
         `<td>${riskCell(r, "license")}</td>` +
         `<td>${riskCell(r, "collection")}</td>` +
         `<td>${riskCell(r, "privacy")}</td>` +
+        `<td><span class="cbadge ${cm.cls}">${cm.icon} ${cm.label}</span></td>` +
         `<td>${litig}</td>` +
         `<td class="dim" style="white-space:nowrap">${escapeHtml(r.model || "-")}</td>` +
         `<td class="dim" style="white-space:nowrap">${date}</td></tr>`;
       const detail =
-        `<tr class="detail-row" data-detail="${idx}" hidden><td colspan="8">${detailHtml(r)}</td></tr>`;
+        `<tr class="detail-row" data-detail="${idx}" hidden><td colspan="9">${detailHtml(r)}</td></tr>`;
       return main + detail;
     }).join("");
   }
 
   function detailHtml(r) {
     const vm = verdictMeta(r.verdict);
+    const cm = confidenceMeta(r.review_confidence);
     const cell = (v) => (v && String(v).trim() ? escapeHtml(String(v)) : '<span class="dim">-</span>');
     const rowsHtml = ITEMS.map((it) =>
       `<tr><td>${it.label}</td>` +
@@ -853,6 +902,7 @@
     return (
       `<div class="detail-inner">` +
       `<p class="di-verdict">종합 판정: <span class="vbadge ${vm.cls}">${vm.icon} ${r.verdict || "미판정"}</span></p>` +
+      `<p class="di-confidence">AI 자동리뷰 결과 만족도: <span class="cbadge ${cm.cls}">${cm.icon} ${cm.label}</span></p>` +
       `<table class="detail-table"><thead><tr><th>검토 항목</th><th>확인 결과</th>` +
       `<th>내부 판단</th><th>판단 근거</th></tr></thead><tbody>${rowsHtml}</tbody></table>` +
       `<p class="di-foot"><a class="btn ghost small" href="${escapeHtml(r.url || "#")}" target="_blank" rel="noopener">GitHub 이슈 #${r.issue} 상세 보기 →</a></p>` +
@@ -885,6 +935,15 @@
     if (sizeSel) {
       sizeSel.addEventListener("change", () => {
         dashState.pageSize = parseInt(sizeSel.value, 10) || 15;
+        dashState.page = 1;
+        renderDashTbody();
+      });
+    }
+    const confidenceSel = $("#dash-confidence");
+    if (confidenceSel) {
+      confidenceSel.value = dashState.confidence || "";
+      confidenceSel.addEventListener("change", () => {
+        dashState.confidence = confidenceSel.value || null;
         dashState.page = 1;
         renderDashTbody();
       });

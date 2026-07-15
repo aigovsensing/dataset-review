@@ -215,7 +215,7 @@ printf '%s' '새암호' | sha256sum   # 출력된 해시를 docs/config.js 의 a
      리스크 스택 막대**, **검토 추이**, 그리고 데이터셋별 표에서 행을 펼치면 종합의견의
      **확인 결과 · 내부 판단 · 판단 근거**를 열람할 수 있습니다(판정 필터·검색·게시판 지원,
      기본 5건/페이지, 5·10·15·30·50·70·100 선택). 집계 데이터(`docs/data/reviews.json`)는
-     매일 자동 갱신됩니다.
+     만족도 레이블 변경 시 자동 반영되며, 매일 정기 갱신도 실행됩니다.
    - 🔗 **메뉴별 공유 링크**: 탭 우측의 **🔗 공유** 버튼을 누르면 각 메뉴로 바로 열리는
      주소를 복사할 수 있습니다. 주소 끝의 해시로 메뉴가 결정됩니다 —
      `…/#request`(검토 요청) · `…/#results`(검토 결과) · `…/#dashboard`(대시보드) ·
@@ -273,11 +273,12 @@ Gemini 의 Google 검색 그라운딩이 수행하며, 코드는 그 앞뒤(URL 
 모든 검토 결과를 **CSV/JSON 으로 집계**할 수 있습니다. [`scripts/export_reviews.py`](scripts/export_reviews.py)
 가 `dataset-review` 이슈들을 모아 각 검토 댓글에서 구조화 필드를 파싱해
 `docs/data/reviews.csv` (Excel 한글 호환 UTF-8 BOM) 와 `docs/data/reviews.json` 을 생성합니다.
+JSON에는 실제 집계 완료 시각인 `exported_at`과 검토 결과 배열 `rows`가 저장됩니다.
 
-**컬럼**: `issue, dataset, verdict(판정), model, status, license_check/judgment,
+**컬럼**: `issue, dataset, verdict(판정), model, status, review_confidence(자동리뷰 만족도), license_check/judgment,
 collection_check/judgment, privacy_check/judgment, litigation(소송 여부), author, created_at, updated_at, url`
 
-- **자동 갱신**: [`export-reviews.yml`](.github/workflows/export-reviews.yml) 워크플로가 **매일**(및 수동
+- **자동 갱신**: [`export-reviews.yml`](.github/workflows/export-reviews.yml) 워크플로가 **이슈 레이블 변경 시와 매일**(및 수동
   `Run workflow`) 실행되어 CSV 를 커밋합니다.
 - **다운로드**: 홈페이지 **검토 결과** 탭의 **⬇️ CSV** 버튼(= `data/reviews.csv`) 또는 저장소에서 직접 받습니다.
 - **로컬 실행**:

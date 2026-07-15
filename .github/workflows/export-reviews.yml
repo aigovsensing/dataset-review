@@ -2,15 +2,23 @@ name: 검토 결과 CSV 내보내기
 
 # 검토 결과(이슈)를 집계해 docs/data/reviews.csv · reviews.json 으로 커밋한다.
 #  - 수동 실행(Actions 탭 → Run workflow)
+#  - 이슈 레이블 추가·제거 시 즉시 자동 갱신
 #  - 매일 자동 갱신(스케줄)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/export_reviews.py"
+      - ".github/workflows/export-reviews.yml"
+  issues:
+    types: [labeled, unlabeled]
   schedule:
     - cron: "17 0 * * *" # 매일 00:17 UTC (한국 시각 09:17)
 
 # 동시 실행 방지(마지막 것만)
 concurrency:
-  group: export-reviews
+  group: export-reviews-${{ github.repository }}
   cancel-in-progress: true
 
 permissions:

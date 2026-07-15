@@ -470,6 +470,21 @@ input[type="text"]:focus, textarea:focus {
 .risk-legend .lg { display: flex; align-items: center; gap: 6px; }
 .risk-legend .sw { width: 10px; height: 10px; border-radius: 2px; }
 
+/* AI 자동리뷰 결과 만족도 */
+.confidence-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.confidence-item { min-width: 0; }
+.confidence-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  margin-bottom: 7px; font-size: 0.86rem;
+}
+.confidence-head strong { font-size: 0.8rem; white-space: nowrap; }
+.confidence-track { height: 10px; overflow: hidden; border-radius: 999px; background: var(--bg); }
+.confidence-fill { display: block; height: 100%; border-radius: inherit; }
+.confidence-fill.high { background: var(--accent); }
+.confidence-fill.medium { background: var(--warn); }
+.confidence-fill.low { background: var(--fail); }
+.confidence-fill.none { background: var(--text-dim); }
+
 /* 검토 추이 */
 .trend { display: flex; align-items: flex-end; gap: 5px; height: 140px; padding-top: 6px; }
 .trend-col { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; justify-content: flex-end; height: 100%; }
@@ -480,6 +495,11 @@ input[type="text"]:focus, textarea:focus {
 /* 데이터셋별 상세 테이블 */
 .dash-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
 .dash-filter .results-search { flex: 1 1 200px; }
+.dash-select {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 8px 10px; font-family: inherit; font-size: 0.86rem;
+}
+.dash-select:focus { outline: none; border-color: var(--primary); }
 .chip {
   border: 1px solid var(--border); background: transparent; color: var(--text-dim);
   border-radius: 999px; padding: 5px 13px; font-size: 0.82rem; cursor: pointer; font-family: inherit;
@@ -510,11 +530,17 @@ table.dash-table tbody tr.ds-row:hover { background: var(--surface-2); }
 .vbadge.warn { background: rgba(251, 191, 36, 0.18); color: var(--warn); }
 .vbadge.fail { background: rgba(248, 113, 113, 0.15); color: var(--fail); }
 .vbadge.none { background: rgba(154, 166, 189, 0.15); color: var(--text-dim); }
+.cbadge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
+.cbadge.high { background: rgba(52, 211, 153, 0.15); color: var(--accent); }
+.cbadge.medium { background: rgba(251, 191, 36, 0.18); color: var(--warn); }
+.cbadge.low { background: rgba(248, 113, 113, 0.15); color: var(--fail); }
+.cbadge.none { background: rgba(154, 166, 189, 0.15); color: var(--text-dim); }
 
 /* 상세 드릴다운(종합의견 4×3) */
 tr.detail-row > td { background: var(--bg); padding: 0; }
 .detail-inner { padding: 14px 16px; }
 .detail-inner .di-verdict { margin: 0 0 12px; font-size: 0.9rem; }
+.detail-inner .di-confidence { margin: -5px 0 12px; font-size: 0.9rem; }
 table.detail-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 table.detail-table th, table.detail-table td {
   border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top;
@@ -527,6 +553,7 @@ table.detail-table td:first-child { white-space: nowrap; font-weight: 600; }
   .dash-stats { grid-template-columns: repeat(2, 1fr); }
   .dash-charts { grid-template-columns: 1fr; }
   .cell-text { max-width: 140px; }
+  .confidence-box { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ── 검토 결과: 페이지네이션 ─────────────────────────────────── */

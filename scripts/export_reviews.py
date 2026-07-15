@@ -18,6 +18,7 @@ import os
 import re
 import sys
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 API = "https://api.github.com"
@@ -26,11 +27,18 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "docs" / "data"
 
 CSV_FIELDS = [
     "issue", "dataset", "verdict", "model", "status",
+    "review_confidence",
     "license_check", "license_judgment", "license_basis",
     "collection_check", "collection_judgment", "collection_basis",
     "privacy_check", "privacy_judgment", "privacy_basis",
     "litigation", "author", "created_at", "updated_at", "url",
 ]
+
+CONFIDENCE_LABELS = {
+    "ai-review-confidence-high": "high",
+    "ai-review-confidence-medium": "medium",
+    "ai-review-confidence-low": "low",
+}
 
 _VERDICT_RE = re.compile(r"(사용 가능|추가 검토 필요|사용 비권고)")
 _MODEL_RE = re.compile(r"모델 정보:\*\*\s*`([^`]+)`")
@@ -109,6 +117,14 @@ def status_from_labels(labels: list[str]) -> str:
         if name in labels:
             return name
     return "pending"
+
+
+def confidence_from_labels(labels: list[str]) -> str:
+    """이슈의 AI 자동리뷰 만족도 레이블을 정규화한다."""
+    for label, value in CONFIDENCE_LABELS.items():
+        if label in labels:
+            return value
+    return ""
 
 
 def parse_review(body: str) -> dict:
@@ -200,6 +216,7 @@ def main() -> int:
             "verdict": parsed["verdict"],
             "model": parsed["model"],
             "status": status_from_labels(labels),
+            "review_confidence": confidence_from_labels(labels),
             "license_check": parsed["license_check"],
             "license_judgment": parsed["license_judgment"],
             "license_basis": parsed["license_basis"],
@@ -223,8 +240,12 @@ def main() -> int:
         w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
         w.writeheader()
         w.writerows(rows)
+    payload = {
+        "exported_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "rows": rows,
+    }
     (OUT_DIR / "reviews.json").write_text(
-        json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(f"내보내기 완료: {len(rows)}건 → {csv_path}")
     return 0
