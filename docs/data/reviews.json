@@ -1,9 +1,9 @@
 {
-  "exported_at": "2026-07-16T07:40:20.480393Z",
+  "exported_at": "2026-07-16T07:57:55.800271Z",
   "rows": [
     {
-      "issue": 19,
-      "dataset": "GLOBEM",
+      "issue": 20,
+      "dataset": "common crawl news",
       "verdict": "",
       "model": "",
       "status": "pending",
@@ -18,9 +18,31 @@
       "privacy_judgment": "",
       "privacy_basis": "",
       "litigation": "",
+      "author": "kingni32",
+      "created_at": "2026-07-16T07:57:36Z",
+      "updated_at": "2026-07-16T07:57:36Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/20"
+    },
+    {
+      "issue": 19,
+      "dataset": "GLOBEM",
+      "verdict": "추가 검토 필요",
+      "model": "gemini-2.5-flash",
+      "status": "reviewed",
+      "review_confidence": "",
+      "license_check": "PhysioNet Credentialed Health Data License 1.5.0",
+      "license_judgment": "연구 목적 사용 가능하나, 상업적 이용은 추가 검토 필요",
+      "license_basis": "PhysioNet Credentialed Health Data License 1.5.0 및 Data Use Agreement 1.5.0에 따라 자격 증명 및 DUA 서명, CITI 교육 이수 필수 ([출처](https://physionet.org/content/globem), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEt4qBDbHd_bDpgId_zmRCArVvre18_dfvbIqfesYEoNA8WdvM1bGhTzf895OArnw6VyQV2di3S6LpMGzRezkeeWD5IeK-QPlLwin_2KoNzPHXBkcCPBiLBAdlnXuHKSSnN3n_26kD1CjdKxTJcjef3hg==))",
+      "collection_check": "모바일 앱(AWARE Framework) 및 웨어러블 센서(Fitbit)를 통해 497명의 참가자로부터 4년간 수집된 직접 생성·수집 데이터",
+      "collection_judgment": "데이터 수집 과정은 IRB 승인을 받았으며, 개인정보 보호를 위해 특징 수준 데이터만 제공되고 날짜가 무작위로 변경됨",
+      "collection_basis": "논문 및 PhysioNet 설명에 IRB 승인, 수집 방식, 익명화 처리 명시 ([출처](https://arxiv.org/abs/2211.02733), [출처](https://physionet.org/content/globem))",
+      "privacy_check": "포함(위치, 전화 사용, 통화 기록, 블루투스, 신체 활동, 수면 행동, 설문 응답 등)",
+      "privacy_judgment": "민감한 개인정보가 포함되어 있으나, 익명화 처리 및 자격 증명 기반 접근을 통해 보호 조치됨. 회사의 활용 목적에 따라 DUA의 세부 조항 검토 필수",
+      "privacy_basis": "논문 및 PhysioNet 설명에 민감한 센서 데이터 및 설문 응답 포함, 익명화 및 자격 증명 기반 접근 명시 ([출처](https://arxiv.org/abs/2211.02733), [출처](https://physionet.org/content/globem))",
+      "litigation": "해당 없음",
       "author": "leemgs",
       "created_at": "2026-07-16T07:40:04Z",
-      "updated_at": "2026-07-16T07:40:04Z",
+      "updated_at": "2026-07-16T07:40:46Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/19"
     },
     {
