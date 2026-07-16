@@ -1,9 +1,9 @@
 {
-  "exported_at": "2026-07-16T06:44:10.088305Z",
+  "exported_at": "2026-07-16T07:40:20.480393Z",
   "rows": [
     {
-      "issue": 18,
-      "dataset": "TOFU (Task of Fictitious Unlearning)",
+      "issue": 19,
+      "dataset": "GLOBEM",
       "verdict": "",
       "model": "",
       "status": "pending",
@@ -19,8 +19,30 @@
       "privacy_basis": "",
       "litigation": "",
       "author": "leemgs",
+      "created_at": "2026-07-16T07:40:04Z",
+      "updated_at": "2026-07-16T07:40:04Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/19"
+    },
+    {
+      "issue": 18,
+      "dataset": "TOFU (Task of Fictitious Unlearning)",
+      "verdict": "사용 가능",
+      "model": "gemini-2.5-flash",
+      "status": "reviewed",
+      "review_confidence": "",
+      "license_check": "MIT License",
+      "license_judgment": "상업적 이용 및 AI 모델 학습 가능",
+      "license_basis": "TOFU GitHub 저장소의 LICENSE 파일에 MIT License 명시 ([출처](https://github.com/locuslab/tofu/blob/main/LICENSE))",
+      "collection_check": "`GPT-4` 모델을 활용하여 존재하지 않는 가상의 인물 자서전 및 QA 쌍 생성",
+      "collection_judgment": "생성형 AI 활용 데이터로, `GPT-4`의 학습 데이터 출처 확인 불가로 인한 잠재적 리스크 존재",
+      "collection_basis": "데이터셋 논문 및 공식 홈페이지에서 `GPT-4`를 통한 가상 데이터 생성 명시 ([출처](https://arxiv.org/abs/2401.06121), [출처](https://locuslab.github.io/tofu/))",
+      "privacy_check": "미포함",
+      "privacy_judgment": "존재하지 않는 가상의 인물 정보를 기반으로 하므로 개인정보 포함 리스크 없음",
+      "privacy_basis": "데이터셋 논문 및 공식 홈페이지에서 \"존재하지 않는(do not exist)\" 가상의 저자(fictitious authors)를 기반으로 함을 명시 ([출처](https://arxiv.org/abs/2401.06121), [출처](https://locuslab.github.io/tofu/))",
+      "litigation": "해당 없음",
+      "author": "leemgs",
       "created_at": "2026-07-16T06:43:55Z",
-      "updated_at": "2026-07-16T06:43:55Z",
+      "updated_at": "2026-07-16T06:44:32Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/18"
     },
     {
