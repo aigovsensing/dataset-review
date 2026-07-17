@@ -314,14 +314,39 @@ def ensure_detail_section_header(text: str) -> str:
     return text[:idx] + "## 2. 항목별 상세 분석\n\n" + text[idx:]
 
 
+# 프롬프트가 요구하는 고정 판정 줄: "**판정: 추가 검토 필요**" (볼드/공백 변형 허용)
+_VERDICT_MARKER_RE = re.compile(
+    r"판정\s*[:：]\s*\**\s*(사용\s*비권고|추가\s*검토\s*필요|사용\s*가능)"
+)
+
+
 def detect_verdict(text: str) -> tuple[str | None, str]:
-    """'내부 검토 결과' 판정을 추출. 못 찾으면 (None, 📋)."""
-    m = re.search(r"내부\s*검토\s*결과[^\n]*\n+\s*([^\n]+)", text)
+    """'내부 검토 결과' 판정을 추출. 못 찾으면 (None, 📋).
+
+    탐색 순서(가장 신뢰할 수 있는 것부터):
+      1) 프롬프트가 강제하는 고정 마커 `판정: <판정>` — 가장 명확하므로 최우선.
+      2) '내부 검토 결과' 헤딩 바로 다음(비어 있지 않은) 몇 줄에서 판정 문구 탐색.
+      3) 폴백: 본문 전체에서 가장 보수적인 판정을 탐색.
+    """
+    # 1) 고정 판정 마커 우선(공백 변형은 정규화해 매칭)
+    m = _VERDICT_MARKER_RE.search(text)
+    if m:
+        label = re.sub(r"\s+", " ", m.group(1)).strip()
+        # 매칭 결과의 공백을 표준 라벨(공백 없는 형태)로 되돌려 이모지 조회
+        normalized = label.replace(" ", "")
+        for lbl, emoji in _VERDICTS:
+            if lbl.replace(" ", "") == normalized:
+                return lbl, emoji
+
+    # 2) '내부 검토 결과' 헤딩 다음 줄들(공백 줄 건너뛰고 최대 3줄)에서 탐색
+    m = re.search(r"내부\s*검토\s*결과[^\n]*\n+((?:[^\n]*\n?){0,3})", text)
     region = m.group(1) if m else text[:500]
     for label, emoji in _VERDICTS:
         if label in region:
             return label, emoji
-    for label, emoji in _VERDICTS:  # 폴백: 본문 전체에서 탐색
+
+    # 3) 폴백: 본문 전체에서 가장 보수적인(먼저 오는) 판정 탐색
+    for label, emoji in _VERDICTS:
         if label in text:
             return label, emoji
     return None, "📋"
