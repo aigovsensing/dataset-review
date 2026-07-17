@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-07-17T04:16:27.552537Z",
+  "exported_at": "2026-07-17T04:42:56.234018Z",
   "rows": [
     {
       "issue": 23,
@@ -335,22 +335,22 @@
       "issue": 8,
       "dataset": "LLaVA-CoT-100K",
       "verdict": "사용 비권고",
-      "model": "",
+      "model": "gemini-2.5-flash",
       "status": "reviewed",
       "review_confidence": "",
-      "license_check": "Apache 2.0",
-      "license_judgment": "사용 가능",
-      "license_basis": "상업적 이용 및 AI 모델 학습 허용",
-      "collection_check": "생성형 AI(GPT-4o) 활용 주석 생성, 다양한 VQA 소스 통합",
-      "collection_judgment": "사용 비권고",
-      "collection_basis": "원본 VQA 데이터 소스 불분명, 라이선스 및 개인정보 처리 확인 불가",
-      "privacy_check": "확인 불가",
-      "privacy_judgment": "잠재적 법적 리스크",
-      "privacy_basis": "원본 VQA 데이터에 개인정보 포함 가능성 있으나, 수집 동의 및 활용 범위 확인 불가",
+      "license_check": "`LLaVA-CoT-100K`는 Apache 2.0 라이선스를 따르지만, 원본 데이터셋인 `ShareGPT4V`는 CC BY NC 4.0, `ScienceQA`는 CC BY-NC-SA 4.0 라이선스를 따르며 연구 목적으로만 사용이 허용됨. `CLEVR-Math`는 CC BY 4.0 라이선스임.",
+      "license_judgment": "원본 데이터셋의 라이선스 제약(비상업적, 연구 목적만 허용)이 파생 데이터셋에 상속되므로, `LLaVA-CoT-100K`는 상업적 이용이 불가하며 연구 목적으로만 사용 가능함.",
+      "license_basis": "`LLaVA-CoT-100K` Hugging Face 데이터셋 카드 ([출처 3]), `ShareGPT4V` GitHub 및 Hugging Face ([출처 1], [출처 4]), `ScienceQA` GitHub 및 공식 홈페이지 ([출처 2], [출처 5]), `CLEVR-Math` 논문 ([출처 22])",
+      "collection_check": "기존 공개 VQA 데이터셋에서 이미지와 질문을 가져오고, `GPT-4o`를 사용하여 단계별 추론(reasoning) 답변을 생성하여 구축됨.",
+      "collection_judgment": "`GPT-4o`의 생성 결과물은 OpenAI 약관에 따라 상업적 이용이 가능하지만, 원본 이미지/질문 데이터셋의 라이선스 제약이 더 엄격하므로 해당 제약이 우선 적용됨.",
+      "collection_basis": "`LLaVA-CoT` 논문 ([출처 1]), `LLaVA-CoT-100K` Hugging Face 데이터셋 카드 ([출처 3]), OpenAI Terms of Use ([출처 17])",
+      "privacy_check": "공식 문서에서 개인정보 포함 여부 및 처리 방식, 동의 범위에 대한 명확한 언급 없음. 원본 VQA 데이터셋의 이미지에 개인정보(예: 얼굴)가 포함될 가능성 있음.",
+      "privacy_judgment": "개인정보 포함 여부 및 동의 범위를 확인할 수 없어 잠재적 법적 리스크가 있음.",
+      "privacy_basis": "공식 문서에서 확인 불가 ([출처 14])",
       "litigation": "해당 없음",
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:28:34Z",
-      "updated_at": "2026-07-17T04:16:11Z",
+      "updated_at": "2026-07-17T04:17:12Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/8"
     },
     {
@@ -372,7 +372,7 @@
       "litigation": "해당 없음",
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:26:37Z",
-      "updated_at": "2026-07-15T09:04:31Z",
+      "updated_at": "2026-07-17T04:42:43Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/7"
     },
     {
