@@ -101,7 +101,7 @@ flowchart TD
 - **트리거 판정(무료 쿼터 보호)**: ① `dataset-review` 라벨 + ② 작성자가 멤버/협력자이거나 이슈에
   `review-approved` 라벨 + ③ `opened`(신규)·`rerun-review`·`review-approved` 이벤트 — **셋 다 충족**해야
   검토를 실행하고, 하나라도 아니면 건너뜁니다.
-- **모델 폴백**: `gemini-flash-latest`(→ 최신 3.5 Flash) → `gemini-2.5-flash` → `gemini-2.5-flash-lite`.
+- **모델 폴백**: `gemini-flash-latest`(→ 최신 3.5 Flash) → `gemini-3.5-flash` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite` (품질 우선 → 안정성 하강).
   `429`(쿼터 소진)·사용 불가면 다음 모델로 자동 폴백합니다.
 - **잘림 대응**: 출력이 `MAX_TOKENS`로 잘리면 같은 모델로 **1회 재생성**합니다.
 - **결과 분기**: 성공 → `reviewed` 라벨 + 검토 보고서 댓글 / 실패(모든 모델 쿼터 소진 등) →
@@ -350,9 +350,13 @@ collection_check/judgment, privacy_check/judgment, litigation(소송 여부), au
 
 > ✅ **모델 자동 폴백**: 무료 티어 일일 쿼터는 **모델별로 분리**됩니다. 그래서 기본 모델이
 > `429`(쿼터 소진)이거나 사용 불가하면 **다음 모델로 자동 폴백**해 검토를 계속합니다 —
-> 기본 체인은 **`gemini-flash-latest`(→3.5) → `gemini-2.5-flash` → `gemini-2.5-flash-lite`**.
-> 폴백이 일어나면 결과 상단 `모델 정보` 에 실제 사용된 모델이 표시됩니다.
-> (체인은 `GEMINI_MODEL_FALLBACKS` 변수로 커스터마이즈 가능. 예: `gemini-2.5-flash,gemini-2.0-flash`)
+> 기본 체인은 **품질 우선(최신 3.x) → 안정성(무료 쿼터가 큰 2.5)** 순으로 내려간다:
+> **`gemini-flash-latest`(→3.5) → `gemini-3.5-flash` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite`**.
+> 무료 티어에서는 최신 3.x 쿼터가 작아 상시 소진되기 쉬우므로, 끝을 무료 쿼터가 가장 큰
+> `gemini-2.5-flash-lite` 로 두어 **어떤 경우에도 답변을 보장**한다. 폴백이 일어나면 결과 상단
+> `모델 정보` 에 실제 사용된 모델이 표시됩니다.
+> (체인은 `GEMINI_MODEL_FALLBACKS` 변수로 커스터마이즈 가능. stable 모델 ID 는
+> [공식 목록](https://ai.google.dev/gemini-api/docs/models) 참고 — 3.1 은 풀 flash 없이 `flash-lite` 만 존재.)
 
 #### 503(일시 과부하) 대응 — 3단계 자동 복구
 

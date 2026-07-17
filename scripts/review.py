@@ -571,18 +571,32 @@ def is_fallbackable(exc: Exception) -> bool:
 
 
 def build_model_chain(primary: str) -> list[str]:
-    """사용자 지정 모델을 최우선으로, 무료 쿼터가 더 큰 구세대 모델을 폴백으로 잇는 체인.
+    """사용자 지정 모델을 최우선으로, 품질→안정성 순으로 내려가는 폴백 체인.
 
     무료 티어 일일 쿼터(RPD)는 모델별로 분리되므로, 한 모델이 429(쿼터 소진)면
     다음 모델로 넘어가면 계속 검토할 수 있다. GEMINI_MODEL_FALLBACKS 로 폴백 목록을
     커스터마이즈할 수 있다(쉼표 구분).
+
+    기본 폴백 체인은 **품질 우선(최신 3.x부터) → 안정성(무료 쿼터가 큰 2.5로 하강)**
+    으로 구성한다. 무료 티어에서는 최신 모델의 일일 쿼터가 작아 상시 소진되기 쉬우므로,
+    끝을 무료 쿼터가 가장 큰 gemini-2.5-flash-lite 로 두어 어떤 경우에도 답변을 보장한다.
+    (참고: 주 모델 별칭 gemini-flash-latest 가 현재 gemini-3.5-flash 로 해석되면 첫
+     폴백 gemini-3.5-flash 는 같은 쿼터 풀이라 429 시 곧바로 다음으로 넘어간다. 이는
+     향후 별칭이 상위 세대로 올라갈 때 3.5 를 실질 폴백으로 살리기 위한 의도된 중복이다.)
+    stable 모델 ID 는 https://ai.google.dev/gemini-api/docs/models 기준이며,
+    3.1 은 풀 flash 가 없어 flash-lite 만 존재한다. (프리뷰/실험 모델은 불안정하여 제외)
     """
     chain = [primary]
     env_fb = (os.environ.get("GEMINI_MODEL_FALLBACKS") or "").strip()
     fallbacks = (
         [m.strip() for m in env_fb.split(",") if m.strip()]
         if env_fb
-        else ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+        else [
+            "gemini-3.5-flash",       # 최신 풀 Flash (품질 우선)
+            "gemini-3.1-flash-lite",  # 3.x 세대 경량
+            "gemini-2.5-flash",       # 안정성 축 (무료 쿼터 넉넉)
+            "gemini-2.5-flash-lite",  # 최종 안전망 (무료 쿼터 최대)
+        ]
     )
     for m in fallbacks:
         if m not in chain:
