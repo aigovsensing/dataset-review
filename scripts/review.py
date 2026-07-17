@@ -521,11 +521,28 @@ _RETRIABLE_MARKERS = ("503", "500", "502", "504", "UNAVAILABLE", "high demand", 
 _FALLBACK_MARKERS = ("429", "resource_exhausted", "quota", "404", "not_found", "not found", "not supported")
 
 
+def is_transient(exc: Exception) -> bool:
+    """일시적 서버 오류(503/500 등)인지 판단.
+
+    같은 모델 재시도로도, 다른 모델 폴백으로도 회복될 수 있는 카테고리다.
+    특정 모델의 'high demand' 503 은 그 모델 고유의 과부하일 때가 많아, 재시도가
+    소진되면 다른 모델로 넘어가는 것이 성공 확률이 높다.
+    """
+    code = getattr(exc, "code", None)
+    msg = str(exc)
+    return code in (500, 502, 503, 504) or any(m in msg for m in _RETRIABLE_MARKERS)
+
+
 def is_fallbackable(exc: Exception) -> bool:
-    """다른(구세대) 모델로 폴백하면 해결될 수 있는 오류인지 판단."""
+    """다른(구세대) 모델로 폴백하면 해결될 수 있는 오류인지 판단.
+
+    - 429/쿼터·404/미지원: 그 모델로는 더 진행 불가 → 폴백.
+    - 503/500 등 일시적 서버 오류: 같은 모델 재시도가 소진된 뒤라도, 다른 모델은
+      과부하가 아닐 수 있으므로 폴백 대상에 포함한다.
+    """
     code = getattr(exc, "code", None)
     msg = str(exc).lower()
-    return code in (429, 404) or any(m in msg for m in _FALLBACK_MARKERS)
+    return code in (429, 404) or any(m in msg for m in _FALLBACK_MARKERS) or is_transient(exc)
 
 
 def build_model_chain(primary: str) -> list[str]:
@@ -548,11 +565,14 @@ def build_model_chain(primary: str) -> list[str]:
     return chain
 
 
-def generate_with_retry(client, model, contents, config, attempts: int = 3, base_delay: float = 5.0):
+def generate_with_retry(client, model, contents, config, attempts: int = 4, base_delay: float = 5.0):
     """Gemini 호출을 일시적 서버 오류(503/500 등)에 대해 지수 백오프로 재시도.
 
     429/쿼터·모델 불가 오류는 재시도하지 않고 즉시 raise 하여, 호출부의 모델 폴백이
-    다음 모델로 넘어가도록 한다.
+    다음 모델로 넘어가도록 한다. 지속되는 503 도 여기서 소진되면 호출부가 다음 모델로
+    폴백한다(is_fallbackable 가 일시적 오류를 폴백 대상에 포함).
+
+    기본 4회(대기 5s→10s→20s, 최대 ~35s)로 짧은 데모 과부하 스파이크를 흡수한다.
     """
     delay = base_delay
     last_exc: Exception | None = None
@@ -561,12 +581,12 @@ def generate_with_retry(client, model, contents, config, attempts: int = 3, base
             return client.models.generate_content(model=model, contents=contents, config=config)
         except Exception as exc:  # noqa: BLE001 - 재시도 판단 후 마지막에 재발생
             last_exc = exc
-            code = getattr(exc, "code", None)
-            msg = str(exc)
-            retriable = code in (500, 502, 503, 504) or any(m in msg for m in _RETRIABLE_MARKERS)
-            if not retriable or i == attempts - 1:
+            if not is_transient(exc) or i == attempts - 1:
                 raise
-            print(f"일시적 오류로 재시도 ({i + 1}/{attempts - 1}), {delay:.0f}s 대기: {msg[:120]}", file=sys.stderr)
+            print(
+                f"일시적 오류로 재시도 ({i + 1}/{attempts - 1}), {delay:.0f}s 대기: {str(exc)[:120]}",
+                file=sys.stderr,
+            )
             time.sleep(delay)
             delay = min(delay * 2, 40.0)
     assert last_exc is not None  # 도달하지 않음
@@ -752,6 +772,43 @@ def run_review(title: str, body: str) -> str:
     return enforce_length_limit("\n".join(parts))
 
 
+def classify_failure(exc: Exception) -> str:
+    """실패 오류를 원인 카테고리별로 분류해 정확한 조치 안내 문구를 반환.
+
+    503(일시 과부하)에 '키/쿼터를 확인하라'고 안내하던 기존 catch-all 오진을 없앤다.
+    상태 코드는 원인 카테고리가 서로 다르므로(503≠429≠401), 실제 원인에 맞는 안내만 남긴다.
+    """
+    code = getattr(exc, "code", None)
+    msg = str(exc).lower()
+
+    if is_transient(exc):
+        return (
+            "**원인: Gemini 서버의 일시적 과부하(503/500).** API 키·쿼터 문제가 아니라 "
+            "구글 측 일시 장애로, 자동 재시도와 폴백 모델까지 모두 소진된 상태입니다. "
+            "보통 몇 분 뒤 회복되므로 잠시 후 `rerun-review` 라벨로 재시도하세요. "
+            "지속되면 [Google Cloud/AI 상태 페이지](https://status.cloud.google.com/)를 확인하거나, "
+            "저장소 변수 `GEMINI_MODEL`/`GEMINI_MODEL_FALLBACKS` 를 안정 버전(GA) 모델로 바꿔 보세요."
+        )
+    if code in (401, 403) or any(
+        m in msg for m in ("unauthenticated", "permission_denied", "api key", "api_key_invalid")
+    ):
+        return (
+            "**원인: 인증/권한 오류(401/403).** `GEMINI_API_KEY` Secret 이 없거나 잘못됐거나 "
+            "권한이 없습니다. 저장소 Settings → Secrets → Actions 에서 키를 재확인·재발급한 뒤 "
+            "`rerun-review` 라벨로 재시도하세요."
+        )
+    if code == 429 or any(m in msg for m in ("resource_exhausted", "quota", "rate limit")):
+        return (
+            "**원인: 쿼터/레이트리밋 초과(429).** 폴백 모델들의 무료 일일 쿼터까지 모두 "
+            "소진됐을 수 있습니다. 쿼터가 회복되는 다음 날 재시도하거나, 유료 티어/다른 키로 "
+            "전환한 뒤 `rerun-review` 라벨로 재시도하세요."
+        )
+    return (
+        "관리자에게 문의하거나, 저장소 설정(GEMINI_API_KEY Secret, API 쿼터)을 확인 후 "
+        "`rerun-review` 라벨을 추가해 재시도하세요."
+    )
+
+
 def main() -> int:
     output_path = Path(os.environ.get("REVIEW_OUTPUT", "review.md"))
     title = os.environ.get("ISSUE_TITLE", "")
@@ -764,8 +821,7 @@ def main() -> int:
             "## ⚠️ 자동 법적 리스크 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{type(exc).__name__}: {exc}\n```\n\n"
-            "관리자에게 문의하거나, 저장소 설정(GEMINI_API_KEY Secret, API 쿼터)을 확인 후 "
-            "`rerun-review` 라벨을 추가해 재시도하세요."
+            + classify_failure(exc)
         )
         output_path.write_text(result, encoding="utf-8")
         print(result, file=sys.stderr)
