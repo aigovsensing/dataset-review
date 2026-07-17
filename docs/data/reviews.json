@@ -1,6 +1,28 @@
 {
-  "exported_at": "2026-07-17T03:39:23.196781Z",
+  "exported_at": "2026-07-17T04:03:53.604856Z",
   "rows": [
+    {
+      "issue": 23,
+      "dataset": "Fashion-MNIST (폴백 체인 검증)",
+      "verdict": "",
+      "model": "",
+      "status": "pending",
+      "review_confidence": "",
+      "license_check": "",
+      "license_judgment": "",
+      "license_basis": "",
+      "collection_check": "",
+      "collection_judgment": "",
+      "collection_basis": "",
+      "privacy_check": "",
+      "privacy_judgment": "",
+      "privacy_basis": "",
+      "litigation": "",
+      "author": "aigovsensing",
+      "created_at": "2026-07-17T04:03:34Z",
+      "updated_at": "2026-07-17T04:03:34Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/23"
+    },
     {
       "issue": 22,
       "dataset": "CIFAR-10",
