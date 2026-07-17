@@ -248,6 +248,7 @@ input[type="text"]:focus, textarea:focus {
 
 .checklist ul { margin: 0; padding-left: 20px; }
 .checklist li { margin-bottom: 8px; }
+.how a { color: var(--primary); text-underline-offset: 2px; }
 
 /* Results */
 .results-head { display: flex; align-items: center; justify-content: space-between; }
