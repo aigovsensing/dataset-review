@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-07-21T22:50:46.845713Z",
+  "exported_at": "2026-07-21T22:53:51.522562Z",
   "rows": [
     {
       "issue": 23,
@@ -86,7 +86,7 @@
       "litigation": "있음",
       "author": "kingni32",
       "created_at": "2026-07-16T07:57:36Z",
-      "updated_at": "2026-07-16T08:54:24Z",
+      "updated_at": "2026-07-21T22:53:34Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/20"
     },
     {
@@ -400,23 +400,23 @@
     {
       "issue": 5,
       "dataset": "OpenMathInstruct-2",
-      "verdict": "사용 가능",
+      "verdict": "추가 검토 필요",
       "model": "gemini-2.5-flash",
       "status": "reviewed",
       "review_confidence": "medium",
       "license_check": "CC BY 4.0",
       "license_judgment": "상업적 이용 및 AI 모델 학습 가능",
-      "license_basis": "Hugging Face 데이터셋 카드 및 논문에 명시된 라이선스",
-      "collection_check": "`Llama3.1-405B-Instruct` 모델을 활용하여 기존 수학 문제(`MATH`, `GSM8K`)에 대한 솔루션을 합성하고 새로운 문제-솔루션 쌍을 생성",
-      "collection_judgment": "생성형 AI 활용 데이터로, 학습 모델 및 원본 데이터셋 출처가 명확하여 리스크 낮음",
-      "collection_basis": "논문 및 Hugging Face 데이터셋 카드에 데이터 생성 방식 상세 설명",
+      "license_basis": "데이터셋 공식 Hugging Face 저장소에 CC BY 4.0 라이선스가 명시되어 있으며, 이는 상업적 이용 및 2차적 저작물 생성을 허용하는 라이선스임 ([출처](https://huggingface.co/datasets/nvidia/OpenMathInstruct-2)).",
+      "collection_check": "`Llama3.1-405B-Instruct` 생성형 AI 모델을 활용하여 `GSM8K` (MIT 라이선스) 및 `MATH` (MIT 라이선스) 데이터셋의 문제를 기반으로 질문-해답 쌍을 생성 및 증강함. `Llama3.1` 모델은 \"Llama 3.1 Community License\"를 따르며, 학습 데이터는 \"공개적으로 사용 가능한 소스\"로 명시되어 있으나 구체적인 출처 및 라이선스 확인 불가.",
+      "collection_judgment": "`OpenMathInstruct-2` 자체는 상업적 이용이 가능한 라이선스이나, 생성 도구인 `Llama3.1` 모델의 학습 데이터 출처가 불분명하고 `Llama3.1` 라이선스에 특정 규모 이상의 사용 시 추가 라이선스 요구 조건이 있어 잠재적 법적 리스크가 있음.",
+      "collection_basis": "OpenMathInstruct-2 논문에서 `Llama3.1` 모델을 활용한 데이터 생성 방식을 명시하고 있으며 ([출처](https://arxiv.org/abs/2410.01560)), `Llama3.1` 모델의 Hugging Face 페이지 및 GitHub 라이선스 문서에서 \"Llama 3.1 Community License\"를 확인할 수 있음. 이 라이선스는 상업적 이용을 허용하지만, 월간 활성 사용자 7억 명 초과 시 Meta로부터 별도 라이선스를 받아야 하는 조건이 있음 ([출처](https://huggingface.co/meta-llama/Llama-3.1-405B-Instruct), [출처](https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/LICENSE)). `GSM8K`는 MIT 라이선스 ([출처](https://huggingface.co/datasets/openai/gsm8k)), `MATH`는 MIT 라이선스 ([출처](https://github.com/hendrycks/math))로 상업적 이용이 가능함.",
       "privacy_check": "미포함",
-      "privacy_judgment": "수학 문제 및 솔루션으로 구성되어 개인 식별 정보 포함 가능성 낮음",
-      "privacy_basis": "데이터셋 내용 및 구성에 대한 공식 문서 확인 결과",
+      "privacy_judgment": "리스크 없음",
+      "privacy_basis": "데이터셋은 수학 문제와 해답으로 구성되어 있으며, 공식 문서 및 샘플에서 개인을 식별할 수 있는 정보가 포함되어 있다는 언급이나 흔적을 찾을 수 없음 ([출처](https://huggingface.co/datasets/nvidia/OpenMathInstruct-2)).",
       "litigation": "해당 없음",
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:01:16Z",
-      "updated_at": "2026-07-21T22:50:30Z",
+      "updated_at": "2026-07-21T22:53:02Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/5"
     },
     {
