@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-07-21T06:57:56.834526Z",
+  "exported_at": "2026-07-21T12:32:36.215114Z",
   "rows": [
     {
       "issue": 23,
@@ -228,19 +228,19 @@
       "model": "gemini-2.5-flash",
       "status": "reviewed",
       "review_confidence": "medium",
-      "license_check": "MIT License",
-      "license_judgment": "상업적 이용 및 AI 모델 학습 가능",
-      "license_basis": "GitHub LICENSE 파일에 명시된 MIT 라이선스 조건",
-      "collection_check": "AMC, AIME 등 수학 경시대회 문제 및 풀이 수집",
-      "collection_judgment": "원본 데이터의 저작권 침해 소지 있음",
-      "collection_basis": "데이터셋 논문에서 AoPS(The Art of Problem Solving) 커뮤니티를 출처로 명시했으며, AoPS의 DMCA 통지로 Hugging Face에서 데이터셋이 비활성화됨",
-      "privacy_check": "미포함",
-      "privacy_judgment": "리스크 없음",
-      "privacy_basis": "데이터셋이 수학 문제 및 풀이로만 구성되어 개인을 식별할 수 있는 정보가 없음",
+      "license_check": "MIT License [1](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGuCfl5ZScJNdqel2iA2WF9QD9tkrkTrAwGe2M_joe9-i1f5HMI7kMgpHJM3BKmLZJNeJhdLQEKqrnhenKqniQCVSSAIwdLlx8cqnS8QndVUDEZ77-dI4iV3u_ph5ru4cHQo-hMjcg5Yx-TV9eE3CF1)",
+      "license_judgment": "상업적 이용 및 AI 모델 학습 가능하나, 데이터 수집 방식의 저작권 리스크로 인해 활용에 제약이 있음",
+      "license_basis": "GitHub 저장소에 MIT License 명시 [1](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGuCfl5ZScJNdqel2iA2WF9QD9tkrkTrAwGe2M_joe9-i1f5HMI7kMgpHJM3BKmLZJNeJhdLQEKqrnhenKqniQCVSSAIwdLlx8cqnS8QndVUDEZ77-dI4iV3u_ph5ru4cHQo-hMjcg5Yx-TV9eE3CF1) ([출처](https://github.com/hendrycks/math/blob/main/LICENSE)), 그러나 Hugging Face에서 DMCA 통지로 인해 데이터셋이 비활성화된 이력이 확인됨 [4](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGFCOE9lzcDG3qnB_-R8a9n69GP-94wBc3m2EOBKIET_gCXTXvajjLpJ-k69f1tdbxfXQLuqWPescbJZR0DSUcNEdzQ6t-1dNK7kqNm0fxAD_Vt7v2CIeoH5BrxxYFEe5OMDA59tyh2Tbz8IioJSCWv37ZY7Mkdhw==) ([출처](https://github.com/UKGovernmentBEIS/inspect_evals/issues/193))",
+      "collection_check": "AMC 10, AMC 12, AIME 등 수학 경시대회 문제와 단계별 솔루션으로 구성 [3](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEMHWs3BKk8gJWI9uqn9k-xsgwkDA0HgAWoDDC40zYhAq0E2NQadJPVivFS-LgQoB3zq0NQYRMG7wobq9Ph_ca_3Av8xvJDiJmA0Bw-SNOgMaFQewM9N82sgk6J-UJLB-EIbadfF96zpQBwDfkpi2YrwA56y6ARhd9Qjg==). 원본 데이터셋은 MATH 자체임.",
+      "collection_judgment": "직접 수집된 경시대회 문제이나, 해당 문제들의 저작권 소유 주체(Art of Problem Solving)로부터 DMCA 통지가 있었으므로 저작권 침해 리스크가 존재함 [4](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGFCOE9lzcDG3qnB_-R8a9n69GP-94wBc3m2EOBKIET_gCXTXvajjLpJ-k69f1tdbxfXQLuqWPescbJZR0DSUcNEdzQ6t-1dNK7kqNm0fxAD_Vt7v2CIeoH5BrxxYFEe5OMDA59tyh2Tbz8IioJSCWv37ZY7Mkdhw==).",
+      "collection_basis": "데이터셋 논문 및 Hugging Face 데이터셋 카드에 경시대회 문제로 구성되었음을 명시 [2](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFaBAUzw3EPX0ykjsHKOWZzjPWoFgh020l5UuFF3seGcj--GHOfh6wV30JkIgpbQeAvGMegVYIEHKQygAlbDLTWd1BbhuKB3GKPo1U_dsAMwksDHfsrNtu58QaczTZn6mc=)[3](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEMHWs3BKk8gJWI9uqn9k-xsgwkDA0HgAWoDDC40zYhAq0E2NQadJPVivFS-LgQoB3zq0NQYRMG7wobq9Ph_ca_3Av8xvJDiJmA0Bw-SNOgMaFQewM9N82sgk6J-UJLB-EIbadfF96zpQBwDfkpi2YrwA56y6ARhd9Qjg==) ([출처](https://arxiv.org/pdf/2103.03874.pdf), [출처](https://huggingface.co/datasets/EleutherAI/hendrycks_math/blob/main/README.md)), Hugging Face에서 Art of Problem Solving의 DMCA 통지로 인해 데이터셋이 비활성화된 사실 확인 [4](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGFCOE9lzcDG3qnB_-R8a9n69GP-94wBc3m2EOBKIET_gCXTXvajjLpJ-k69f1tdbxfXQLuqWPescbJZR0DSUcNEdzQ6t-1dNK7kqNm0fxAD_Vt7v2CIeoH5BrxxYFEe5OMDA59tyh2Tbz8IioJSCWv37ZY7Mkdhw==) ([출처](https://github.com/UKGovernmentBEIS/inspect_evals/issues/193))",
+      "privacy_check": "미포함 [3](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEMHWs3BKk8gJWI9uqn9k-xsgwkDA0HgAWoDDC40zYhAq0E2NQadJPVivFS-LgQoB3zq0NQYRMG7wobq9Ph_ca_3Av8xvJDiJmA0Bw-SNOgMaFQewM9N82sgk6J-UJLB-EIbadfF96zpQBwDfkpi2YrwA56y6ARhd9Qjg==)",
+      "privacy_judgment": "개인정보가 포함되어 있지 않으므로 리스크 없음",
+      "privacy_basis": "데이터셋은 수학 문제와 솔루션 텍스트로 구성되어 있으며, 개인을 식별할 수 있는 정보가 포함될 여지가 없음 [3](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEMHWs3BKk8gJWI9uqn9k-xsgwkDA0HgAWoDDC40zYhAq0E2NQadJPVivFS-LgQoB3zq0NQYRMG7wobq9Ph_ca_3Av8xvJDiJmA0Bw-SNOgMaFQewM9N82sgk6J-UJLB-EIbadfF96zpQBwDfkpi2YrwA56y6ARhd9Qjg==) ([출처](https://huggingface.co/datasets/EleutherAI/hendrycks_math/blob/main/README.md))",
       "litigation": "있음",
       "author": "aigovsensing",
       "created_at": "2026-07-08T10:52:48Z",
-      "updated_at": "2026-07-21T06:57:40Z",
+      "updated_at": "2026-07-21T06:58:32Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/13"
     },
     {
@@ -438,7 +438,7 @@
       "litigation": "있음",
       "author": "aigovsensing",
       "created_at": "2026-07-07T01:33:11Z",
-      "updated_at": "2026-07-15T09:06:17Z",
+      "updated_at": "2026-07-21T12:32:20Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/4"
     },
     {
