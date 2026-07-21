@@ -514,7 +514,7 @@ def restructure_review(text: str, name: str) -> str:
     else:
         lead = lead_raw  # 표를 못 만들면 원문 유지(안전)
 
-    icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "📚"}
+    icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "🎓", "5": "📚"}
     blocks: list[str] = []
     for i, m in enumerate(matches):
         num, sec_title = m.group(1), m.group(2).strip()
