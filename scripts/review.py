@@ -396,8 +396,14 @@ _YOYAK_BULLET_RE = re.compile(r"^[ \t]*[-*][ \t]+\*\*(.+?)\*\*[ \t]*[—–][ \t
 
 
 def _summary_table(verdict_line: str, items: list[tuple[str, str, str, str]]) -> str:
-    """(라벨, 확인 결과, 내부 판단, 판단 근거) 목록으로 종합의견 4열 표를 렌더."""
-    rows = [f"| 🏁 **내부 검토 결과** | — | {verdict_line} | — |"]
+    """(라벨, 확인 결과, 내부 판단, 판단 근거) 목록으로 종합의견 4열 표를 렌더.
+
+    판정('내부 검토 결과')은 표 바로 위 배너(`> **내부 검토 결과** …`)에 이미
+    노출되므로, 표 안에 별도 판정 행을 두지 않는다(중복 제거). `verdict_line` 은
+    호출부 호환을 위해 시그니처에만 남긴다.
+    """
+    del verdict_line  # 배너에서 이미 표시 — 표 행으로 중복 출력하지 않음
+    rows: list[str] = []
     for label, checked, judgment, basis in items:
         icon = next((ic for key, ic in _SUMMARY_ICONS if key in label), "•")
         rows.append(
