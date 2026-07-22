@@ -32,6 +32,7 @@ CSV_FIELDS = [
     "collection_check", "collection_judgment", "collection_basis",
     "privacy_check", "privacy_judgment", "privacy_basis",
     "litigation", "author", "created_at", "updated_at", "url",
+    "state", "comments",
 ]
 
 CONFIDENCE_LABELS = {
@@ -231,6 +232,8 @@ def main() -> int:
             "created_at": it.get("created_at", ""),
             "updated_at": it.get("updated_at", ""),
             "url": it.get("html_url", ""),
+            "state": it.get("state", ""),
+            "comments": it.get("comments", 0),
         })
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)

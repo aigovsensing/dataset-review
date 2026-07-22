@@ -368,8 +368,54 @@
       if (panel) panel.hidden = false;
     }
 
-    let notice = `<p class="dim">${msg}</p>` + ghLinkHtml;
+    const notice = `<p class="dim">${msg}</p>` + ghLinkHtml;
 
+    // 폴백 순서: (1) 자동 집계 JSON(data/reviews.json) — 라벨 변경 시·매일 갱신되고
+    // 인증/요청 한도와 무관한 동일 출처 파일이라 라이브 API 가 막혀도 최신 이슈까지 표시된다.
+    // (2) 실패하면 이 브라우저에 마지막으로 성공한 라이브 응답(localStorage 캐시).
+    fallbackFromJson(notice).catch(() => fallbackFromCache(listEl, notice));
+  }
+
+  // data/reviews.json 의 행을 목록 렌더러(rowsHtml/statusBadge)가 기대하는 이슈 형태로 변환.
+  function issuesFromRows(rows) {
+    return (rows || []).map((r) => {
+      const labels = [];
+      // status(reviewed/reviewing/review-failed)는 라벨명과 동일 → 상태 배지로 매핑된다.
+      if (r.status && r.status !== "pending") labels.push({ name: r.status });
+      return {
+        number: r.issue,
+        title: r.dataset ? `[검토] ${r.dataset}` : `#${r.issue}`,
+        html_url: r.url,
+        created_at: r.created_at,
+        state: r.state, // 구버전 JSON 엔 없을 수 있음(그때는 상태·댓글 표기 생략)
+        comments: r.comments,
+        labels,
+      };
+    });
+  }
+
+  function fallbackFromJson(notice) {
+    return fetch("data/reviews.json", { cache: "no-cache" })
+      .then((res) => {
+        if (!res.ok) throw new Error("reviews.json " + res.status);
+        return res.json();
+      })
+      .then((data) => {
+        const rows = (data && data.rows) || [];
+        if (!rows.length) throw new Error("reviews.json empty");
+        const when = data.exported_at
+          ? new Date(data.exported_at).toLocaleString("ko-KR")
+          : "";
+        setNotice(
+          notice +
+            `<p class="dim" style="margin-top:14px">📁 GitHub API 대신 자동 집계 데이터로 표시합니다` +
+            `${when ? ` (${when} 기준, 매일 갱신)` : ""}.</p>`
+        );
+        setIssues(issuesFromRows(rows));
+      });
+  }
+
+  function fallbackFromCache(listEl, notice) {
     // 마지막으로 성공한 목록이 있으면 캐시를 (검색·페이지네이션 그대로) 표시
     let cachedIssues = null;
     try {
@@ -405,13 +451,15 @@
     if (!items.length) return "";
     return items
       .map((i) => {
-        const date = new Date(i.created_at).toLocaleString("ko-KR");
-        const state = i.state === "closed" ? "닫힘" : "열림";
+        // 메타는 있는 값만 이어붙인다(JSON 폴백엔 state·comments 가 없을 수 있음).
+        const meta = [new Date(i.created_at).toLocaleString("ko-KR")];
+        if (i.state) meta.push(i.state === "closed" ? "닫힘" : "열림");
+        if (typeof i.comments === "number") meta.push(`댓글 ${i.comments}`);
         return (
           `<a class="result-row" href="${i.html_url}" target="_blank" rel="noopener">` +
           `<span class="result-title">#${i.number} ${escapeHtml(i.title)}</span>` +
           `<span class="result-meta">${statusBadge(i.labels)}` +
-          `<span class="dim">${date} · ${state} · 댓글 ${i.comments}</span></span>` +
+          `<span class="dim">${meta.join(" · ")}</span></span>` +
           `</a>`
         );
       })
