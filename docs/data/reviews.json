@@ -1,6 +1,28 @@
 {
-  "exported_at": "2026-07-22T03:48:58.411992Z",
+  "exported_at": "2026-07-22T04:55:23.417268Z",
   "rows": [
+    {
+      "issue": 24,
+      "dataset": "MTEB - Massive Text Embedding Benchmark",
+      "verdict": "",
+      "model": "",
+      "status": "pending",
+      "review_confidence": "",
+      "license_check": "",
+      "license_judgment": "",
+      "license_basis": "",
+      "collection_check": "",
+      "collection_judgment": "",
+      "collection_basis": "",
+      "privacy_check": "",
+      "privacy_judgment": "",
+      "privacy_basis": "",
+      "litigation": "",
+      "author": "aigovsensing",
+      "created_at": "2026-07-22T04:55:10Z",
+      "updated_at": "2026-07-22T04:55:10Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/24"
+    },
     {
       "issue": 23,
       "dataset": "Fashion-MNIST",
