@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-07-21T22:53:51.522562Z",
+  "exported_at": "2026-07-22T03:48:58.411992Z",
   "rows": [
     {
       "issue": 23,
@@ -74,19 +74,19 @@
       "model": "gemini-2.5-flash",
       "status": "reviewed",
       "review_confidence": "",
-      "license_check": "`Common Crawl`은 자체 콘텐츠에 대한 라이선스를 제공하지 않으며, 원본 저작권자의 이용 약관을 따르도록 요구함",
-      "license_judgment": "상업적 이용 및 AI 모델 학습에 대한 명확한 라이선스 부재로 리스크 매우 높음",
-      "license_basis": "`Common Crawl` Terms of Use에 \"CC는 크롤링된 콘텐츠에 대한 라이선스를 부여하지 않는다\"고 명시 ([출처](https://commoncrawl.org/terms-of-use))",
-      "collection_check": "`Common Crawl`의 뉴스 하위 집합을 `StormCrawler` 기반 웹 크롤러로 수집. 원본 `Common Crawl`은 `Apache Nutch` 기반 `CCBot`으로 웹 크롤링",
-      "collection_judgment": "웹 크롤링 방식 자체는 일반적이나, 원본 콘텐츠의 저작권 침해 및 무단 활용 주장이 제기되고 있어 리스크 높음",
-      "collection_basis": "`Common Crawl` 블로그 게시물 ([출처](https://commoncrawl.org/2016/10/news-dataset-available/)), `Common Crawl` About 페이지 ([출처](https://commoncrawl.org/about/))",
-      "privacy_check": "이름, 연락처(이메일 주소, 전화번호) 등 인터넷에 공개된 개인정보를 수집한다고 명시",
-      "privacy_judgment": "개인정보가 포함되어 있으며, 활용 동의 범위가 불명확하여 리스크 매우 높음",
-      "privacy_basis": "`Common Crawl` Privacy Policy에 \"인터넷에서 자유롭게 이용 가능한 개인 데이터 수집\" 명시 ([출처](https://commoncrawl.org/privacy-policy))",
+      "license_check": "`common crawl news`는 CC BY 4.0 라이선스. 원본 `Common Crawl`은 별도의 데이터 라이선스 없이 Terms of Use에 따라 이용 가능.",
+      "license_judgment": "파생 데이터셋의 라이선스가 CC BY 4.0으로 상업적 이용 및 AI 학습이 가능해 보이나, 원본 데이터셋인 `Common Crawl`의 Terms of Use 및 현재 진행 중인 법적 분쟁으로 인해 상업적 이용 및 AI 모델 학습에 심각한 리스크가 존재하여 사용 비권고.",
+      "license_basis": "`common crawl news` Hugging Face 페이지 라이선스 명시 ([출처](https://huggingface.co/datasets/stanford-oval/ccnews)), Common Crawl Terms of Use ([출처](https://commoncrawl.org/terms-of-use)), Common Crawl 관련 소송 및 법적 분쟁 다수 발생 [1](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF-qYqIuQTLxf-AXnHbAGcxs0RLZWvsbkGlBz6p0TDWRFBF3DU3f4ncM3eTbZ11sRUPhHgpjMz6zkHnoxx8fGPOjmzCQd6pHkNbhc8-iz0zquwG_5c7CPJOt5N5Sy-A1forEFPAch_gGyjs1_y_KwMqHo7SQndMM6D0KNp1JRoD_8A2J8IOZmOiHJMmgC_mHRyQWeTEZw1zjXw51ff4oVMkHFtheA==)[2](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFHmECqu7Cba0fc5zNI8Q5DG4SIz9TqhQ1HIYhAz5LKH9r2cGMSjXP_2_w3w30HmFyC14hVK0YzZd8N1icqLEjbdmMgSaIkfcxEliugsSlD6INmiYhK3dfgRKLPLGRQyO8qHJ1s-WQoNnp98pF1DUC-SuJ92dgJ_Qm3CRi-mg0c9LhICwDR7AP-TuGbS4VlhApYL2jLCe_nzuZSJ8SwckRbWw==)[3](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG7DQhJmOCDBX_8G7hxh-AZzN2ysG7NDC0-XRXq9dUlUBBSsLGAHjbDcHuruCTOUkzbIB9yxpeUvbd7zQ6KfA_Bu3PCV6zEt1MCGbPV7DX8xURIqCHgxFCMhopQJx9kZTyVKrfe23aAahyVlc127p6QbOPfSUsjwBI7ScAp-Ii7jwK5meSIIFe1WP_ByD3F)[4](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGRAmQcG6Ky4pHr-wMtVBdJpB3YkQPO4cRLrjaqf2gYkQmOXQdEVq7PmotHoTwVugEUPo4DnsIsoDmk7puYbiGvzcPRv0OAJ8ifU-CyxoI4fjuc5kwYIJ_NosupA4h9gwl5Is7iy-uuUbusRj0byvMi6cPZtBFZRd6PudGu0u0F_HGFccaEjnrnEEuk4zTDtTGmnZjq4JWOY7rUr_nn4tuC)[5](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEdAZiXcpxAJN2MyoOXu8kLvv0s6CY7lIj4X6_IG_vveQK_v1J6sCa1sodN-NNPLmJY_o9BUHBuzMETpf20_AgC981DIUwx-1UManRcdmGin8XngepvHzLH5XXZrBOx85v-C6jq-4RwoXG08CASJiPeyu91sc7gOnVuLThx2QIc5NzOlk5qUucu2rS6J_PhU0WlTke2uQ==)",
+      "collection_check": "`common crawl news`는 `Common Crawl`에서 크롤링된 뉴스 기사를 추출한 데이터셋. `Common Crawl`은 `CCBot`이라는 크롤러를 사용하여 웹을 크롤링하며, `robots.txt`를 준수한다고 주장하나, 유료 콘텐츠 크롤링 및 옵트아웃 요청 미준수 논란이 있음.",
+      "collection_judgment": "원본 데이터셋인 `Common Crawl`의 데이터 수집 방식이 저작권 침해 및 무단 크롤링 논란의 핵심이므로, 이를 기반으로 한 `common crawl news` 또한 동일한 리스크를 가짐.",
+      "collection_basis": "`common crawl news` Hugging Face 페이지 설명 ([출처](https://huggingface.co/datasets/stanford-oval/ccnews)), Common Crawl About 페이지 ([출처](https://commoncrawl.org/about)), Common Crawl 관련 소송 및 언론 보도 [1](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF-qYqIuQTLxf-AXnHbAGcxs0RLZWvsbkGlBz6p0TDWRFBF3DU3f4ncM3eTbZ11sRUPhHgpjMz6zkHnoxx8fGPOjmzCQd6pHkNbhc8-iz0zquwG_5c7CPJOt5N5Sy-A1forEFPAch_gGyjs1_y_KwMqHo7SQndMM6D0KNp1JRoD_8A2J8IOZmOiHJMmgC_mHRyQWeTEZw1zjXw51ff4oVMkHFtheA==)[2](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFHmECqu7Cba0fc5zNI8Q5DG4SIz9TqhQ1HIYhAz5LKH9r2cGMSjXP_2_w3w30HmFyC14hVK0YzZd8N1icqLEjbdmMgSaIkfcxEliugsSlD6INmiYhK3dfgRKLPLGRQyO8qHJ1s-WQoNnp98pF1DUC-SuJ92dgJ_Qm3CRi-mg0c9LhICwDR7AP-TuGbS4VlhApYL2jLCe_nzuZSJ8SwckRbWw==)[6](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQETrQ8th1eoElXnYqxELu6QA5vq4yaYS9474KAxX03wlXogzzwnervEaSyyy6XL7QQuhiXB2zEG0-LLiSSjflH1wnqUHlfifSjRaB0ZPlYcWaxIdxgUbtmmdJxV9fJ9oGK1UnpAVcxZC7VcE1LXSPz8zWJ_HJb-uSilf_UJzBtDy-SXkLLISCZAnR69KCtYRAWa0MvGARZTE-ActfNA)[3](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG7DQhJmOCDBX_8G7hxh-AZzN2ysG7NDC0-XRXq9dUlUBBSsLGAHjbDcHuruCTOUkzbIB9yxpeUvbd7zQ6KfA_Bu3PCV6zEt1MCGbPV7DX8xURIqCHgxFCMhopQJx9kZTyVKrfe23aAahyVlc127p6QbOPfSUsjwBI7ScAp-Ii7jwK5meSIIFe1WP_ByD3F)[7](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEAW8iaSc-cDfapOtlFotQF7SA1TvT8l6GbkIn1i3vQKN12hdwBvxqSjtR8GxrCS_m3McWqj7GExa-EDHAIETvtlyVPlYLYzsKcHbXJtnv9CDfETSRbBGen36j0wW0htXS6FY7Zg8_nHYusKVVBdodHEV_XJUkKGoJ6hwviHyhY8_NnRVg9PPajrP7qgxjGOdM40l8=)[8](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF0P9jgg12ys74bWHqDgmA-9RHPKvFs-PrFdJZDi-SxxoOkMIlJXUpnL_eZzAGV2Cl0WcKGM48yO30crt8FhL47MNt21rlC6nZIMz9e4W84ZzukXkadIe3O3MwimFvBkdzRTN_kkf6uTfY1taH-Fe0sPXRj184M0I2nESZngi-NGX2qlXurLC6fUAh6uWmgX3lO-tdjdY6zCffOIOaoN2RkDiM46r7DaCL3VpqkEFJZev5jR97MfWJhPg==)[5](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEdAZiXcpxAJN2MyoOXu8kLvv0s6CY7lIj4X6_IG_vveQK_v1J6sCa1sodN-NNPLmJY_o9BUHBuzMETpf20_AgC981DIUwx-1UManRcdmGin8XngepvHzLH5XXZrBOx85v-C6jq-4RwoXG08CASJiPeyu91sc7gOnVuLThx2QIc5NzOlk5qUucu2rS6J_PhU0WlTke2uQ==)[9](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHirsO1e7EeU0-AX5e0X-1LY7j6f-zsaUvsh_CZsVaZrJCcN7YqKz6TQsaaPPvLUY4bVCYTtwTSf4vnSWcMxcJyY0tCxBlWnmcnCSgyScClQAJB4D-DJZWku60SKKSZgxjtVewz8Z3KGTx2y0a5OIA5945cb3Xw9l51jnaxeJ8Nx6cfovgf-52qnMWw7juUChTptJof926XNxjYApddl-3YC1uUl3SPHyXDVLUjK0QoTkWkBvtRJhDfy-I4RGx1)",
+      "privacy_check": "`common crawl news` 자체에는 개인정보 포함 여부가 명시되어 있지 않음. 원본 `Common Crawl`은 \"자유롭게 이용 가능한 인터넷 콘텐츠\"에서 이름, 연락처 등 개인정보를 수집하며, 이를 데이터 저장소에 제공한다고 명시.",
+      "privacy_judgment": "원본 `Common Crawl`에 개인정보가 포함되어 있으며, 그 활용 범위에 대한 명확한 동의를 확인하기 어렵고, 제3자의 활용 범위가 명시되어 있지 않아 잠재적 법적 리스크가 있음.",
+      "privacy_basis": "Common Crawl 개인정보 처리방침 ([출처](https://commoncrawl.org/privacy-policy)), Common Crawl Terms of Use ([출처](https://commoncrawl.org/terms-of-use))",
       "litigation": "있음",
       "author": "kingni32",
       "created_at": "2026-07-16T07:57:36Z",
-      "updated_at": "2026-07-21T22:53:34Z",
+      "updated_at": "2026-07-21T22:56:57Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/20"
     },
     {
