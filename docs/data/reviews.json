@@ -1,27 +1,29 @@
 {
-  "exported_at": "2026-07-22T04:55:23.417268Z",
+  "exported_at": "2026-07-22T05:50:33.996866Z",
   "rows": [
     {
       "issue": 24,
       "dataset": "MTEB - Massive Text Embedding Benchmark",
-      "verdict": "",
-      "model": "",
-      "status": "pending",
+      "verdict": "추가 검토 필요",
+      "model": "gemini-2.5-flash",
+      "status": "reviewed",
       "review_confidence": "",
-      "license_check": "",
-      "license_judgment": "",
-      "license_basis": "",
-      "collection_check": "",
-      "collection_judgment": "",
-      "collection_basis": "",
-      "privacy_check": "",
-      "privacy_judgment": "",
-      "privacy_basis": "",
-      "litigation": "",
+      "license_check": "MTEB 프레임워크는 Apache License 2.0. 원본 데이터셋은 라이선스가 다양하며, 일부는 라이선스 없음.",
+      "license_judgment": "MTEB 프레임워크 자체는 상업적 이용 및 AI 모델 학습 가능하나, 원본 데이터셋의 라이선스 제약이 상속되므로 개별 데이터셋 검토 필요.",
+      "license_basis": "MTEB GitHub 저장소 LICENSE 파일 ([출처](https://github.com/embeddings-benchmark/mteb/blob/main/LICENSE)); MTEB 개발팀의 \"no restrictions on license... We include datasets with no license attached\" 언급 ([출처](https://github.com/embeddings-benchmark/mteb/discussions/459))",
+      "collection_check": "MTEB는 벤치마크 프레임워크이며, 56-58개의 기존 데이터셋을 활용. 일부는 arXiv, bioRxiv, StackExchange 등 공개 API를 통해 MTEB용으로 재구성.",
+      "collection_judgment": "MTEB 자체는 데이터를 직접 생성하지 않으나, 활용하는 원본 데이터셋의 수집 방식 및 이용 조건에 대한 상세 검토가 필수적임.",
+      "collection_basis": "MTEB 논문 \"MTEB consists of 58 datasets\" ([출처](https://arxiv.org/abs/2210.07316)); \"These datasets are custom-made for MTEB using the public APIs from arXiv... and StackExchange posts\" ([출처](https://arxiv.org/abs/2210.07316))",
+      "privacy_check": "MTEB이 활용하는 56-58개 데이터셋의 개인정보 포함 여부 및 동의 범위에 대한 공식적인 일괄 확인 불가.",
+      "privacy_judgment": "다수의 원본 데이터셋에 개인정보가 포함될 가능성이 높으며, 동의 범위 확인이 불가하므로 잠재적 법적 리스크 존재.",
+      "privacy_basis": "MTEB이 활용하는 데이터셋의 다양성 (예: StackExchange, Reddit 등 사용자 생성 데이터 포함 가능성) ([출처](https://arxiv.org/abs/2210.07316), [출처](https://emergentmind.com/papers/2307.03980)); MTEB 공식 문서에서 개인정보 처리 관련 일괄 명시 부재",
+      "litigation": "해당 없음",
       "author": "aigovsensing",
       "created_at": "2026-07-22T04:55:10Z",
-      "updated_at": "2026-07-22T04:55:10Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/24"
+      "updated_at": "2026-07-22T04:56:02Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/24",
+      "state": "open",
+      "comments": 2
     },
     {
       "issue": 23,
@@ -43,7 +45,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-17T04:03:34Z",
       "updated_at": "2026-07-17T04:05:56Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/23"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/23",
+      "state": "closed",
+      "comments": 3
     },
     {
       "issue": 22,
@@ -65,7 +69,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-17T03:31:04Z",
       "updated_at": "2026-07-17T03:33:15Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/22"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/22",
+      "state": "closed",
+      "comments": 3
     },
     {
       "issue": 21,
@@ -87,7 +93,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-17T02:32:57Z",
       "updated_at": "2026-07-17T02:41:37Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/21"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/21",
+      "state": "closed",
+      "comments": 5
     },
     {
       "issue": 20,
@@ -109,7 +117,9 @@
       "author": "kingni32",
       "created_at": "2026-07-16T07:57:36Z",
       "updated_at": "2026-07-21T22:56:57Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/20"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/20",
+      "state": "open",
+      "comments": 3
     },
     {
       "issue": 19,
@@ -131,7 +141,9 @@
       "author": "leemgs",
       "created_at": "2026-07-16T07:40:04Z",
       "updated_at": "2026-07-16T10:23:34Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/19"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/19",
+      "state": "open",
+      "comments": 2
     },
     {
       "issue": 18,
@@ -153,7 +165,9 @@
       "author": "leemgs",
       "created_at": "2026-07-16T06:43:55Z",
       "updated_at": "2026-07-16T10:23:28Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/18"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/18",
+      "state": "open",
+      "comments": 2
     },
     {
       "issue": 17,
@@ -175,7 +189,9 @@
       "author": "leemgs",
       "created_at": "2026-07-15T07:48:43Z",
       "updated_at": "2026-07-15T08:50:17Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/17"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/17",
+      "state": "open",
+      "comments": 2
     },
     {
       "issue": 16,
@@ -197,7 +213,9 @@
       "author": "leemgs",
       "created_at": "2026-07-15T07:46:04Z",
       "updated_at": "2026-07-17T01:45:48Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/16"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/16",
+      "state": "open",
+      "comments": 19
     },
     {
       "issue": 15,
@@ -219,7 +237,9 @@
       "author": "hooky119",
       "created_at": "2026-07-09T06:46:09Z",
       "updated_at": "2026-07-15T08:53:36Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/15"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/15",
+      "state": "open",
+      "comments": 4
     },
     {
       "issue": 14,
@@ -241,7 +261,9 @@
       "author": "leemgs",
       "created_at": "2026-07-08T23:04:39Z",
       "updated_at": "2026-07-15T09:06:20Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/14"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/14",
+      "state": "open",
+      "comments": 2
     },
     {
       "issue": 13,
@@ -263,7 +285,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-08T10:52:48Z",
       "updated_at": "2026-07-21T06:58:32Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/13"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/13",
+      "state": "open",
+      "comments": 4
     },
     {
       "issue": 12,
@@ -285,7 +309,9 @@
       "author": "kimhhhj",
       "created_at": "2026-07-08T06:26:34Z",
       "updated_at": "2026-07-20T04:36:57Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/12"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/12",
+      "state": "open",
+      "comments": 5
     },
     {
       "issue": 11,
@@ -307,7 +333,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:33:05Z",
       "updated_at": "2026-07-15T09:06:19Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/11"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/11",
+      "state": "open",
+      "comments": 6
     },
     {
       "issue": 10,
@@ -329,7 +357,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:32:17Z",
       "updated_at": "2026-07-15T09:06:18Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/10"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/10",
+      "state": "open",
+      "comments": 6
     },
     {
       "issue": 9,
@@ -351,7 +381,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:31:01Z",
       "updated_at": "2026-07-15T09:06:18Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/9"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/9",
+      "state": "open",
+      "comments": 7
     },
     {
       "issue": 8,
@@ -373,7 +405,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:28:34Z",
       "updated_at": "2026-07-17T04:17:12Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/8"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/8",
+      "state": "open",
+      "comments": 4
     },
     {
       "issue": 7,
@@ -395,7 +429,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:26:37Z",
       "updated_at": "2026-07-17T04:43:35Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/7"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/7",
+      "state": "open",
+      "comments": 4
     },
     {
       "issue": 6,
@@ -417,7 +453,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:18:40Z",
       "updated_at": "2026-07-07T06:20:01Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/6"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/6",
+      "state": "closed",
+      "comments": 3
     },
     {
       "issue": 5,
@@ -439,7 +477,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:01:16Z",
       "updated_at": "2026-07-21T22:53:02Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/5"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/5",
+      "state": "open",
+      "comments": 7
     },
     {
       "issue": 4,
@@ -461,7 +501,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-07T01:33:11Z",
       "updated_at": "2026-07-21T12:35:21Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/4"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/4",
+      "state": "open",
+      "comments": 10
     },
     {
       "issue": 3,
@@ -483,7 +525,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-06T23:32:56Z",
       "updated_at": "2026-07-07T00:24:03Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/3"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/3",
+      "state": "closed",
+      "comments": 9
     },
     {
       "issue": 2,
@@ -505,7 +549,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-06T11:15:55Z",
       "updated_at": "2026-07-06T11:25:38Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/2"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/2",
+      "state": "closed",
+      "comments": 3
     },
     {
       "issue": 1,
@@ -527,7 +573,9 @@
       "author": "aigovsensing",
       "created_at": "2026-07-06T10:56:27Z",
       "updated_at": "2026-07-16T05:26:32Z",
-      "url": "https://github.com/aigovsensing/dataset-review/issues/1"
+      "url": "https://github.com/aigovsensing/dataset-review/issues/1",
+      "state": "open",
+      "comments": 6
     }
   ]
 }
