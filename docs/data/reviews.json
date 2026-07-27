@@ -1,6 +1,30 @@
 {
-  "exported_at": "2026-07-26T03:56:58.633664Z",
+  "exported_at": "2026-07-27T02:30:16.230151Z",
   "rows": [
+    {
+      "issue": 26,
+      "dataset": "KaLM-embedding-pretrain-data",
+      "verdict": "",
+      "model": "",
+      "status": "pending",
+      "review_confidence": "",
+      "license_check": "",
+      "license_judgment": "",
+      "license_basis": "",
+      "collection_check": "",
+      "collection_judgment": "",
+      "collection_basis": "",
+      "privacy_check": "",
+      "privacy_judgment": "",
+      "privacy_basis": "",
+      "litigation": "",
+      "author": "aigovsensing",
+      "created_at": "2026-07-27T02:30:02Z",
+      "updated_at": "2026-07-27T02:30:02Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/26",
+      "state": "open",
+      "comments": 0
+    },
     {
       "issue": 25,
       "dataset": "KaLM-embedding-finetuning-data",
