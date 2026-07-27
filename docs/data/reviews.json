@@ -1,9 +1,9 @@
 {
-  "exported_at": "2026-07-27T06:37:20.094895Z",
+  "exported_at": "2026-07-27T23:49:14.437246Z",
   "rows": [
     {
-      "issue": 28,
-      "dataset": "AlpacaEval",
+      "issue": 29,
+      "dataset": "GSM8K",
       "verdict": "",
       "model": "",
       "status": "pending",
@@ -19,11 +19,35 @@
       "privacy_basis": "",
       "litigation": "",
       "author": "aigovsensing",
+      "created_at": "2026-07-27T23:48:57Z",
+      "updated_at": "2026-07-27T23:48:57Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/29",
+      "state": "open",
+      "comments": 0
+    },
+    {
+      "issue": 28,
+      "dataset": "AlpacaEval",
+      "verdict": "사용 비권고",
+      "model": "gemini-2.5-flash",
+      "status": "reviewed",
+      "review_confidence": "",
+      "license_check": "데이터셋 자체는 CC BY-NC 4.0 (Attribution-NonCommercial 4.0 International) 라이선스이며, 코드는 Apache 2.0 라이선스임. 원본 데이터셋 중 `vicuna`는 비상업적 라이선스를 따름.",
+      "license_judgment": "데이터셋의 상업적 이용은 불가능하며, AI 모델 학습 시에도 비상업적 목적으로만 사용 가능함. 원본 데이터셋의 더 엄격한 라이선스 조건이 상속됨.",
+      "license_basis": "AlpacaEval GitHub 저장소에 \"Data License cc-by-nc-4.0\" 명시 및 Hugging Face 데이터셋 페이지에 \"License: cc-by-nc-4.0\" 명시 ([출처](https://github.com/tatsu-lab/alpaca_eval), [출처](https://huggingface.co/datasets/tatsu-lab/alpaca_eval)). `vicuna` 모델 카드에 \"License: Non-commercial license\" 또는 \"Llama 2 Community License Agreement\" 명시 ([출처](https://huggingface.co/lmsys/vicuna-7b-v1.5), [출처](https://www.kaggle.com/models/lmsys/vicuna)).",
+      "collection_check": "`self-instruct`, `open-assistant`, `vicuna`, `koala`, `hh-rlhf` 등 여러 원본 데이터셋의 지침을 선별하여 구성된 파생 데이터셋임. `self-instruct`는 GPT-3로 생성, `open-assistant`와 `hh-rlhf`는 인간이 생성/주석, `vicuna`는 ShareGPT.com의 사용자 공유 대화를 기반으로 함. `koala`의 특정 원본 데이터셋은 확인 불가.",
+      "collection_judgment": "원본 데이터셋의 수집 방식에 따라 잠재적 법적 리스크가 상속됨. 특히 `vicuna`의 ShareGPT.com 기반 데이터는 무단 크롤링 및 이용약관 위반 소지가 있음.",
+      "collection_basis": "AlpacaEval 논문 및 Hugging Face 데이터셋 설명 ([출처](https://arxiv.org/abs/2404.04475), [출처](https://huggingface.co/datasets/tatsu-lab/alpaca_eval)). `self-instruct` 논문 및 GitHub ([출처](https://arxiv.org/abs/2212.10560), [출처](https://github.com/yizhongw/self-instruct)). `open-assistant` 논문 및 Hugging Face ([출처](https://arxiv.org/abs/2304.07327), [출처](https://huggingface.co/datasets/OpenAssistant/oasst1)). `vicuna` 모델 카드 및 블로그 ([출처](https://huggingface.co/lmsys/vicuna-7b-v1.5), [출처](https://lmsys.org/blog/2023-03-30-vicuna/)). `hh-rlhf` Hugging Face ([출처](https://huggingface.co/datasets/HuggingFaceH4/hh-rlhf)).",
+      "privacy_check": "`open-assistant`, `vicuna`, `hh-rlhf` 등 원본 데이터셋이 인간이 생성하거나 사용자 공유 대화를 기반으로 하므로 개인정보(이름, 대화 내용 등)가 포함될 가능성이 높음. `open-assistant`는 PII 포함 금지 정책을 명시했으나, 크라우드소싱 특성상 완벽한 배제는 어려움. AlpacaEval 자체의 명확한 개인정보 처리 방침은 확인 불가.",
+      "privacy_judgment": "개인정보가 포함되어 있을 가능성이 높으며, 수집 동의 범위 및 제3자 활용 범위에 대한 공식적인 확인이 어려워 잠재적 법적 리스크가 있음.",
+      "privacy_basis": "`Open-Assistant/data/datasets/README.md`에 PII 포함 금지 요구사항 명시 ([출처](https://github.com/LAION-AI/Open-Assistant/blob/main/data/datasets/README.md)). `vicuna`가 ShareGPT.com의 사용자 공유 대화를 기반으로 함 ([출처](https://lmsys.org/blog/2023-03-30-vicuna/)). `hh-rlhf`가 인간 선호도 데이터를 포함함 ([출처](https://huggingface.co/datasets/HuggingFaceH4/hh-rlhf)).",
+      "litigation": "해당 없음",
+      "author": "aigovsensing",
       "created_at": "2026-07-27T06:35:27Z",
-      "updated_at": "2026-07-27T06:37:00Z",
+      "updated_at": "2026-07-27T06:38:28Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/28",
       "state": "open",
-      "comments": 2
+      "comments": 4
     },
     {
       "issue": 27,
