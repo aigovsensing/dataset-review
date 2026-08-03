@@ -542,12 +542,27 @@ tr.detail-row > td { background: var(--bg); padding: 0; }
 .detail-inner { padding: 14px 16px; }
 .detail-inner .di-verdict { margin: 0 0 12px; font-size: 0.9rem; }
 .detail-inner .di-confidence { margin: -5px 0 12px; font-size: 0.9rem; }
-table.detail-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+table.detail-table {
+  width: 100%; border-collapse: collapse; font-size: 0.84rem; table-layout: fixed;
+}
 table.detail-table th, table.detail-table td {
   border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top;
+  overflow-wrap: anywhere; word-break: break-word;
 }
 table.detail-table th { background: var(--surface-2); color: var(--text-dim); font-weight: 600; white-space: nowrap; }
-table.detail-table td:first-child { white-space: nowrap; font-weight: 600; }
+table.detail-table td:first-child { font-weight: 600; }
+/* 열 폭: 검토 항목 / 확인 결과 / 내부 판단 / 판단 근거 */
+table.detail-table th:nth-child(1), table.detail-table td:nth-child(1) { width: 13%; }
+table.detail-table th:nth-child(2), table.detail-table td:nth-child(2) { width: 14%; }
+table.detail-table th:nth-child(3), table.detail-table td:nth-child(3) { width: 16%; }
+table.detail-table th:nth-child(4), table.detail-table td:nth-child(4) { width: 57%; }
+table.detail-table td.basis-cell { line-height: 1.55; }
+table.detail-table a.src-link {
+  display: inline-block; margin: 2px 4px 2px 0; padding: 1px 7px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--primary); font-size: 0.78rem; text-decoration: none; white-space: nowrap;
+}
+table.detail-table a.src-link:hover { text-decoration: underline; }
 .detail-inner .di-foot { margin: 12px 0 0; font-size: 0.84rem; }
 
 @media (max-width: 700px) {

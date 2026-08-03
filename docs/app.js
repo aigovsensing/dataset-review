@@ -937,6 +937,28 @@
     }).join("");
   }
 
+  // 판단 근거의 `[출처 N](url)` 마크다운 링크를 짧은 클릭형 링크로 변환한다.
+  // 원문의 초장문 Vertex AI 리다이렉트 URL이 그대로 노출돼 표가 우측으로 잘리던 문제를 해결.
+  function basisCell(v) {
+    if (!v || !String(v).trim()) return '<span class="dim">-</span>';
+    const s = String(v);
+    const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let out = "", last = 0, m;
+    while ((m = re.exec(s)) !== null) {
+      out += escapeHtml(s.slice(last, m.index));
+      const label = escapeHtml(m[1].trim());
+      const href = m[2].trim();
+      if (/^https?:\/\//i.test(href)) {
+        out += `<a class="src-link" href="${escapeHtml(href)}" target="_blank" rel="noopener">🔗 ${label}</a>`;
+      } else {
+        out += escapeHtml(m[0]);
+      }
+      last = re.lastIndex;
+    }
+    out += escapeHtml(s.slice(last));
+    return out;
+  }
+
   function detailHtml(r) {
     const vm = verdictMeta(r.verdict);
     const cm = confidenceMeta(r.review_confidence);
@@ -945,7 +967,7 @@
       `<tr><td>${it.label}</td>` +
       `<td>${cell(r[it.key + "_check"])}</td>` +
       `<td>${cell(r[it.key + "_judgment"])}</td>` +
-      `<td>${cell(r[it.key + "_basis"])}</td></tr>`
+      `<td class="basis-cell">${basisCell(r[it.key + "_basis"])}</td></tr>`
     ).join("");
     return (
       `<div class="detail-inner">` +
