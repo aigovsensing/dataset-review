@@ -1102,9 +1102,11 @@
     const lv = itemRisk(row, key);
     const txt = (row[key + "_check"] || row[key + "_judgment"] || "").replace(/`/g, "");
     const full = [row[key + "_check"], row[key + "_judgment"]].filter(Boolean).join(" · ");
+    const inner = escapeHtml(txt) || "<span class='dim'>-</span>";
+    const dataFull = full ? ` data-full="${escapeHtml(full)}"` : "";
     return (
       `<div class="cell-risk"><span class="risk-dot ${lv}" title="${RISK_META[lv].label}"></span>` +
-      `<span class="cell-text" title="${escapeHtml(full)}">${escapeHtml(txt) || "<span class='dim'>-</span>"}</span></div>`
+      `<span class="cell-text"${dataFull}>${inner}</span></div>`
     );
   }
 
@@ -1263,6 +1265,51 @@
 
   const dashRefresh = $("#dash-refresh");
   if (dashRefresh) dashRefresh.addEventListener("click", () => loadDashboard(true));
+
+  // ---- 표 셀 호버 툴팁 ----
+  // 대시보드 표의 라이선스·수집/생성·개인정보 셀은 2줄로 줄여 표시하고(공간 절약),
+  // 마우스를 올리면 전체 내용(data-full)을 떠 있는 툴팁으로 보여준다. 표 래퍼가
+  // overflow-x:auto 라 CSS ::after 툴팁은 잘리므로, body 에 붙는 단일 요소로 띄운다.
+  function initCellTooltip() {
+    let tip = null;
+    const ensure = () => {
+      if (!tip) {
+        tip = document.createElement("div");
+        tip.className = "cell-tip";
+        tip.setAttribute("role", "tooltip");
+        document.body.appendChild(tip);
+      }
+      return tip;
+    };
+    const hide = () => { if (tip) tip.style.display = "none"; };
+    const place = (el) => {
+      const full = el.getAttribute("data-full");
+      if (!full) return;
+      const t = ensure();
+      t.textContent = full;
+      t.style.display = "block";
+      const r = el.getBoundingClientRect();
+      const doc = document.documentElement;
+      const tw = t.offsetWidth, th = t.offsetHeight;
+      let left = window.scrollX + r.left;
+      const maxLeft = window.scrollX + doc.clientWidth - tw - 8;
+      if (left > maxLeft) left = Math.max(window.scrollX + 8, maxLeft);
+      let top = window.scrollY + r.bottom + 6;
+      if (r.bottom + 6 + th > doc.clientHeight) top = window.scrollY + r.top - th - 6;
+      t.style.left = left + "px";
+      t.style.top = top + "px";
+    };
+    document.addEventListener("mouseover", (e) => {
+      const el = e.target.closest && e.target.closest(".cell-text[data-full]");
+      if (el) place(el);
+    });
+    document.addEventListener("mouseout", (e) => {
+      const el = e.target.closest && e.target.closest(".cell-text[data-full]");
+      if (el) hide();
+    });
+    window.addEventListener("scroll", hide, true);
+  }
+  initCellTooltip();
 
   // 최초 진입 시 해시가 가리키는 탭을 활성화(공유 링크로 바로 진입 지원).
   // 모든 상태 변수(dashState 등) 초기화 이후에 호출해야 TDZ 오류가 없다.
