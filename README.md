@@ -516,7 +516,7 @@ Actions 탭에서 워크플로가 `Skipped` 라면 실행 조건 미충족입니
 | `429` / `RESOURCE_EXHAUSTED` | **폴백 체인의 모든 모델**까지 일일 한도 소진 | 다음 날 `rerun-review` (또는 `GEMINI_MODEL_FALLBACKS` 확장) |
 | `503` / `high demand` (재시도·폴백 후에도 실패) | Google 서버 일시 혼잡 (키·쿼터 무관) | 잠시 후 `rerun-review` — [503 자동 복구](#503일시-과부하-대응--3단계-자동-복구) 참고 |
 | `검토할 데이터셋 정보가 없습니다` | 이슈 폼이 비어 있음 | 이슈 본문 수정 후 `rerun-review` |
-| `Gemini 응답이 비어 있습니다` | 모델이 답변 없이 종료 | `rerun-review` 로 재시도 |
+| `Gemini 응답이 비어 있습니다` | thinking 예산 소진 등으로 답변 없이 종료(`finish_reason=STOP`, 빈 텍스트) — 빈 응답 시 thinking 최소화 재생성 + 다음 모델 폴백을 자동 시도하며, **폴백 체인 전체가 빈 응답**일 때만 표시 | 잠시 후 `rerun-review` 로 재시도 |
 
 ### "검토 결과" 목록에 `GitHub API 403` 이 표시되는 경우 ⚠️ (운영 필독)
 

@@ -693,6 +693,18 @@ def run_review(title: str, body: str) -> str:
     except Exception:  # noqa: BLE001 - 구버전 SDK 호환
         config = types.GenerateContentConfig(**base_config)
 
+    # 재생성(2차 시도)용 보조 config: thinking 예산을 최소화해 '답변' 토큰을 최대한 확보한다.
+    # gemini 2.5/3.x 계열이 thinking 에 예산을 소진하고 답변 없이 STOP 으로 종료해 빈 응답이
+    # 나오는 경우(finish_reason=STOP, text 없음)를 완화하기 위함이다. (thinking_config 필드는
+    # 위 config 와 동일 타입이라 생성은 안전하며, 미지원 SDK/모델이면 기본 config 로 대체한다.)
+    try:
+        config_min_think = types.GenerateContentConfig(
+            **base_config,
+            thinking_config=types.ThinkingConfig(thinking_budget=512),
+        )
+    except Exception:  # noqa: BLE001 - 구버전 SDK 호환
+        config_min_think = config
+
     # 현재 사용 가능한 모델을 순서대로 시도한다: 기본 모델(최신 Flash)이 429(쿼터 소진)
     # 이거나 사용 불가하면 무료 쿼터가 더 큰 구세대 모델로 자동 폴백한다.
     # 각 모델에서 출력이 MAX_TOKENS 로 잘리면(대시/반복 폭주) 같은 모델로 최대 1회 재생성한다.
@@ -708,7 +720,9 @@ def run_review(title: str, body: str) -> str:
         used_model = cand
         try:
             for attempt in range(2):
-                response = generate_with_retry(client, cand, user_prompt, config)
+                # 2차 시도는 thinking 을 최소화한 config 로 답변 토큰을 최대 확보(빈 응답 완화).
+                cfg = config if attempt == 0 else config_min_think
+                response = generate_with_retry(client, cand, user_prompt, cfg)
                 text = (response.text or "").strip()
                 finish_reason = ""
                 try:
@@ -731,9 +745,27 @@ def run_review(title: str, body: str) -> str:
                 if text and "MAX_TOKENS" not in finish_reason:
                     break
                 if attempt == 0:
-                    print(f"출력이 잘려(MAX_TOKENS) {cand} 로 1회 재생성합니다.", file=sys.stderr)
-            gen_error = None
-            break  # 이 모델로 응답(텍스트) 확보 → 폴백 중단
+                    why = "빈 응답(STOP)" if not text else "출력 잘림(MAX_TOKENS)"
+                    print(
+                        f"{cand}: {why} → thinking 최소화 config 로 1회 재생성합니다.",
+                        file=sys.stderr,
+                    )
+            # 텍스트가 있으면(잘렸더라도) 이 응답을 채택하고 폴백 중단.
+            if text:
+                gen_error = None
+                break
+            # 예외는 없었지만 답변이 완전히 비었다(STOP인데 text 없음).
+            # → 같은 config 재시도로는 동일 결과일 가능성이 크므로 다음(더 안정적인) 모델로 폴백.
+            if ci < len(model_chain) - 1:
+                nxt = model_chain[ci + 1]
+                print(
+                    f"모델 `{cand}` 가 답변 없이 종료(빈 응답, finish_reason={finish_reason or '?'}) "
+                    f"→ 다음 모델 `{nxt}` 로 폴백합니다.",
+                    file=sys.stderr,
+                )
+                gen_error = None
+                continue
+            gen_error = None  # 마지막 모델까지 빈 응답 → 아래에서 RuntimeError
         except Exception as exc:  # noqa: BLE001 - 폴백 판단
             gen_error = exc
             if is_fallbackable(exc) and ci < len(model_chain) - 1:
@@ -751,8 +783,8 @@ def run_review(title: str, body: str) -> str:
     if not text:
         raise RuntimeError(
             f"Gemini 응답이 비어 있습니다 (finish_reason={finish_reason or '알 수 없음'}). "
-            "모델이 답변 없이 종료했거나 thinking 예산을 모두 소진했을 수 있습니다. "
-            "'rerun-review' 라벨로 재시도하세요."
+            "폴백 체인의 모든 모델이 답변 없이 종료했습니다(대개 thinking 예산 소진). "
+            "잠시 후 'rerun-review' 라벨로 재시도하세요."
         )
 
     truncated = "MAX_TOKENS" in finish_reason
