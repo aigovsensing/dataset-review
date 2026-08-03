@@ -218,6 +218,7 @@ def strip_cites(s: str) -> str:
     s = re.sub(r"\s*\[\d+\]\((?:https?:)?//[^)]*\)", "", s)          # [N](grounding url)
     s = re.sub(r"\s*\(\[출처\]\([^)]*\)(?:\s*,\s*\[출처\]\([^)]*\))*\)", "", s)  # ([출처](url), …)
     s = s.replace("**", "").replace("`", "")
+    s = re.sub(r"^[\-*•·]\s+", "", s.strip())  # 앞머리 목록 기호 제거
     return re.sub(r"[ \t]+", " ", s).strip()
 
 
@@ -262,7 +263,8 @@ def parse_litigation_detail(body: str) -> dict:
 
     parties = _lit_field(plain, r"원고\s*[·・‧/]\s*피고")
     if parties:
-        pm = re.search(r"원고[:：]?\s*(.+?)\s*/\s*피고[:：]?\s*(.+)", parties)
+        # "원고: A / 피고: B", "원고 - A, 피고 - B" 등 구분자(: - –)·분리자(/ ,) 혼용을 처리.
+        pm = re.search(r"원고\s*[:：\-–]?\s*(.+?)\s*[,/]\s*피고\s*[:：\-–]?\s*(.+)", parties)
         if pm:
             d["litigation_plaintiff"] = strip_cites(pm.group(1))
             d["litigation_defendant"] = strip_cites(pm.group(2))
