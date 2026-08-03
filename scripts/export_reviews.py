@@ -25,13 +25,24 @@ API = "https://api.github.com"
 REVIEW_MARKER = "오픈 데이터셋 법적 리스크 검토 결과"  # 검토 결과 댓글 식별용
 OUT_DIR = Path(__file__).resolve().parent.parent / "docs" / "data"
 
+# 소송 상세 필드(소송이 걸린 데이터셋 현황용). '## 3. 소송 리스크' 섹션에서 파싱한다.
+LITIGATION_FIELDS = [
+    "litigation_case", "litigation_court", "litigation_docket",
+    "litigation_plaintiff", "litigation_defendant", "litigation_status",
+    "litigation_claim", "litigation_strength", "litigation_how",
+    "litigation_paragraph", "litigation_quote", "litigation_summary",
+    "litigation_judgment", "litigation_basis",
+]
+
 CSV_FIELDS = [
     "issue", "dataset", "verdict", "model", "status",
     "review_confidence",
     "license_check", "license_judgment", "license_basis",
     "collection_check", "collection_judgment", "collection_basis",
     "privacy_check", "privacy_judgment", "privacy_basis",
-    "litigation", "author", "created_at", "updated_at", "url",
+    "litigation",
+    *LITIGATION_FIELDS,
+    "author", "created_at", "updated_at", "url",
     "state", "comments",
 ]
 
@@ -192,6 +203,103 @@ def parse_review(body: str) -> dict:
     return data
 
 
+# ── 소송 상세 파싱 ──────────────────────────────────────────────────────────
+# '## 3. 소송 리스크' 섹션에서 사건명·법원·사건번호·원고·피고·침해 주장 요지·
+# 근거 강도·원고가 어떻게 알아냈는가(판단 기준/소장 인용) 등을 추출한다.
+# 모델 출력 형식이 (1) 중첩 불릿 또는 (2) 마크다운 표로 갈리므로 양쪽을 모두 처리한다.
+_LIT_SECTION_RE = re.compile(r"소송\s*리스크(.*?)(?:</details>|\n#{1,3}\s|\Z)", re.S)
+_STRENGTH_RE = re.compile(r"근거\s*강도\s*[:：]?\s*(강|중|약)")
+
+
+def strip_cites(s: str) -> str:
+    """표시용 정리: 자동 각주 `[N](url)`·`([출처](url))`·굵게·백틱·개행을 제거."""
+    if not s:
+        return ""
+    s = re.sub(r"\s*\[\d+\]\((?:https?:)?//[^)]*\)", "", s)          # [N](grounding url)
+    s = re.sub(r"\s*\(\[출처\]\([^)]*\)(?:\s*,\s*\[출처\]\([^)]*\))*\)", "", s)  # ([출처](url), …)
+    s = s.replace("**", "").replace("`", "")
+    return re.sub(r"[ \t]+", " ", s).strip()
+
+
+def _lit_field(text: str, key: str) -> str:
+    m = re.search(rf"{key}\s*[:：]\s*(.+)", text)
+    return m.group(1).strip() if m else ""
+
+
+def _lit_table_row(sec: str) -> list[str] | None:
+    """소송 섹션의 '근거 강도 | 판단 기준 | …' 표에서 데이터 행 셀들을 반환."""
+    lines = [l.strip() for l in sec.splitlines()]
+    hdr = -1
+    for i, l in enumerate(lines):
+        if l.startswith("|") and "근거 강도" in l and "판단 기준" in l:
+            hdr = i
+            break
+    if hdr < 0:
+        return None
+    for l in lines[hdr + 1:]:
+        if not l.startswith("|"):
+            continue
+        if re.match(r"^\|\s*:?-{2,}", l):  # 구분선
+            continue
+        return [c.strip() for c in l.strip().strip("|").split("|")]
+    return None
+
+
+def parse_litigation_detail(body: str) -> dict:
+    d = {k: "" for k in LITIGATION_FIELDS}
+    if not body:
+        return d
+    m = _LIT_SECTION_RE.search(body)
+    if not m:
+        return d
+    sec = m.group(1)
+    plain = sec.replace("**", "")  # 라벨의 굵게 제거(사건명/법원 등 매칭용)
+
+    d["litigation_case"] = strip_cites(_lit_field(plain, "사건명"))
+    d["litigation_court"] = strip_cites(_lit_field(plain, "법원"))
+    d["litigation_docket"] = strip_cites(_lit_field(plain, "사건번호"))
+    d["litigation_status"] = strip_cites(_lit_field(plain, "상태"))
+
+    parties = _lit_field(plain, r"원고\s*[·・‧/]\s*피고")
+    if parties:
+        pm = re.search(r"원고[:：]?\s*(.+?)\s*/\s*피고[:：]?\s*(.+)", parties)
+        if pm:
+            d["litigation_plaintiff"] = strip_cites(pm.group(1))
+            d["litigation_defendant"] = strip_cites(pm.group(2))
+        else:
+            d["litigation_plaintiff"] = strip_cites(parties)
+
+    d["litigation_claim"] = strip_cites(
+        _lit_field(plain, r"(?:문제된[^:：\n]*침해\s*주장\s*요지|침해\s*주장\s*요지)")
+    )
+
+    sm = _STRENGTH_RE.search(plain)
+    if sm:
+        d["litigation_strength"] = sm.group(1)
+
+    # (1) 중첩 불릿 형식
+    d["litigation_how"] = strip_cites(_lit_field(plain, r"판단\s*기준[^:：\n]*"))
+    d["litigation_paragraph"] = strip_cites(_lit_field(plain, r"소장\s*항\s*번호"))
+    d["litigation_quote"] = strip_cites(_lit_field(plain, r"소장\s*원문\s*인용"))
+    d["litigation_summary"] = strip_cites(_lit_field(plain, r"요약"))
+
+    # (2) 표 형식 폴백(불릿에서 못 찾은 경우)
+    if not d["litigation_how"]:
+        cells = _lit_table_row(sec)
+        if cells and len(cells) >= 5:
+            if not d["litigation_strength"]:
+                cm = re.search(r"(강|중|약)", cells[0])
+                d["litigation_strength"] = cm.group(1) if cm else ""
+            d["litigation_how"] = strip_cites(cells[1])
+            d["litigation_paragraph"] = strip_cites(cells[2])
+            d["litigation_quote"] = strip_cites(cells[3])
+            d["litigation_summary"] = strip_cites(cells[4])
+
+    d["litigation_judgment"] = strip_cites(_lit_field(plain, r"내부\s*판단"))
+    d["litigation_basis"] = strip_cites(_lit_field(plain, r"판단\s*근거"))
+    return d
+
+
 def main() -> int:
     token = os.environ.get("GITHUB_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY")
@@ -209,6 +317,10 @@ def main() -> int:
         labels = [l["name"] for l in it.get("labels", [])]
         body = latest_review_comment(repo, num, token)
         parsed = parse_review(body)
+        # 소송 상세는 소송이 확인된('있음') 경우에만 채운다.
+        lit = parse_litigation_detail(body) if parsed["litigation"] == "있음" else {
+            k: "" for k in LITIGATION_FIELDS
+        }
         title = it.get("title", "")
         dataset = parsed["dataset"] or re.sub(r"^\s*\[검토\]\s*", "", title).strip()
         rows.append({
@@ -228,6 +340,7 @@ def main() -> int:
             "privacy_judgment": parsed["privacy_judgment"],
             "privacy_basis": parsed["privacy_basis"],
             "litigation": parsed["litigation"] if body else "",
+            **lit,
             "author": (it.get("user") or {}).get("login", ""),
             "created_at": it.get("created_at", ""),
             "updated_at": it.get("updated_at", ""),

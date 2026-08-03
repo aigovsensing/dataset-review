@@ -780,12 +780,111 @@
     body.innerHTML =
       `<p class="dash-updated dim">최근 집계: ${escapeHtml(latestTxt)} · 총 <strong>${rows.length}</strong>건</p>` +
       statsSection(rows) +
+      litigationSection(rows) +
       confidenceSection(rows) +
       chartsSection(rows) +
       trendSection(rows) +
       tableSection();
 
     bindDashTable();
+    bindLitTable();
+  }
+
+  // ── ⚖️ 소송이 걸려있는 데이터셋 현황 ─────────────────────────────
+  // 소송/법적 분쟁 이력이 확인된('litigation === 있음') 데이터셋을,
+  // 사건명·사건번호·원고·피고·근거 강도와 함께 표로 보여주고,
+  // 행을 펼치면 침해 주장 요지·원고의 입증 방법(판단 기준)·소장 인용 등을 열람한다.
+  const LIT_STRENGTH = {
+    "강": { label: "강 · 직접 자인", cls: "high", order: 0 },
+    "중": { label: "중 · 간접 자인", cls: "mid", order: 1 },
+    "약": { label: "약 · 정황 근거", cls: "low", order: 2 },
+  };
+  function litStrengthMeta(s) {
+    return LIT_STRENGTH[s] || { label: "확인 불가", cls: "none", order: 3 };
+  }
+  // 값이 있으면 이스케이프해 반환, 없으면 '—'(dim). undefined(구버전 JSON)도 안전 처리.
+  function litCell(v) {
+    return v && String(v).trim() ? escapeHtml(v) : '<span class="dim">—</span>';
+  }
+
+  let litRows = [];
+  function litigationSection(rows) {
+    litRows = (rows || [])
+      .filter((r) => r.litigation === "있음")
+      .sort((a, b) =>
+        litStrengthMeta(a.litigation_strength).order - litStrengthMeta(b.litigation_strength).order ||
+        String(a.dataset || "").localeCompare(String(b.dataset || ""))
+      );
+    if (!litRows.length) return "";
+
+    const body = litRows.map((r, idx) => {
+      const sm = litStrengthMeta(r.litigation_strength);
+      const main =
+        `<tr class="lit-row" data-lit="${idx}">` +
+        `<td><span class="ds-link">${escapeHtml(r.dataset || ("#" + r.issue))}</span></td>` +
+        `<td>${litCell(r.litigation_case)}</td>` +
+        `<td class="lit-nowrap">${litCell(r.litigation_docket)}</td>` +
+        `<td>${litCell(r.litigation_plaintiff)}</td>` +
+        `<td>${litCell(r.litigation_defendant)}</td>` +
+        `<td><span class="lbadge ${sm.cls}">${sm.label}</span></td></tr>`;
+      const detail =
+        `<tr class="lit-detail-row" data-lit-detail="${idx}" hidden><td colspan="6">${litDetailHtml(r)}</td></tr>`;
+      return main + detail;
+    }).join("");
+
+    return (
+      `<div class="dash-section"><h4>⚖️ 소송이 걸려있는 데이터셋 현황 ` +
+      `<span class="dim" style="font-size:0.8rem">(${litRows.length}건)</span></h4>` +
+      `<p class="dim" style="margin:-4px 0 12px">법적 소송·분쟁 이력이 확인된 데이터셋입니다. ` +
+      `행을 클릭하면 <strong>침해 주장 요지 · 원고의 침해 입증 방법(판단 기준) · 소장 원문 인용 · 내부 판단</strong> 등 상세 정보가 펼쳐집니다.</p>` +
+      `<div class="dash-table-wrap"><table class="dash-table lit-table">` +
+      `<thead><tr><th>데이터셋</th><th>사건명</th><th>사건번호</th><th>원고</th><th>피고</th>` +
+      `<th>침해 입증 근거 강도</th></tr></thead><tbody id="lit-tbody">${body}</tbody></table></div>` +
+      `<p class="lit-legend dim">` +
+      `<span class="lbadge high">강 · 직접 자인</span> 피고 자인·법원 인정 &nbsp; ` +
+      `<span class="lbadge mid">중 · 간접 자인</span> 논증적 추론 &nbsp; ` +
+      `<span class="lbadge low">약 · 정황 근거</span> 명칭만 언급</p>` +
+      `</div>`
+    );
+  }
+
+  function litDetailHtml(r) {
+    const field = (label, val, wide) =>
+      `<div class="lit-field${wide ? " wide" : ""}"><dt>${label}</dt>` +
+      `<dd>${val && String(val).trim() ? escapeHtml(val) : '<span class="dim">—</span>'}</dd></div>`;
+    const quote = r.litigation_quote && String(r.litigation_quote).trim()
+      ? `<blockquote class="lit-quote">${escapeHtml(r.litigation_quote)}</blockquote>`
+      : '<span class="dim">—</span>';
+    return (
+      `<div class="lit-detail"><dl class="lit-grid">` +
+      field("법원", r.litigation_court) +
+      field("사건 상태", r.litigation_status, true) +
+      field("침해 주장 요지", r.litigation_claim, true) +
+      field("원고가 어떻게 알아냈는가 (판단 기준)", r.litigation_how, true) +
+      field("소장 항 번호", r.litigation_paragraph) +
+      `<div class="lit-field wide"><dt>소장 원문 인용</dt><dd>${quote}</dd></div>` +
+      field("요약", r.litigation_summary, true) +
+      field("내부 판단", r.litigation_judgment, true) +
+      field("판단 근거", r.litigation_basis, true) +
+      `</dl>` +
+      `<p class="lit-foot"><a class="btn ghost small" href="${escapeHtml(r.url || "#")}" ` +
+      `target="_blank" rel="noopener">GitHub 이슈 #${r.issue} 원문 보기 →</a></p></div>`
+    );
+  }
+
+  function bindLitTable() {
+    const tbody = $("#lit-tbody");
+    if (!tbody) return;
+    tbody.addEventListener("click", (e) => {
+      const row = e.target.closest("tr.lit-row");
+      if (!row) return;
+      const idx = row.getAttribute("data-lit");
+      const detail = tbody.querySelector(`tr.lit-detail-row[data-lit-detail="${idx}"]`);
+      if (detail) {
+        detail.hidden = !detail.hidden;
+        row.classList.toggle("open", !detail.hidden);
+      }
+    });
   }
 
   // ── ① 요약 통계 카드 ────────────────────────────────────────

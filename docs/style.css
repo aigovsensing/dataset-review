@@ -589,11 +589,53 @@ table.detail-table a.src-link {
 table.detail-table a.src-link:hover { text-decoration: underline; }
 .detail-inner .di-foot { margin: 12px 0 0; font-size: 0.84rem; }
 
+/* ── ⚖️ 소송이 걸려있는 데이터셋 현황 ─────────────────────────── */
+table.lit-table tbody tr.lit-row { cursor: pointer; }
+table.lit-table tbody tr.lit-row:hover { background: var(--surface-2); }
+table.lit-table tbody tr.lit-row.open { background: var(--surface-2); }
+table.lit-table tbody tr.lit-row td { vertical-align: top; }
+/* 펼침 표시(▸/▾) */
+table.lit-table tbody tr.lit-row td:first-child::before {
+  content: "▸"; color: var(--text-dim); margin-right: 6px; font-size: 0.8em;
+}
+table.lit-table tbody tr.lit-row.open td:first-child::before { content: "▾"; color: var(--primary); }
+.lit-nowrap { white-space: nowrap; }
+
+/* 침해 입증 근거 강도 배지 */
+.lbadge {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+}
+.lbadge.high { background: rgba(248, 113, 113, 0.16); color: var(--fail); }
+.lbadge.mid  { background: rgba(251, 191, 36, 0.18); color: var(--warn); }
+.lbadge.low  { background: rgba(79, 140, 255, 0.16); color: var(--primary); }
+.lbadge.none { background: rgba(154, 166, 189, 0.15); color: var(--text-dim); }
+
+.lit-legend { margin: 10px 2px 0; font-size: 0.8rem; line-height: 2; }
+
+/* 펼침 상세: 라벨/값 그리드 */
+.lit-detail { padding: 14px 16px; background: var(--bg); }
+.lit-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 22px; margin: 0;
+}
+.lit-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lit-field.wide { grid-column: 1 / -1; }
+.lit-field dt { font-size: 0.76rem; font-weight: 600; color: var(--text-dim); }
+.lit-field dd { margin: 0; font-size: 0.9rem; line-height: 1.55; word-break: break-word; }
+.lit-quote {
+  margin: 2px 0 0; padding: 8px 12px; font-size: 0.9rem; line-height: 1.55;
+  background: var(--surface-2); border-left: 3px solid var(--primary);
+  border-radius: 0 6px 6px 0; color: var(--text);
+}
+.lit-foot { margin: 14px 0 0; font-size: 0.84rem; }
+
 @media (max-width: 700px) {
   .dash-stats { grid-template-columns: repeat(2, 1fr); }
   .dash-charts { grid-template-columns: 1fr; }
   .cell-text { max-width: 140px; }
   .confidence-box { grid-template-columns: repeat(2, 1fr); }
+  .lit-grid { grid-template-columns: 1fr; }
 }
 
 /* ── 검토 결과: 페이지네이션 ─────────────────────────────────── */
