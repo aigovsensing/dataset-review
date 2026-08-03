@@ -489,21 +489,55 @@ input[type="text"]:focus, textarea:focus {
 .dash-panel > .dash-section:first-child { margin-top: 16px; }
 
 /* 요약 통계 카드 */
-.dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.stat-card {
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 15px 16px; border-left-width: 4px;
+/* 검토 현황: 설명 + 판정 분포 막대 + 판정 카드 + 세부 리스크 */
+.st-intro { font-size: 0.92rem; line-height: 1.65; margin: 0 0 14px; color: var(--text); }
+.st-hl-ok { color: var(--accent); }
+
+.st-bar {
+  display: flex; height: 34px; border-radius: 999px; overflow: hidden;
+  background: var(--bg); border: 1px solid var(--border);
 }
-.stat-card .stat-num { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
-.stat-card .stat-label { font-size: 0.85rem; color: var(--text-dim); margin-top: 4px; }
-.stat-card.total { border-left-color: var(--primary); }
-.stat-card.total .stat-num { color: var(--primary); }
-.stat-card.ok    { border-left-color: var(--accent); }
-.stat-card.ok .stat-num { color: var(--accent); }
-.stat-card.warn  { border-left-color: var(--warn); }
-.stat-card.warn .stat-num { color: var(--warn); }
-.stat-card.fail  { border-left-color: var(--fail); }
-.stat-card.fail .stat-num { color: var(--fail); }
+.st-seg {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  color: #fff; font-size: 0.8rem; font-weight: 700; min-width: 0; white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); transition: width 0.4s ease;
+}
+.st-seg.ok   { background: var(--accent); }
+.st-seg.warn { background: var(--warn); }
+.st-seg.fail { background: var(--fail); }
+.st-seg.none { background: var(--text-dim); }
+
+.st-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+.st-card {
+  border: 1px solid var(--border); border-top: 4px solid var(--text-dim);
+  border-radius: 12px; background: var(--surface-2); padding: 14px 14px 16px;
+}
+.st-card.ok   { border-top-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface-2)); }
+.st-card.warn { border-top-color: var(--warn); background: color-mix(in srgb, var(--warn) 11%, var(--surface-2)); }
+.st-card.fail { border-top-color: var(--fail); background: color-mix(in srgb, var(--fail) 11%, var(--surface-2)); }
+.st-card.none { border-top-color: var(--text-dim); }
+.st-card-top { display: flex; align-items: baseline; gap: 6px; }
+.st-emoji { font-size: 1.2rem; }
+.st-count { font-size: 1.9rem; font-weight: 800; line-height: 1; color: var(--text); }
+.st-unit { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); margin-left: 1px; }
+.st-pct { margin-left: auto; font-size: 0.95rem; font-weight: 700; }
+.st-card.ok .st-pct { color: var(--accent); }
+.st-card.warn .st-pct { color: var(--warn); }
+.st-card.fail .st-pct { color: var(--fail); }
+.st-card.none .st-pct { color: var(--text-dim); }
+.st-name { margin-top: 8px; font-size: 0.95rem; font-weight: 700; color: var(--text); }
+.st-mean { margin-top: 3px; font-size: 0.8rem; line-height: 1.45; color: var(--text-dim); }
+
+.st-risks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.st-risk {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+}
+.st-risk-ico { font-size: 1.4rem; flex: 0 0 auto; }
+.st-risk-num { font-size: 1.3rem; font-weight: 800; color: var(--text); line-height: 1.1; }
+.st-risk-label { font-size: 0.82rem; color: var(--text-dim); margin-top: 2px; }
+
 .dash-meta-line {
   margin: 14px 0 0; font-size: 0.88rem; color: var(--text-dim);
   display: flex; gap: 18px; flex-wrap: wrap;
@@ -809,7 +843,8 @@ table.detail-table a.src-link:hover { text-decoration: underline; }
 .lit-foot { margin: 14px 0 0; font-size: 0.84rem; }
 
 @media (max-width: 700px) {
-  .dash-stats { grid-template-columns: repeat(2, 1fr); }
+  .st-cards { grid-template-columns: repeat(2, 1fr); }
+  .st-risks { grid-template-columns: 1fr; }
   .dash-charts { grid-template-columns: 1fr; }
   .cell-text { max-width: 140px; }
   .cf-cards { grid-template-columns: repeat(2, 1fr); }

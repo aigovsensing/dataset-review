@@ -1001,31 +1001,63 @@
   }
 
   // ── ① 요약 통계 카드 ────────────────────────────────────────
+  // 판정 4분류가 무엇을 뜻하는지 처음 보는 사람도 알 수 있게 한 줄 설명.
+  const VERDICT_MEANING = {
+    "사용 가능": "문제 없음 — 바로 사용 가능",
+    "추가 검토 필요": "일부 확인·조건 필요 — 검토 후 사용",
+    "사용 비권고": "법적 리스크 큼 — 사용 지양",
+    "미판정": "정보 부족 — 추가 확인 필요",
+  };
+
   function statsSection(rows) {
+    const total = rows.length;
     const counts = { "사용 가능": 0, "추가 검토 필요": 0, "사용 비권고": 0, "미판정": 0 };
     rows.forEach((r) => { counts[verdictMeta(r.verdict).key]++; });
     const privacyRisk = rows.filter((r) => itemRisk(r, "privacy") === "high").length;
     const litig = rows.filter((r) => r.litigation === "있음").length;
     const reviewed = rows.filter((r) => r.status === "reviewed").length;
+    const usable = counts["사용 가능"];
+    const usablePct = total ? Math.round((usable / total) * 100) : 0;
 
-    const card = (cls, num, label) =>
-      `<div class="stat-card ${cls}"><div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`;
+    // ① 판정 분포를 한 줄로 보여주는 구성 막대(사용 가능 여부 비율을 한눈에)
+    const segs = VERDICTS.filter((v) => counts[v.key] > 0).map((v) => {
+      const pct = total ? (counts[v.key] / total) * 100 : 0;
+      const label = pct >= 9 ? `${v.icon} ${Math.round(pct)}%` : "";
+      return `<span class="st-seg ${v.cls}" style="width:${pct.toFixed(2)}%" ` +
+        `title="${v.icon} ${v.key} · ${counts[v.key]}건 (${Math.round(pct)}%)">${label}</span>`;
+    }).join("");
+
+    // ② 판정별 카드(큰 숫자 + 뜻풀이)
+    const cards = VERDICTS.map((v) => {
+      const c = counts[v.key];
+      const pct = total ? Math.round((c / total) * 100) : 0;
+      return `<div class="st-card ${v.cls}">` +
+        `<div class="st-card-top"><span class="st-emoji">${v.icon}</span>` +
+        `<span class="st-count">${c}<span class="st-unit">건</span></span>` +
+        `<span class="st-pct">${pct}%</span></div>` +
+        `<div class="st-name">${v.key}</div>` +
+        `<div class="st-mean">${VERDICT_MEANING[v.key]}</div>` +
+        `</div>`;
+    }).join("");
+
+    // ③ 세부 리스크 지표(뜻풀이 포함)
+    const riskTile = (ico, num, label, hint) =>
+      `<div class="st-risk"><span class="st-risk-ico" aria-hidden="true">${ico}</span>` +
+      `<div><div class="st-risk-num">${num}</div>` +
+      `<div class="st-risk-label">${label} <span class="dim">${hint}</span></div></div></div>`;
 
     return (
-      `<div class="dash-section">` +
-      `<h4>🧭 검토 현황</h4>` +
-      `<div class="dash-stats">` +
-      card("total", rows.length, "총 검토 데이터셋") +
-      card("ok", counts["사용 가능"], "✅ 사용 가능") +
-      card("warn", counts["추가 검토 필요"], "⚠️ 추가 검토 필요") +
-      card("fail", counts["사용 비권고"], "⛔ 사용 비권고") +
-      `</div>` +
-      `<p class="dash-meta-line">` +
-      `<span>🔒 개인정보 리스크 <strong>${privacyRisk}</strong>건</span>` +
-      `<span>⚖️ 소송 관련 <strong>${litig}</strong>건</span>` +
-      `<span>❔ 미판정 <strong>${counts["미판정"]}</strong>건</span>` +
-      `<span>📄 검토 완료 <strong>${reviewed}</strong>/${rows.length}</span>` +
-      `</p></div>`
+      `<div class="dash-section"><h4>🧭 검토 현황</h4>` +
+      `<p class="st-intro">지금까지 <strong>${total}개</strong> 데이터셋의 법적 리스크를 검토했습니다. ` +
+      `각 데이터셋은 <strong>사용 가능 여부</strong>에 따라 아래 4가지로 분류되며, 현재 바로 쓸 수 있는(문제 없는) ` +
+      `데이터셋은 <strong class="st-hl-ok">${usable}개 · ${usablePct}%</strong>입니다.</p>` +
+      `<div class="st-bar" role="img" aria-label="판정 분포: 사용 가능 ${counts["사용 가능"]}건, 추가 검토 필요 ${counts["추가 검토 필요"]}건, 사용 비권고 ${counts["사용 비권고"]}건, 미판정 ${counts["미판정"]}건">${segs}</div>` +
+      `<div class="st-cards">${cards}</div>` +
+      `<div class="st-risks">` +
+      riskTile("🔒", `${privacyRisk}건`, "개인정보 리스크", "(얼굴·음성 등 식별정보 포함)") +
+      riskTile("⚖️", `${litig}건`, "소송 연루", "(저작권 침해 소송 대상)") +
+      riskTile("📄", `${reviewed}/${total}`, "검토 완료", "(전체 대비 완료 건수)") +
+      `</div></div>`
     );
   }
 
