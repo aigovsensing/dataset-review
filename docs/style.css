@@ -454,6 +454,40 @@ input[type="text"]:focus, textarea:focus {
   display: flex; align-items: center; gap: 7px;
 }
 
+/* 대시보드 세부 메뉴(탭형 서브 내비게이션): 선택한 섹션만 표시 */
+.dash-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 10px -22px 4px;
+  padding: 12px 22px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.dash-navbtn {
+  padding: 8px 15px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.dash-navbtn:hover { color: var(--text); border-color: var(--primary); }
+.dash-navbtn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.dash-navbtn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* 세부 메뉴 아래 첫 섹션의 상단 여백은 축소(메뉴 바로 아래에 붙도록) */
+.dash-panel > .dash-section:first-child { margin-top: 16px; }
+
 /* 요약 통계 카드 */
 .dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .stat-card {

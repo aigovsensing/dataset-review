@@ -734,6 +734,7 @@
 
   const dashState = {
     rows: [], exportedAt: "", filter: null, confidence: null, search: "", loaded: false, page: 1, pageSize: 5,
+    section: null, // 대시보드 세부 메뉴(선택된 섹션 key)
   };
   const DASH_PAGE_SIZES = [5, 10, 15, 30, 50, 70, 100];
 
@@ -777,17 +778,67 @@
     }
     const latestTxt = latest ? new Date(latest).toLocaleString("ko-KR") : "-";
 
+    // 세부 메뉴(섹션) 목록. html 이 빈 문자열이면(예: 소송 이력 없음) 메뉴에서 제외한다.
+    const sections = [
+      { key: "stats",      label: "🧭 검토 현황",        html: statsSection(rows) },
+      { key: "litigation", label: "⚖️ 소송 현황",        html: litigationSection(rows) },
+      { key: "confidence", label: "💬 만족도",           html: confidenceSection(rows) },
+      { key: "charts",     label: "📈 시각화",           html: chartsSection(rows) },
+      { key: "trend",      label: "🗓️ 검토 추이",        html: trendSection(rows) },
+      { key: "table",      label: "🗂️ 데이터셋별 결과",  html: tableSection() },
+    ].filter((s) => s.html && s.html.trim());
+
+    // 선택된 섹션이 없거나 더 이상 존재하지 않으면 첫 번째 섹션을 기본값으로.
+    if (!dashState.section || !sections.some((s) => s.key === dashState.section)) {
+      dashState.section = sections.length ? sections[0].key : "";
+    }
+
+    const nav = sections.map((s) =>
+      `<button class="dash-navbtn${s.key === dashState.section ? " active" : ""}" ` +
+      `type="button" data-section="${s.key}" role="tab" ` +
+      `aria-selected="${s.key === dashState.section}">${s.label}</button>`
+    ).join("");
+
+    const panels = sections.map((s) =>
+      `<div class="dash-panel" data-section-panel="${s.key}"${s.key === dashState.section ? "" : " hidden"}>` +
+      `${s.html}</div>`
+    ).join("");
+
     body.innerHTML =
       `<p class="dash-updated dim">최근 집계: ${escapeHtml(latestTxt)} · 총 <strong>${rows.length}</strong>건</p>` +
-      statsSection(rows) +
-      litigationSection(rows) +
-      confidenceSection(rows) +
-      chartsSection(rows) +
-      trendSection(rows) +
-      tableSection();
+      `<div class="dash-subnav" role="tablist" aria-label="대시보드 세부 메뉴">${nav}</div>` +
+      `<div class="dash-panels">${panels}</div>`;
 
+    bindDashSubnav();
     bindDashTable();
     bindLitTable();
+  }
+
+  // 세부 메뉴(섹션) 전환: 선택한 섹션만 보이고 나머지는 숨긴다.
+  // 모든 패널을 DOM 에 렌더한 뒤 표시만 토글하므로 표/차트 바인딩이 유지된다.
+  function bindDashSubnav() {
+    const nav = $(".dash-subnav");
+    if (!nav) return;
+    const btns = Array.prototype.slice.call(nav.querySelectorAll(".dash-navbtn"));
+    btns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-section");
+        dashState.section = key;
+        btns.forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        document.querySelectorAll("#dash-body .dash-panel").forEach((p) => {
+          p.hidden = p.getAttribute("data-section-panel") !== key;
+        });
+        // 섹션 전환 시 대시보드 상단이 보이도록 스크롤(긴 표에서 편의).
+        const body = $("#dash-body");
+        if (body && typeof body.scrollIntoView === "function") {
+          body.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    });
   }
 
   // ── ⚖️ 소송이 걸려있는 데이터셋 현황 ─────────────────────────────
