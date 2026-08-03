@@ -145,6 +145,9 @@
           </div>
         </form>
 
+        <!-- 이미 검토된 데이터셋일 때: 신규 이슈 생성을 막고 기존 이슈·재검토 안내를 표시 -->
+        <div id="request-notice" class="request-notice" hidden></div>
+
         <details id="preview" class="preview">
           <summary>이슈에 전달될 내용 미리보기</summary>
           <pre id="preview-body"></pre>
@@ -267,6 +270,11 @@
             법적 리스크를 검토합니다.</li>
           <li>검토 결과가 해당 이슈에 댓글로 자동 등록됩니다. <a href="#results"><strong>검토 결과</strong></a> 탭에서 목록을 확인할 수 있습니다.</li>
         </ol>
+        <div class="disclaimer">
+          ♻️ <strong>이미 검토된 데이터셋</strong>이라면(동일 명칭의 이슈가 이미 있으면) 중복 검토를 막기 위해
+          새 이슈를 만들지 않고, 기존 이슈 주소를 안내합니다. 다시 검토하려면 해당 이슈로 이동해
+          <code>rerun-review</code> 라벨을 추가(체크)하면 재검토가 자동으로 실행됩니다.
+        </div>
         <div class="disclaimer">
           ⚠️ 본 검토 결과는 <strong>회사 내부 사전 리스크 검토용 참고 자료</strong>이며,
           법률 자문이나 법적 판단을 대체하지 않습니다. 확인되지 않은 사항은 "확인 불가"로 표기되며,

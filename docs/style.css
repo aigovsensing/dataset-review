@@ -324,6 +324,30 @@ input[type="text"]:focus, textarea:focus {
 }
 .disclaimer strong { color: var(--warn); }
 
+/* 이미 검토된 데이터셋 안내(중복 방지) */
+.request-notice { margin-top: 18px; }
+.dup-card {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-left: 3px solid var(--warn);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+.dup-card h4 { margin: 0 0 8px; font-size: 1.02rem; }
+.dup-card p { margin: 8px 0; }
+.dup-card code {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.88em;
+}
+.dup-issue a { font-weight: 600; word-break: break-all; }
+.dup-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 6px; }
+.dup-hint { font-size: 0.82rem; margin-top: 6px; }
+
 /* Footer */
 .site-footer {
   display: flex;

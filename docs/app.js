@@ -239,18 +239,146 @@
     return `${repoUrl}/issues/new?${params.toString()}`;
   }
 
+  // ---- 중복(이미 검토됨) 감지 ----
+  // 데이터셋 명칭을 비교용으로 정규화(공백 정리 + 소문자화).
+  function normalizeName(s) {
+    return String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+  }
+  // 이슈 제목 "[검토] {명칭}" 에서 데이터셋 명칭만 추출.
+  function datasetFromTitle(title) {
+    const m = /^\s*\[검토\]\s*(.*)$/.exec(String(title || ""));
+    return (m ? m[1] : String(title || "")).trim();
+  }
+
+  // 같은 데이터셋이 이미 검토되어 GitHub 이슈로 등록되어 있으면 그 이슈 정보를 반환.
+  // 우선순위: (1) 라이브 이슈 API(가장 최신) → (2) data/reviews.json(동일 출처·한도 무관 폴백).
+  // 어느 소스도 조회하지 못하면 null 을 반환해 신규 이슈 생성을 그대로 진행한다(조회 실패로
+  // 사용자를 막지 않기 위함).
+  async function findExistingIssue(name) {
+    const target = normalizeName(name);
+    if (!target) return null;
+
+    // (1) 라이브 이슈 목록 (state=all: 열림/닫힘 모두 포함)
+    try {
+      const api = `https://api.github.com/repos/${owner}/${repo}/issues?labels=${encodeURIComponent(
+        label
+      )}&state=all&per_page=100&sort=created&direction=desc`;
+      const res = await fetch(api, { headers: apiHeaders() });
+      if (res.ok) {
+        const issues = await res.json();
+        const hit = (issues || [])
+          .filter((i) => !i.pull_request)
+          .find((i) => normalizeName(datasetFromTitle(i.title)) === target);
+        if (hit) return { number: hit.number, title: hit.title, url: hit.html_url };
+      }
+    } catch (e) {
+      /* 아래 JSON 폴백 사용 */
+    }
+
+    // (2) 자동 집계 JSON 폴백 (라이브 API 실패·한도 초과·100건 초과 대비)
+    try {
+      const res = await fetch("data/reviews.json", { cache: "no-cache" });
+      if (res.ok) {
+        const data = await res.json();
+        const rows = (data && data.rows) || (Array.isArray(data) ? data : []);
+        const hit = rows.find((r) => normalizeName(r.dataset) === target);
+        if (hit) {
+          return {
+            number: hit.issue,
+            title: hit.dataset ? `[검토] ${hit.dataset}` : `#${hit.issue}`,
+            url: hit.url || `${repoUrl}/issues/${hit.issue}`,
+          };
+        }
+      }
+    } catch (e) {
+      /* 조회 불가 시 신규 생성 진행 */
+    }
+
+    return null;
+  }
+
+  function clearRequestNotice() {
+    const el = $("#request-notice");
+    if (el) {
+      el.hidden = true;
+      el.innerHTML = "";
+    }
+  }
+
+  // 이미 검토된 데이터셋일 때: 신규 이슈를 만들지 않고, 기존 이슈 주소와
+  // rerun-review(재검토) 라벨 안내를 보여준다.
+  function showDuplicateNotice(existing, values) {
+    const el = $("#request-notice");
+    if (!el) return;
+    const url = escapeHtml(existing.url || "#");
+    const title = escapeHtml(existing.title || `#${existing.number}`);
+    el.innerHTML =
+      `<div class="dup-card">` +
+      `<h4>🐶 이미 검토된 데이터셋이에요</h4>` +
+      `<p>이 데이터셋은 이미 검토되어 GitHub 이슈에 등록되어 있습니다. ` +
+      `중복 검토(무료 쿼터 낭비)를 막기 위해 <strong>새 이슈를 생성하지 않았습니다.</strong></p>` +
+      `<p class="dup-issue">📌 등록된 이슈: ` +
+      `<a href="${url}" target="_blank" rel="noopener">#${existing.number} ${title}</a></p>` +
+      `<p>다시 검토하려면 위 이슈로 이동한 뒤 <code>rerun-review</code> 라벨을 추가(체크)하세요. ` +
+      `라벨이 붙는 즉시 재검토가 자동으로 실행됩니다.</p>` +
+      `<div class="dup-actions">` +
+      `<a class="btn primary small" href="${url}" target="_blank" rel="noopener">이슈로 이동해 재검토(rerun-review) →</a>` +
+      `<button type="button" id="dup-force" class="btn ghost small">그래도 새 이슈로 요청</button>` +
+      `</div>` +
+      `<p class="dim dup-hint">※ 동명의 다른 데이터셋이라면 ‘그래도 새 이슈로 요청’ 으로 새로 등록할 수 있습니다.</p>` +
+      `</div>`;
+    el.hidden = false;
+    const force = $("#dup-force");
+    if (force) {
+      force.addEventListener("click", () => {
+        window.open(buildIssueUrl(values), "_blank", "noopener");
+      });
+    }
+    if (typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
   // ---- 제출 ----
   const form = $("#review-form");
   if (form) {
-    form.addEventListener("submit", (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const values = collectValues();
-      if (!values["dataset-name"]) {
+      const name = values["dataset-name"];
+      if (!name) {
         alert("데이터셋 명칭을 입력해 주세요.");
+        return;
+      }
+      clearRequestNotice();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const prevLabel = submitBtn ? submitBtn.textContent : "";
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "이미 검토됐는지 확인 중…";
+      }
+      let existing = null;
+      try {
+        existing = await findExistingIssue(name);
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = prevLabel;
+        }
+      }
+      if (existing) {
+        // 이미 검토된 데이터셋 → 신규 이슈 생성 없이 재검토 안내
+        showDuplicateNotice(existing, values);
         return;
       }
       window.open(buildIssueUrl(values), "_blank", "noopener");
     });
+  }
+
+  // 데이터셋 명칭을 수정하면 이전 중복 안내를 지운다(다른 데이터셋일 수 있으므로).
+  const datasetNameInput = document.getElementById("dataset-name");
+  if (datasetNameInput) {
+    datasetNameInput.addEventListener("input", clearRequestNotice);
   }
 
   // ---- 미리보기 ----
