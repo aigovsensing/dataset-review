@@ -857,6 +857,10 @@
   function litCell(v) {
     return v && String(v).trim() ? escapeHtml(v) : '<span class="dim">—</span>';
   }
+  // 당사자(원고/피고) 인라인 표기: 값이 없으면 '미상'.
+  function litParty(v) {
+    return v && String(v).trim() ? escapeHtml(v) : '<span class="dim">미상</span>';
+  }
 
   let litRows = [];
   function litigationSection(rows) {
@@ -868,30 +872,47 @@
       );
     if (!litRows.length) return "";
 
-    const body = litRows.map((r, idx) => {
+    const cards = litRows.map((r, idx) => {
       const sm = litStrengthMeta(r.litigation_strength);
-      const main =
-        `<tr class="lit-row" data-lit="${idx}">` +
-        `<td><span class="ds-link">${escapeHtml(r.dataset || ("#" + r.issue))}</span></td>` +
-        `<td>${litCell(r.litigation_case)}</td>` +
-        `<td class="lit-nowrap">${litCell(r.litigation_docket)}</td>` +
-        `<td>${litCell(r.litigation_plaintiff)}</td>` +
-        `<td>${litCell(r.litigation_defendant)}</td>` +
-        `<td><span class="lbadge ${sm.cls}">${sm.label}</span></td></tr>`;
-      const detail =
-        `<tr class="lit-detail-row" data-lit-detail="${idx}" hidden><td colspan="6">${litDetailHtml(r)}</td></tr>`;
-      return main + detail;
+      const caseName = r.litigation_case && String(r.litigation_case).trim()
+        ? escapeHtml(r.litigation_case)
+        : '<span class="dim">사건명 확인 불가</span>';
+      const docket = r.litigation_docket && String(r.litigation_docket).trim()
+        ? `<div class="lit-docket">📁 사건번호 <span>${escapeHtml(r.litigation_docket)}</span></div>`
+        : "";
+      const teaserSrc = r.litigation_claim || r.litigation_summary || "";
+      const teaser = teaserSrc && String(teaserSrc).trim()
+        ? `<div class="lit-teaser">“${escapeHtml(teaserSrc)}”</div>`
+        : "";
+      return (
+        `<div class="lit-card sev-${sm.cls}" data-lit="${idx}" role="button" tabindex="0" ` +
+        `aria-expanded="false">` +
+        `<div class="lit-card-head">` +
+        `<span class="lit-card-ds"><span class="chev" aria-hidden="true">▸</span>` +
+        `${escapeHtml(r.dataset || ("#" + r.issue))}</span>` +
+        `<span class="lbadge ${sm.cls}">${sm.label}</span></div>` +
+        `<div class="lit-card-case">⚖️ ${caseName}</div>` +
+        `<div class="lit-parties">` +
+        `<span class="lit-party plaintiff"><span class="role">원고</span>${litParty(r.litigation_plaintiff)}</span>` +
+        `<span class="lit-vs">v.</span>` +
+        `<span class="lit-party defendant"><span class="role">피고</span>${litParty(r.litigation_defendant)}</span>` +
+        `</div>` +
+        docket + teaser +
+        `<div class="lit-card-detail" data-lit-detail="${idx}" hidden>${litDetailHtml(r)}</div>` +
+        `</div>`
+      );
     }).join("");
 
     return (
       `<div class="dash-section"><h4>⚖️ 소송이 걸려있는 데이터셋 현황 ` +
       `<span class="dim" style="font-size:0.8rem">(${litRows.length}건)</span></h4>` +
-      `<p class="dim" style="margin:-4px 0 12px">법적 소송·분쟁 이력이 확인된 데이터셋입니다. ` +
-      `행을 클릭하면 <strong>침해 주장 요지 · 원고의 침해 입증 방법(판단 기준) · 소장 원문 인용 · 내부 판단</strong> 등 상세 정보가 펼쳐집니다.</p>` +
-      `<div class="dash-table-wrap"><table class="dash-table lit-table">` +
-      `<thead><tr><th>데이터셋</th><th>사건명</th><th>사건번호</th><th>원고</th><th>피고</th>` +
-      `<th>침해 입증 근거 강도</th></tr></thead><tbody id="lit-tbody">${body}</tbody></table></div>` +
-      `<p class="lit-legend dim">` +
+      `<div class="lit-intro"><span class="lit-intro-icon" aria-hidden="true">🚨</span>` +
+      `<p><strong>저작권자의 허가 없이 AI 학습 데이터로 무단 이용</strong>되어 ` +
+      `<strong>저작권 침해 소송에 연루된</strong> 데이터셋입니다. 아래 데이터셋을 AI 모델 학습에 사용하면 ` +
+      `동일한 <strong>법적 리스크</strong>에 노출될 수 있으니 주의가 필요합니다. ` +
+      `카드를 클릭하면 <strong>침해 주장 요지 · 원고의 입증 방법 · 소장 원문 인용 · 내부 판단</strong> 등 상세 정보가 펼쳐집니다.</p></div>` +
+      `<div class="lit-list">${cards}</div>` +
+      `<p class="lit-legend dim">침해 입증 근거 강도 &nbsp; ` +
       `<span class="lbadge high">강 · 직접 자인</span> 피고 자인·법원 인정 &nbsp; ` +
       `<span class="lbadge mid">중 · 간접 자인</span> 논증적 추론 &nbsp; ` +
       `<span class="lbadge low">약 · 정황 근거</span> 명칭만 언급</p>` +
@@ -924,17 +945,25 @@
   }
 
   function bindLitTable() {
-    const tbody = $("#lit-tbody");
-    if (!tbody) return;
-    tbody.addEventListener("click", (e) => {
-      const row = e.target.closest("tr.lit-row");
-      if (!row) return;
-      const idx = row.getAttribute("data-lit");
-      const detail = tbody.querySelector(`tr.lit-detail-row[data-lit-detail="${idx}"]`);
-      if (detail) {
-        detail.hidden = !detail.hidden;
-        row.classList.toggle("open", !detail.hidden);
-      }
+    const list = $(".lit-list");
+    if (!list) return;
+    const toggle = (card) => {
+      const detail = card.querySelector(".lit-card-detail");
+      if (!detail) return;
+      detail.hidden = !detail.hidden;
+      card.classList.toggle("open", !detail.hidden);
+      card.setAttribute("aria-expanded", detail.hidden ? "false" : "true");
+    };
+    list.addEventListener("click", (e) => {
+      if (e.target.closest("a")) return;                // 링크 클릭은 통과(새 탭 열기)
+      if (e.target.closest(".lit-card-detail")) return; // 펼쳐진 상세 내부 클릭은 접힘 방지
+      const card = e.target.closest(".lit-card");
+      if (card) toggle(card);
+    });
+    list.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const card = e.target.closest(".lit-card");
+      if (card && e.target === card) { e.preventDefault(); toggle(card); }
     });
   }
 
