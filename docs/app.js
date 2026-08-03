@@ -735,6 +735,7 @@
   const dashState = {
     rows: [], exportedAt: "", filter: null, confidence: null, search: "", loaded: false, page: 1, pageSize: 5,
     section: null, // 대시보드 세부 메뉴(선택된 섹션 key)
+    litSearch: "", // 소송 현황 데이터셋 검색어
   };
   const DASH_PAGE_SIZES = [5, 10, 15, 30, 50, 70, 100];
 
@@ -884,8 +885,10 @@
       const teaser = teaserSrc && String(teaserSrc).trim()
         ? `<div class="lit-teaser">“${escapeHtml(teaserSrc)}”</div>`
         : "";
+      const dsName = r.dataset || ("#" + r.issue);
       return (
-        `<div class="lit-card sev-${sm.cls}" data-lit="${idx}" role="button" tabindex="0" ` +
+        `<div class="lit-card sev-${sm.cls}" data-lit="${idx}" ` +
+        `data-ds="${escapeHtml(String(dsName).toLowerCase())}" role="button" tabindex="0" ` +
         `aria-expanded="false">` +
         `<div class="lit-card-head">` +
         `<span class="lit-card-ds"><span class="chev" aria-hidden="true">▸</span>` +
@@ -911,7 +914,13 @@
       `<strong>저작권 침해 소송에 연루된</strong> 데이터셋입니다. 아래 데이터셋을 AI 모델 학습에 사용하면 ` +
       `동일한 <strong>법적 리스크</strong>에 노출될 수 있으니 주의가 필요합니다. ` +
       `카드를 클릭하면 <strong>침해 주장 요지 · 원고의 입증 방법 · 소장 원문 인용 · 내부 판단</strong> 등 상세 정보가 펼쳐집니다.</p></div>` +
+      `<div class="lit-search-row">` +
+      `<input type="search" id="lit-search" class="results-search" ` +
+      `placeholder="🔍 데이터셋 명칭으로 소송 연루 여부 검색" aria-label="소송 데이터셋 검색" ` +
+      `value="${escapeHtml(dashState.litSearch || "")}" />` +
+      `<span id="lit-search-count" class="lit-search-count dim"></span></div>` +
       `<div class="lit-list">${cards}</div>` +
+      `<p id="lit-empty" class="dim lit-empty" hidden>🐶 검색어와 일치하는 소송 연루 데이터셋이 없습니다.</p>` +
       `<p class="lit-legend dim">침해 입증 근거 강도 &nbsp; ` +
       `<span class="lbadge high">강 · 직접 자인</span> 피고 자인·법원 인정 &nbsp; ` +
       `<span class="lbadge mid">중 · 간접 자인</span> 논증적 추론 &nbsp; ` +
@@ -965,6 +974,30 @@
       const card = e.target.closest(".lit-card");
       if (card && e.target === card) { e.preventDefault(); toggle(card); }
     });
+
+    // ── 데이터셋 명칭으로 소송 연루 여부 검색(카드 표시/숨김) ──
+    const search = $("#lit-search");
+    const empty = $("#lit-empty");
+    const countEl = $("#lit-search-count");
+    const cards = Array.prototype.slice.call(list.querySelectorAll(".lit-card"));
+    const applyFilter = () => {
+      const q = (dashState.litSearch || "").trim().toLowerCase();
+      let shown = 0;
+      cards.forEach((card) => {
+        const hit = !q || (card.getAttribute("data-ds") || "").includes(q);
+        card.hidden = !hit;
+        if (hit) shown++;
+      });
+      if (empty) empty.hidden = shown > 0;
+      if (countEl) countEl.textContent = q ? `${shown}건 표시 / 전체 ${cards.length}건` : "";
+    };
+    if (search) {
+      search.addEventListener("input", () => {
+        dashState.litSearch = search.value;
+        applyFilter();
+      });
+    }
+    applyFilter(); // 초기(또는 재렌더 후 검색어 유지) 반영
   }
 
   // ── ① 요약 통계 카드 ────────────────────────────────────────
