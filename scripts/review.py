@@ -73,6 +73,33 @@ def derive_dataset_name(title: str, fields: dict[str, str]) -> str:
     return name
 
 
+def parse_courtlistener_url(url: str) -> dict[str, str]:
+    """CourtListener docket URL 에서 사건명(슬러그)·docket id 를 추출한다.
+
+    모델은 URL 을 직접 읽지 못하고 Google 검색만 사용하므로, URL 슬러그에서 사건명을
+    복원해 프롬프트에 넘겨주면 검색으로 사건을 특정할 확률이 크게 올라간다.
+
+    예: .../docket/73339261/nassif-v-samsung-electronics-co-ltd/
+        → {"docket_id": "73339261", "case_name": "Nassif v. Samsung Electronics Co Ltd"}
+    """
+    info: dict[str, str] = {}
+    m = re.search(r"courtlistener\.com/docket/(\d+)/([a-z0-9-]+)", url or "", re.I)
+    if not m:
+        return info
+    info["docket_id"] = m.group(1)
+    slug = m.group(2).strip("-")
+
+    def _cap(s: str) -> str:
+        return " ".join(w.capitalize() for w in s.split("-") if w)
+
+    parts = re.split(r"-v-", slug, maxsplit=1)
+    if len(parts) == 2:
+        info["case_name"] = f"{_cap(parts[0])} v. {_cap(parts[1])}"
+    elif slug:
+        info["case_name"] = _cap(slug)
+    return info
+
+
 def build_user_prompt(title: str, fields: dict[str, str]) -> str:
     name = derive_dataset_name(title, fields)
 
@@ -92,12 +119,21 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
         lines.append(f"- 공식 홈페이지 / 저장소: {fields['homepage_url']}")
     if fields.get("litigation_url"):
         lines.append(f"- 관련 소송 (CourtListener): {fields['litigation_url']}")
+        cl = parse_courtlistener_url(fields["litigation_url"])
+        if cl.get("case_name"):
+            docket = f" (docket #{cl['docket_id']})" if cl.get("docket_id") else ""
+            lines.append(f"  · URL 에서 파악되는 사건명(추정): {cl['case_name']}{docket}")
     if fields.get("extra_notes"):
         lines.append(f"- 추가 참고 사항: {fields['extra_notes']}")
     if fields.get("litigation_url"):
         lines.append(
-            "\n위 소송 URL 이 제공되었으므로 시스템 지침의 [소송 리스크 검토]를 반드시 수행하고, "
-            "출력의 '3. 소송 리스크' 섹션에 근거 강도(강/중/약)와 소장 원문 인용·요약을 포함한다."
+            "\n[중요] 관련 소송 URL 이 제공되었다. 이 데이터셋은 해당 소송과 연관된 것으로 검토 요청되었으므로, "
+            "출력의 '3. 소송 리스크' 섹션을 **절대 '해당 없음'으로 표기하지 말 것.** 위 사건명(추정)으로 Google 검색을 "
+            "수행해 사건 개요(사건명·법원·사건번호·원고·피고·상태)와, 이 데이터셋이 소송에서 어떻게 문제되는지를 "
+            "조사·보고하라. 검색으로 소장 원문을 확인하지 못한 항목은 그 항목만 '확인 불가'로 표기하되, "
+            "**사건 개요와 '근거 강도'(강/중/약, 판단 불가 시 '확인 불가')는 반드시 포함한다.** "
+            "조사 결과 이 데이터셋과 소송의 연관성이 실제로 확인되지 않으면 '해당 없음'이 아니라 "
+            "'소송과의 직접 연관성 미확인 — 근거: …'로 사유를 명시하고, 제공된 사건 개요는 그대로 보고한다."
         )
     lines += [
         "",
