@@ -126,7 +126,7 @@
 
   function currentTab() {
     const h = (location.hash || "").replace(/^#/, "");
-    return VALID_TABS.includes(h) ? h : "request";
+    return VALID_TABS.includes(h) ? h : "dashboard";
   }
   function tabUrl(tab) {
     return location.origin + location.pathname + "#" + tab;

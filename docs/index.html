@@ -77,9 +77,9 @@
   </header>
 
   <nav class="tabs wrap" role="tablist">
-    <button class="tab active" data-tab="request" role="tab">📝 검토 요청</button>
+    <button class="tab" data-tab="request" role="tab">📝 검토 요청</button>
     <button class="tab" data-tab="results" role="tab">📋 검토 결과</button>
-    <button class="tab" data-tab="dashboard" role="tab">📊 대시보드</button>
+    <button class="tab active" data-tab="dashboard" role="tab">📊 대시보드</button>
     <button class="tab" data-tab="how" role="tab">ℹ️ 이용 안내</button>
     <div class="share-wrap">
       <button id="share-btn" class="btn ghost small share-btn" type="button"
@@ -90,7 +90,7 @@
 
   <main class="wrap">
     <!-- 검토 요청 -->
-    <section id="tab-request" class="tab-panel active">
+    <section id="tab-request" class="tab-panel">
       <div class="card">
         <p class="notice">
           아래 정보를 입력하고 <strong>검토 요청</strong>을 누르면 GitHub 이슈 작성 페이지가 열립니다.
@@ -234,7 +234,7 @@
     </section>
 
     <!-- 대시보드 -->
-    <section id="tab-dashboard" class="tab-panel">
+    <section id="tab-dashboard" class="tab-panel active">
       <div class="card">
         <div class="results-head">
           <h3>📊 검토 대시보드</h3>
