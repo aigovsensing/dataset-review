@@ -125,14 +125,14 @@
   const VALID_TABS = Object.keys(TAB_LABELS);
 
   // 대시보드 세부 메뉴 딥링크: #dashboard/<section>
-  //   #dashboard/stats, /litigation, /confidence, /charts, /trend, /table
+  //   #dashboard/stats, /litigation, /charts, /trend, /table, /confidence
   const DASH_SECTION_LABELS = {
     stats: "🧭 검토 현황",
     litigation: "⚖️ 소송 현황",
-    confidence: "💬 만족도",
     charts: "📈 시각화",
     trend: "🗓️ 검토 추이",
     table: "🗂️ 데이터셋별 결과",
+    confidence: "💬 만족도",
   };
   const DASH_SECTIONS = Object.keys(DASH_SECTION_LABELS);
 
@@ -821,10 +821,10 @@
     const sections = [
       { key: "stats",      label: "🧭 검토 현황",        html: statsSection(rows) },
       { key: "litigation", label: "⚖️ 소송 현황",        html: litigationSection(rows) },
-      { key: "confidence", label: "💬 만족도",           html: confidenceSection(rows) },
       { key: "charts",     label: "📈 시각화",           html: chartsSection(rows) },
       { key: "trend",      label: "🗓️ 검토 추이",        html: trendSection(rows) },
       { key: "table",      label: "🗂️ 데이터셋별 결과",  html: tableSection() },
+      { key: "confidence", label: "💬 만족도",           html: confidenceSection(rows) },
     ].filter((s) => s.html && s.html.trim());
 
     // 선택된 섹션이 없거나 더 이상 존재하지 않으면 첫 번째 섹션을 기본값으로.
@@ -948,13 +948,23 @@
     );
   }
 
-  // 검색어(데이터셋 명칭)를 적용한 {r, i} 목록.
+  // 검색어를 적용한 {r, i} 목록.
+  // 검색 대상: 데이터셋 명칭 · 소송 원고 · 소송 피고 · 소송번호(도켓).
   function litFiltered() {
     const q = (dashState.litSearch || "").trim().toLowerCase();
     const all = litRows.map((r, i) => ({ r, i }));
     if (!q) return all;
-    return all.filter(({ r }) =>
-      String(r.dataset || ("#" + r.issue)).toLowerCase().includes(q));
+    return all.filter(({ r }) => {
+      const haystack = [
+        r.dataset || ("#" + r.issue), // 데이터셋 명칭
+        r.litigation_plaintiff,       // 소송 원고 명칭
+        r.litigation_defendant,       // 소송 피고 명칭
+        r.litigation_docket,          // 소송번호 명칭(도켓)
+      ]
+        .map((v) => String(v || "").toLowerCase())
+        .join(" ");
+      return haystack.includes(q);
+    });
   }
 
   // 현재 페이지/검색어 기준으로 카드 목록을 다시 그린다(게시판 페이지네이션).
@@ -1019,7 +1029,7 @@
       `카드를 클릭하면 <strong>침해 주장 요지 · 원고의 입증 방법 · 소장 원문 인용 · 내부 판단</strong> 등 상세 정보가 펼쳐집니다.</p></div>` +
       `<div class="lit-controls">` +
       `<input type="search" id="lit-search" class="results-search" ` +
-      `placeholder="🔍 데이터셋 명칭으로 소송 연루 여부 검색" aria-label="소송 데이터셋 검색" ` +
+      `placeholder="🔍 데이터셋 명칭 · 원고 · 피고 · 소송번호로 검색" aria-label="소송 현황 검색 (데이터셋명·원고·피고·소송번호)" ` +
       `value="${escapeHtml(dashState.litSearch || "")}" />` +
       `<label class="page-size">페이지당 <select id="lit-page-size">${sizeOpts}</select> 개</label>` +
       `<span id="lit-search-count" class="lit-search-count dim"></span>` +
