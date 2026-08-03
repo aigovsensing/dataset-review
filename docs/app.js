@@ -971,21 +971,44 @@
   function confidenceSection(rows) {
     const counts = { high: 0, medium: 0, low: 0, none: 0 };
     rows.forEach((r) => { counts[confidenceMeta(r.review_confidence).key]++; });
-    const responses = rows.length - counts.none;
-    const responseRate = rows.length ? Math.round((responses / rows.length) * 100) : 0;
-    const bars = CONFIDENCE.map((m) => {
+    const total = rows.length;
+    const responses = total - counts.none;
+    const responseRate = total ? Math.round((responses / total) * 100) : 0;
+    // 응답(미응답 제외) 중 긍정(High) 비율 — 한눈에 보는 만족 지표
+    const posRate = responses ? Math.round((counts.high / responses) * 100) : 0;
+
+    // ① 상단 구성 막대: 전체 분포를 한 줄로 한눈에.
+    const segs = CONFIDENCE.filter((m) => counts[m.key] > 0).map((m) => {
+      const pct = total ? (counts[m.key] / total) * 100 : 0;
+      const label = pct >= 9 ? `${m.icon} ${Math.round(pct)}%` : "";
+      return `<span class="cf-seg ${m.cls}" style="width:${pct.toFixed(2)}%" ` +
+        `title="${m.icon} ${m.label} · ${counts[m.key]}건 (${Math.round(pct)}%)">${label}</span>`;
+    }).join("");
+
+    // ② 레벨별 카드: 큰 숫자 + 색상 강조로 가독성 확보.
+    const cards = CONFIDENCE.map((m) => {
       const count = counts[m.key];
-      const pct = rows.length ? (count / rows.length) * 100 : 0;
-      return `<div class="confidence-item">` +
-        `<div class="confidence-head"><span>${m.icon} ${m.label}</span>` +
-        `<strong>${count}건 · ${Math.round(pct)}%</strong></div>` +
-        `<div class="confidence-track"><span class="confidence-fill ${m.cls}" style="width:${pct.toFixed(1)}%"></span></div>` +
+      const pct = total ? Math.round((count / total) * 100) : 0;
+      return `<div class="cf-card ${m.cls}">` +
+        `<div class="cf-emoji">${m.icon}</div>` +
+        `<div class="cf-label">${m.label}</div>` +
+        `<div class="cf-count">${count}<span class="cf-unit">건</span></div>` +
+        `<div class="cf-pct">${pct}%</div>` +
         `</div>`;
     }).join("");
+
     return (
       `<div class="dash-section"><h4>💬 AI 자동리뷰 결과 만족도</h4>` +
-      `<div class="chart-box confidence-box">${bars}</div>` +
-      `<p class="dash-meta-line"><span>응답 <strong>${responses}</strong>/${rows.length}건</span>` +
+      `<div class="cf-summary">` +
+      `<div class="cf-score"><div class="cf-score-num">${posRate}<span class="cf-score-unit">%</span></div>` +
+      `<div class="cf-score-label">😊 High 만족 비율<br><span class="dim">(응답 ${responses}건 기준)</span></div></div>` +
+      `<div class="cf-bar-wrap"><div class="cf-bar" role="img" ` +
+      `aria-label="만족도 구성: High ${counts.high}건, Medium ${counts.medium}건, Low ${counts.low}건, 미응답 ${counts.none}건">${segs}</div>` +
+      `<div class="cf-bar-legend">` +
+      CONFIDENCE.map((m) => `<span class="cf-lg"><span class="cf-dot ${m.cls}"></span>${m.icon} ${m.label} <strong>${counts[m.key]}</strong></span>`).join("") +
+      `</div></div></div>` +
+      `<div class="cf-cards">${cards}</div>` +
+      `<p class="dash-meta-line"><span>응답 <strong>${responses}</strong>/${total}건</span>` +
       `<span>응답률 <strong>${responseRate}%</strong></span></p></div>`
     );
   }

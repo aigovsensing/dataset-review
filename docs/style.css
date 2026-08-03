@@ -539,19 +539,69 @@ input[type="text"]:focus, textarea:focus {
 .risk-legend .sw { width: 10px; height: 10px; border-radius: 2px; }
 
 /* AI 자동리뷰 결과 만족도 */
-.confidence-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-.confidence-item { min-width: 0; }
-.confidence-head {
-  display: flex; justify-content: space-between; align-items: center; gap: 8px;
-  margin-bottom: 7px; font-size: 0.86rem;
+/* ① 요약: 큰 만족 비율 + 구성 막대 */
+.cf-summary {
+  display: flex; align-items: center; gap: 22px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 16px;
 }
-.confidence-head strong { font-size: 0.8rem; white-space: nowrap; }
-.confidence-track { height: 10px; overflow: hidden; border-radius: 999px; background: var(--bg); }
-.confidence-fill { display: block; height: 100%; border-radius: inherit; }
-.confidence-fill.high { background: var(--accent); }
-.confidence-fill.medium { background: var(--warn); }
-.confidence-fill.low { background: var(--fail); }
-.confidence-fill.none { background: var(--text-dim); }
+.cf-score { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.cf-score-num {
+  font-size: 2.9rem; font-weight: 800; line-height: 1; color: var(--accent);
+}
+.cf-score-unit { font-size: 1.3rem; font-weight: 700; margin-left: 2px; }
+.cf-score-label { font-size: 0.86rem; font-weight: 600; line-height: 1.4; }
+.cf-bar-wrap { flex: 1 1 auto; min-width: 0; }
+.cf-bar {
+  display: flex; height: 32px; border-radius: 999px; overflow: hidden;
+  background: var(--bg); border: 1px solid var(--border);
+}
+.cf-seg {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  color: #fff; font-size: 0.8rem; font-weight: 700; min-width: 0;
+  white-space: nowrap; transition: width 0.4s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.cf-seg.high { background: var(--accent); }
+.cf-seg.medium { background: var(--warn); }
+.cf-seg.low { background: var(--fail); }
+.cf-seg.none { background: var(--text-dim); }
+.cf-bar-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px;
+  font-size: 0.82rem; color: var(--text-dim);
+}
+.cf-lg { display: inline-flex; align-items: center; gap: 6px; }
+.cf-lg strong { color: var(--text); }
+.cf-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.cf-dot.high { background: var(--accent); }
+.cf-dot.medium { background: var(--warn); }
+.cf-dot.low { background: var(--fail); }
+.cf-dot.none { background: var(--text-dim); }
+
+/* ② 레벨별 카드 */
+.cf-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.cf-card {
+  position: relative; text-align: center; overflow: hidden;
+  padding: 16px 12px 18px; border-radius: 14px;
+  border: 1px solid var(--border); background: var(--surface-2);
+}
+.cf-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; }
+.cf-card.high::before { background: var(--accent); }
+.cf-card.medium::before { background: var(--warn); }
+.cf-card.low::before { background: var(--fail); }
+.cf-card.none::before { background: var(--text-dim); }
+.cf-card.high { background: color-mix(in srgb, var(--accent) 11%, var(--surface-2)); }
+.cf-card.medium { background: color-mix(in srgb, var(--warn) 13%, var(--surface-2)); }
+.cf-card.low { background: color-mix(in srgb, var(--fail) 13%, var(--surface-2)); }
+.cf-emoji { font-size: 1.8rem; line-height: 1; }
+.cf-label { margin-top: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); }
+.cf-count { margin-top: 8px; font-size: 2rem; font-weight: 800; line-height: 1; color: var(--text); }
+.cf-unit { font-size: 0.85rem; font-weight: 600; color: var(--text-dim); margin-left: 2px; }
+.cf-pct { margin-top: 5px; font-size: 1rem; font-weight: 700; }
+.cf-card.high .cf-pct { color: var(--accent); }
+.cf-card.medium .cf-pct { color: var(--warn); }
+.cf-card.low .cf-pct { color: var(--fail); }
+.cf-card.none .cf-pct { color: var(--text-dim); }
 
 /* 검토 추이 */
 .trend { display: flex; align-items: flex-end; gap: 5px; height: 140px; padding-top: 6px; }
@@ -704,7 +754,9 @@ table.lit-table tbody tr.lit-row.open td:first-child::before { content: "▾"; c
   .dash-stats { grid-template-columns: repeat(2, 1fr); }
   .dash-charts { grid-template-columns: 1fr; }
   .cell-text { max-width: 140px; }
-  .confidence-box { grid-template-columns: repeat(2, 1fr); }
+  .cf-cards { grid-template-columns: repeat(2, 1fr); }
+  .cf-summary { flex-direction: column; align-items: stretch; gap: 14px; }
+  .cf-score { justify-content: center; }
   .lit-grid { grid-template-columns: 1fr; }
 }
 
