@@ -755,24 +755,24 @@ table.detail-table a.src-link:hover { text-decoration: underline; }
 .lit-intro-icon { font-size: 1.4rem; line-height: 1.3; flex: 0 0 auto; }
 .lit-intro p { margin: 0; font-size: 0.9rem; line-height: 1.65; }
 
-/* 데이터셋 검색: 내가 찾는 데이터셋이 소송에 엮여 있는지 조회 */
-.lit-search-row {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px;
+/* 컨트롤: 데이터셋 검색 + 페이지당 개수 선택 */
+.lit-controls {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 14px;
 }
-.lit-search-row .results-search { flex: 1 1 240px; }
+.lit-controls .results-search { flex: 1 1 240px; }
 .lit-search-count { font-size: 0.82rem; white-space: nowrap; }
 .lit-empty { margin: 4px 2px 0; font-size: 0.9rem; }
 
-/* 카드 리스트: 데이터셋 1건 = 카드 1개, 한눈에 스캔 */
-.lit-list { display: grid; gap: 12px; }
+/* 카드 리스트(컴팩트): 데이터셋 1건 = 카드 1개, 세로 공간 최소화 */
+.lit-list { display: grid; gap: 8px; }
 .lit-card {
   border: 1px solid var(--border);
-  border-left: 5px solid var(--text-dim);
-  border-radius: 12px; background: var(--surface-2);
-  padding: 14px 16px; cursor: pointer;
+  border-left: 4px solid var(--text-dim);
+  border-radius: 10px; background: var(--surface-2);
+  padding: 10px 13px; cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.lit-card:hover { border-color: var(--primary); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18); }
+.lit-card:hover { border-color: var(--primary); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16); }
 .lit-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .lit-card.sev-high { border-left-color: var(--fail); }
 .lit-card.sev-mid  { border-left-color: var(--warn); }
@@ -781,37 +781,31 @@ table.detail-table a.src-link:hover { text-decoration: underline; }
 
 .lit-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lit-card-ds {
-  font-size: 1.15rem; font-weight: 800; color: var(--text);
-  display: inline-flex; align-items: center; gap: 7px; min-width: 0;
+  font-size: 1.02rem; font-weight: 800; color: var(--text);
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0;
 }
-.lit-card-ds .chev { color: var(--text-dim); font-size: 0.85rem; transition: transform 0.15s ease; }
+.lit-card-ds .chev { color: var(--text-dim); font-size: 0.8rem; flex: 0 0 auto; transition: transform 0.15s ease; }
 .lit-card.open .lit-card-ds .chev { transform: rotate(90deg); color: var(--primary); }
 
 .lit-card-case {
-  margin-top: 9px; font-size: 0.98rem; font-weight: 700; color: var(--text);
-  display: flex; align-items: baseline; gap: 6px; word-break: break-word;
+  margin-top: 4px; font-size: 0.9rem; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .lit-parties {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
-  margin-top: 10px; font-size: 0.88rem;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px;
+  margin-top: 5px; font-size: 0.83rem; color: var(--text);
 }
-.lit-party { display: inline-flex; align-items: center; gap: 6px; }
+.lit-party { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
 .lit-party .role {
-  font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+  font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; white-space: nowrap;
 }
 .lit-party.plaintiff .role { background: rgba(52, 211, 153, 0.18); color: var(--accent); }
 .lit-party.defendant .role { background: rgba(248, 113, 113, 0.18); color: var(--fail); }
 .lit-vs { color: var(--text-dim); font-weight: 700; font-style: italic; }
-
-.lit-docket { margin-top: 9px; font-size: 0.8rem; color: var(--text-dim); }
-.lit-docket span { color: var(--text); font-weight: 600; }
-.lit-teaser {
-  margin-top: 10px; font-size: 0.86rem; line-height: 1.55; color: var(--text-dim);
-  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden;
-}
-.lit-card-detail { margin-top: 12px; }
+.lit-dot { color: var(--text-dim); }
+.lit-docket { font-size: 0.78rem; font-weight: 600; color: var(--text-dim); }
+.lit-card-detail { margin-top: 10px; }
 
 /* 침해 입증 근거 강도 배지 */
 .lbadge {

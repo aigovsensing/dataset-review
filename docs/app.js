@@ -736,6 +736,7 @@
     rows: [], exportedAt: "", filter: null, confidence: null, search: "", loaded: false, page: 1, pageSize: 5,
     section: null, // 대시보드 세부 메뉴(선택된 섹션 key)
     litSearch: "", // 소송 현황 데이터셋 검색어
+    litPage: 1, litPageSize: 5, // 소송 현황 게시판 페이지네이션
   };
   const DASH_PAGE_SIZES = [5, 10, 15, 30, 50, 70, 100];
 
@@ -863,7 +864,87 @@
     return v && String(v).trim() ? escapeHtml(v) : '<span class="dim">미상</span>';
   }
 
+  // 소송 현황 게시판: 페이지당 개수 옵션
+  const LIT_PAGE_SIZES = [5, 10, 15, 20, 30, 50, 70, 100];
+
   let litRows = [];
+
+  // 카드 1개(컴팩트): 데이터셋명+강도 배지 / 사건명 / 원고 v. 피고 · 사건번호.
+  // 침해 주장 요지(teaser)는 세로 공간 절약을 위해 카드에서 빼고 상세(펼침)에서 표시한다.
+  function litCardHtml(r, idx) {
+    const sm = litStrengthMeta(r.litigation_strength);
+    const dsName = r.dataset || ("#" + r.issue);
+    const caseName = r.litigation_case && String(r.litigation_case).trim()
+      ? escapeHtml(r.litigation_case)
+      : '<span class="dim">사건명 확인 불가</span>';
+    const docket = r.litigation_docket && String(r.litigation_docket).trim()
+      ? `<span class="lit-dot" aria-hidden="true">·</span>` +
+        `<span class="lit-docket">📁 ${escapeHtml(r.litigation_docket)}</span>`
+      : "";
+    return (
+      `<div class="lit-card sev-${sm.cls}" data-lit="${idx}" role="button" tabindex="0" aria-expanded="false">` +
+      `<div class="lit-card-head">` +
+      `<span class="lit-card-ds"><span class="chev" aria-hidden="true">▸</span>${escapeHtml(dsName)}</span>` +
+      `<span class="lbadge ${sm.cls}">${sm.label}</span></div>` +
+      `<div class="lit-card-case">⚖️ ${caseName}</div>` +
+      `<div class="lit-parties">` +
+      `<span class="lit-party plaintiff"><span class="role">원고</span>${litParty(r.litigation_plaintiff)}</span>` +
+      `<span class="lit-vs">v.</span>` +
+      `<span class="lit-party defendant"><span class="role">피고</span>${litParty(r.litigation_defendant)}</span>` +
+      docket +
+      `</div>` +
+      `<div class="lit-card-detail" data-lit-detail="${idx}" hidden>${litDetailHtml(r)}</div>` +
+      `</div>`
+    );
+  }
+
+  // 검색어(데이터셋 명칭)를 적용한 {r, i} 목록.
+  function litFiltered() {
+    const q = (dashState.litSearch || "").trim().toLowerCase();
+    const all = litRows.map((r, i) => ({ r, i }));
+    if (!q) return all;
+    return all.filter(({ r }) =>
+      String(r.dataset || ("#" + r.issue)).toLowerCase().includes(q));
+  }
+
+  // 현재 페이지/검색어 기준으로 카드 목록을 다시 그린다(게시판 페이지네이션).
+  function renderLitList() {
+    const list = $("#lit-list");
+    if (!list) return;
+    const items = litFiltered();
+    const total = items.length;
+    const size = dashState.litPageSize;
+    const pages = Math.max(1, Math.ceil(total / size));
+    if (dashState.litPage > pages) dashState.litPage = pages;
+    if (dashState.litPage < 1) dashState.litPage = 1;
+    const start = (dashState.litPage - 1) * size;
+    const pageItems = items.slice(start, start + size);
+
+    list.innerHTML = pageItems.map(({ r, i }) => litCardHtml(r, i)).join("");
+
+    const empty = $("#lit-empty");
+    if (empty) empty.hidden = total > 0;
+    const countEl = $("#lit-search-count");
+    if (countEl) {
+      const q = (dashState.litSearch || "").trim();
+      countEl.textContent = q ? `${total}건 검색됨 / 전체 ${litRows.length}건` : `총 ${litRows.length}건`;
+    }
+    updateLitPager(total, pages);
+  }
+
+  function updateLitPager(total, pages) {
+    const pager = $("#lit-pager");
+    if (!pager) return;
+    if (total <= 0) { pager.hidden = true; return; }
+    pager.hidden = false;
+    const info = $("#lit-page-info");
+    const prev = $("#lit-prev");
+    const next = $("#lit-next");
+    if (info) info.textContent = `${dashState.litPage} / ${pages} 페이지 · 총 ${total}건`;
+    if (prev) prev.disabled = dashState.litPage <= 1;
+    if (next) next.disabled = dashState.litPage >= pages;
+  }
+
   function litigationSection(rows) {
     litRows = (rows || [])
       .filter((r) => r.litigation === "있음")
@@ -872,39 +953,11 @@
         String(a.dataset || "").localeCompare(String(b.dataset || ""))
       );
     if (!litRows.length) return "";
+    if (dashState.litPage < 1) dashState.litPage = 1;
 
-    const cards = litRows.map((r, idx) => {
-      const sm = litStrengthMeta(r.litigation_strength);
-      const caseName = r.litigation_case && String(r.litigation_case).trim()
-        ? escapeHtml(r.litigation_case)
-        : '<span class="dim">사건명 확인 불가</span>';
-      const docket = r.litigation_docket && String(r.litigation_docket).trim()
-        ? `<div class="lit-docket">📁 사건번호 <span>${escapeHtml(r.litigation_docket)}</span></div>`
-        : "";
-      const teaserSrc = r.litigation_claim || r.litigation_summary || "";
-      const teaser = teaserSrc && String(teaserSrc).trim()
-        ? `<div class="lit-teaser">“${escapeHtml(teaserSrc)}”</div>`
-        : "";
-      const dsName = r.dataset || ("#" + r.issue);
-      return (
-        `<div class="lit-card sev-${sm.cls}" data-lit="${idx}" ` +
-        `data-ds="${escapeHtml(String(dsName).toLowerCase())}" role="button" tabindex="0" ` +
-        `aria-expanded="false">` +
-        `<div class="lit-card-head">` +
-        `<span class="lit-card-ds"><span class="chev" aria-hidden="true">▸</span>` +
-        `${escapeHtml(r.dataset || ("#" + r.issue))}</span>` +
-        `<span class="lbadge ${sm.cls}">${sm.label}</span></div>` +
-        `<div class="lit-card-case">⚖️ ${caseName}</div>` +
-        `<div class="lit-parties">` +
-        `<span class="lit-party plaintiff"><span class="role">원고</span>${litParty(r.litigation_plaintiff)}</span>` +
-        `<span class="lit-vs">v.</span>` +
-        `<span class="lit-party defendant"><span class="role">피고</span>${litParty(r.litigation_defendant)}</span>` +
-        `</div>` +
-        docket + teaser +
-        `<div class="lit-card-detail" data-lit-detail="${idx}" hidden>${litDetailHtml(r)}</div>` +
-        `</div>`
-      );
-    }).join("");
+    const sizeOpts = LIT_PAGE_SIZES.map((n) =>
+      `<option value="${n}"${n === dashState.litPageSize ? " selected" : ""}>${n}</option>`
+    ).join("");
 
     return (
       `<div class="dash-section"><h4>⚖️ 소송이 걸려있는 데이터셋 현황 ` +
@@ -914,13 +967,19 @@
       `<strong>저작권 침해 소송에 연루된</strong> 데이터셋입니다. 아래 데이터셋을 AI 모델 학습에 사용하면 ` +
       `동일한 <strong>법적 리스크</strong>에 노출될 수 있으니 주의가 필요합니다. ` +
       `카드를 클릭하면 <strong>침해 주장 요지 · 원고의 입증 방법 · 소장 원문 인용 · 내부 판단</strong> 등 상세 정보가 펼쳐집니다.</p></div>` +
-      `<div class="lit-search-row">` +
+      `<div class="lit-controls">` +
       `<input type="search" id="lit-search" class="results-search" ` +
       `placeholder="🔍 데이터셋 명칭으로 소송 연루 여부 검색" aria-label="소송 데이터셋 검색" ` +
       `value="${escapeHtml(dashState.litSearch || "")}" />` +
-      `<span id="lit-search-count" class="lit-search-count dim"></span></div>` +
-      `<div class="lit-list">${cards}</div>` +
+      `<label class="page-size">페이지당 <select id="lit-page-size">${sizeOpts}</select> 개</label>` +
+      `<span id="lit-search-count" class="lit-search-count dim"></span>` +
+      `</div>` +
+      `<div class="lit-list" id="lit-list"></div>` +
       `<p id="lit-empty" class="dim lit-empty" hidden>🐶 검색어와 일치하는 소송 연루 데이터셋이 없습니다.</p>` +
+      `<div id="lit-pager" class="results-pager" hidden>` +
+      `<button id="lit-prev" class="btn ghost small" type="button">← 이전</button>` +
+      `<span id="lit-page-info" class="page-info"></span>` +
+      `<button id="lit-next" class="btn ghost small" type="button">다음 →</button></div>` +
       `<p class="lit-legend dim">침해 입증 근거 강도 &nbsp; ` +
       `<span class="lbadge high">강 · 직접 자인</span> 피고 자인·법원 인정 &nbsp; ` +
       `<span class="lbadge mid">중 · 간접 자인</span> 논증적 추론 &nbsp; ` +
@@ -954,7 +1013,7 @@
   }
 
   function bindLitTable() {
-    const list = $(".lit-list");
+    const list = $("#lit-list");
     if (!list) return;
     const toggle = (card) => {
       const detail = card.querySelector(".lit-card-detail");
@@ -963,6 +1022,7 @@
       card.classList.toggle("open", !detail.hidden);
       card.setAttribute("aria-expanded", detail.hidden ? "false" : "true");
     };
+    // 카드가 재렌더돼도 유지되도록 컨테이너(#lit-list)에 이벤트 위임.
     list.addEventListener("click", (e) => {
       if (e.target.closest("a")) return;                // 링크 클릭은 통과(새 탭 열기)
       if (e.target.closest(".lit-card-detail")) return; // 펼쳐진 상세 내부 클릭은 접힘 방지
@@ -975,29 +1035,38 @@
       if (card && e.target === card) { e.preventDefault(); toggle(card); }
     });
 
-    // ── 데이터셋 명칭으로 소송 연루 여부 검색(카드 표시/숨김) ──
-    const search = $("#lit-search");
-    const empty = $("#lit-empty");
-    const countEl = $("#lit-search-count");
-    const cards = Array.prototype.slice.call(list.querySelectorAll(".lit-card"));
-    const applyFilter = () => {
-      const q = (dashState.litSearch || "").trim().toLowerCase();
-      let shown = 0;
-      cards.forEach((card) => {
-        const hit = !q || (card.getAttribute("data-ds") || "").includes(q);
-        card.hidden = !hit;
-        if (hit) shown++;
-      });
-      if (empty) empty.hidden = shown > 0;
-      if (countEl) countEl.textContent = q ? `${shown}건 표시 / 전체 ${cards.length}건` : "";
+    const scrollTop = () => {
+      const sec = list.closest(".dash-section");
+      if (sec && typeof sec.scrollIntoView === "function") {
+        sec.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     };
+
+    // ── 데이터셋 명칭 검색 ──
+    const search = $("#lit-search");
     if (search) {
       search.addEventListener("input", () => {
         dashState.litSearch = search.value;
-        applyFilter();
+        dashState.litPage = 1;
+        renderLitList();
       });
     }
-    applyFilter(); // 초기(또는 재렌더 후 검색어 유지) 반영
+    // ── 페이지당 개수 변경 ──
+    const sizeSel = $("#lit-page-size");
+    if (sizeSel) {
+      sizeSel.addEventListener("change", () => {
+        dashState.litPageSize = parseInt(sizeSel.value, 10) || 5;
+        dashState.litPage = 1;
+        renderLitList();
+      });
+    }
+    // ── 페이지 이동 ──
+    const prev = $("#lit-prev");
+    const next = $("#lit-next");
+    if (prev) prev.addEventListener("click", () => { dashState.litPage -= 1; renderLitList(); scrollTop(); });
+    if (next) next.addEventListener("click", () => { dashState.litPage += 1; renderLitList(); scrollTop(); });
+
+    renderLitList();
   }
 
   // ── ① 요약 통계 카드 ────────────────────────────────────────
