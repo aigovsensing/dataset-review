@@ -124,21 +124,46 @@
   };
   const VALID_TABS = Object.keys(TAB_LABELS);
 
-  function currentTab() {
-    const h = (location.hash || "").replace(/^#/, "");
-    return VALID_TABS.includes(h) ? h : "dashboard";
+  // 대시보드 세부 메뉴 딥링크: #dashboard/<section>
+  //   #dashboard/stats, /litigation, /confidence, /charts, /trend, /table
+  const DASH_SECTION_LABELS = {
+    stats: "🧭 검토 현황",
+    litigation: "⚖️ 소송 현황",
+    confidence: "💬 만족도",
+    charts: "📈 시각화",
+    trend: "🗓️ 검토 추이",
+    table: "🗂️ 데이터셋별 결과",
+  };
+  const DASH_SECTIONS = Object.keys(DASH_SECTION_LABELS);
+
+  // 해시를 { tab, sub } 로 분해. 예) "#dashboard/litigation" → { tab, sub }
+  function parseHash() {
+    const parts = (location.hash || "").replace(/^#/, "").split("/");
+    const tab = VALID_TABS.includes(parts[0]) ? parts[0] : "dashboard";
+    return { tab, sub: parts[1] || "" };
   }
-  function tabUrl(tab) {
-    return location.origin + location.pathname + "#" + tab;
+  function currentTab() {
+    return parseHash().tab;
+  }
+  function tabUrl(tab, sub) {
+    const frag = sub ? `${tab}/${sub}` : tab;
+    return location.origin + location.pathname + "#" + frag;
   }
   function applyTabFromHash() {
-    const target = currentTab();
+    const { tab: target, sub } = parseHash();
     document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === target));
     document.querySelectorAll(".tab-panel").forEach((p) => {
       p.classList.toggle("active", p.id === `tab-${target}`);
     });
     if (target === "results") loadResults();
-    if (target === "dashboard") loadDashboard();
+    if (target === "dashboard") {
+      const wantSub = sub && DASH_SECTIONS.includes(sub) ? sub : null;
+      if (wantSub) dashState.section = wantSub; // 첫 렌더 시 이 섹션이 열리도록
+      const wasLoaded = dashState.loaded;
+      loadDashboard();
+      // 이미 렌더된 상태면(재방문/해시 변경) 해당 섹션으로 즉시 전환
+      if (wasLoaded && wantSub) activateDashSection(wantSub);
+    }
   }
 
   document.querySelectorAll(".tab").forEach((btn) => {
@@ -163,15 +188,29 @@
     return false;
   }
 
+  // 공유 대상 목록: 상위 탭 + 대시보드 세부 메뉴(딥링크)
+  function shareTargets() {
+    const list = [];
+    VALID_TABS.forEach((t) => {
+      list.push({ label: TAB_LABELS[t], url: tabUrl(t) });
+      if (t === "dashboard") {
+        DASH_SECTIONS.forEach((s) => {
+          list.push({ label: "↳ " + DASH_SECTION_LABELS[s], url: tabUrl("dashboard", s) });
+        });
+      }
+    });
+    return list;
+  }
+
   function buildShareMenu() {
     const menu = $("#share-menu");
     if (!menu) return;
-    const rows = VALID_TABS.map((t) =>
+    const rows = shareTargets().map((it) =>
       `<div class="share-row">` +
-      `<span class="sr-label">${TAB_LABELS[t]}</span>` +
-      `<input class="sr-url" type="text" readonly value="${escapeHtml(tabUrl(t))}" ` +
-      `aria-label="${TAB_LABELS[t]} 링크" />` +
-      `<button class="btn primary small sr-copy" type="button" data-copy="${t}">복사</button>` +
+      `<span class="sr-label">${escapeHtml(it.label)}</span>` +
+      `<input class="sr-url" type="text" readonly value="${escapeHtml(it.url)}" ` +
+      `aria-label="${escapeHtml(it.label)} 링크" />` +
+      `<button class="btn primary small sr-copy" type="button">복사</button>` +
       `</div>`
     ).join("");
     menu.innerHTML =
@@ -194,20 +233,18 @@
     shareMenu.addEventListener("click", async (e) => {
       const input = e.target.closest(".sr-url");
       if (input) { input.focus(); input.select(); return; }
-      const btn = e.target.closest("[data-copy]");
+      const btn = e.target.closest(".sr-copy");
       if (!btn) return;
-      const t = btn.getAttribute("data-copy");
-      const url = tabUrl(t);
+      const row = btn.closest(".share-row");
+      const inp = row && row.querySelector(".sr-url");
+      const labelEl = row && row.querySelector(".sr-label");
+      const url = inp ? inp.value : "";
+      const label = labelEl ? labelEl.textContent.replace(/^↳\s*/, "") : "";
       const msg = $("#share-copied");
       const ok = await copyText(url);
-      if (!ok) {
-        // 폴백: 해당 입력창을 선택해 사용자가 직접 복사(Ctrl/⌘+C)하도록 유도
-        const row = btn.closest(".share-row");
-        const inp = row && row.querySelector(".sr-url");
-        if (inp) { inp.focus(); inp.select(); }
-      }
+      if (!ok && inp) { inp.focus(); inp.select(); } // 폴백: 직접 복사(Ctrl/⌘+C)
       if (msg) msg.textContent = ok
-        ? `복사되었습니다 — ${TAB_LABELS[t]} 링크`
+        ? `복사되었습니다 — ${label} 링크`
         : `링크가 선택되었습니다. Ctrl/⌘+C 로 복사하세요.`;
     });
     // 바깥 클릭 시 닫기
@@ -816,8 +853,27 @@
     bindLitTable();
   }
 
-  // 세부 메뉴(섹션) 전환: 선택한 섹션만 보이고 나머지는 숨긴다.
+  // 지정한 섹션만 보이고 나머지는 숨긴다(세부 메뉴/딥링크 공통).
   // 모든 패널을 DOM 에 렌더한 뒤 표시만 토글하므로 표/차트 바인딩이 유지된다.
+  // 현재 데이터에 없는 섹션이면 false 를 반환하고 아무것도 바꾸지 않는다.
+  function activateDashSection(key) {
+    const nav = $(".dash-subnav");
+    if (!nav) return false;
+    const btns = Array.prototype.slice.call(nav.querySelectorAll(".dash-navbtn"));
+    if (!btns.some((b) => b.getAttribute("data-section") === key)) return false;
+    btns.forEach((b) => {
+      const on = b.getAttribute("data-section") === key;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    document.querySelectorAll("#dash-body .dash-panel").forEach((p) => {
+      p.hidden = p.getAttribute("data-section-panel") !== key;
+    });
+    dashState.section = key;
+    return true;
+  }
+
+  // 세부 메뉴 클릭 → URL 해시(#dashboard/<section>)를 갱신해 딥링크·뒤로가기 지원.
   function bindDashSubnav() {
     const nav = $(".dash-subnav");
     if (!nav) return;
@@ -825,15 +881,9 @@
     btns.forEach((btn) => {
       btn.addEventListener("click", () => {
         const key = btn.getAttribute("data-section");
-        dashState.section = key;
-        btns.forEach((b) => {
-          const on = b === btn;
-          b.classList.toggle("active", on);
-          b.setAttribute("aria-selected", on ? "true" : "false");
-        });
-        document.querySelectorAll("#dash-body .dash-panel").forEach((p) => {
-          p.hidden = p.getAttribute("data-section-panel") !== key;
-        });
+        const frag = "dashboard/" + key;
+        if ("#" + frag === location.hash) activateDashSection(key); // 같은 링크 재클릭 보정
+        else location.hash = frag; // hashchange → applyTabFromHash → activateDashSection
         // 섹션 전환 시 대시보드 상단이 보이도록 스크롤(긴 표에서 편의).
         const body = $("#dash-body");
         if (body && typeof body.scrollIntoView === "function") {
