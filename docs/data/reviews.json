@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-08-04T09:20:24.284446Z",
+  "exported_at": "2026-08-04T09:26:20.511055Z",
   "rows": [
     {
       "issue": 31,
@@ -881,7 +881,7 @@
       "verdict": "사용 비권고",
       "model": "gemini-2.5-flash",
       "status": "reviewed",
-      "review_confidence": "",
+      "review_confidence": "low",
       "license_check": "`LLaVA-CoT-100K`는 Apache 2.0 라이선스를 따르지만, 원본 데이터셋인 `ShareGPT4V`는 CC BY NC 4.0, `ScienceQA`는 CC BY-NC-SA 4.0 라이선스를 따르며 연구 목적으로만 사용이 허용됨. `CLEVR-Math`는 CC BY 4.0 라이선스임.",
       "license_judgment": "원본 데이터셋의 라이선스 제약(비상업적, 연구 목적만 허용)이 파생 데이터셋에 상속되므로, `LLaVA-CoT-100K`는 상업적 이용이 불가하며 연구 목적으로만 사용 가능함.",
       "license_basis": "`LLaVA-CoT-100K` Hugging Face 데이터셋 카드 ([출처 3]), `ShareGPT4V` GitHub 및 Hugging Face ([출처 1], [출처 4]), `ScienceQA` GitHub 및 공식 홈페이지 ([출처 2], [출처 5]), `CLEVR-Math` 논문 ([출처 22])",
@@ -908,7 +908,7 @@
       "litigation_basis": "",
       "author": "aigovsensing",
       "created_at": "2026-07-07T06:28:34Z",
-      "updated_at": "2026-07-17T04:17:12Z",
+      "updated_at": "2026-08-04T09:25:58Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/8",
       "state": "open",
       "comments": 4
