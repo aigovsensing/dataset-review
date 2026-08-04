@@ -742,11 +742,13 @@
     { key: "high", label: "High", icon: "😊", cls: "high", color: "var(--accent)" },
     { key: "medium", label: "Medium", icon: "😐", cls: "medium", color: "var(--warn)" },
     { key: "low", label: "Low", icon: "😞", cls: "low", color: "var(--fail)" },
+    { key: "bad", label: "Bad", icon: "😡", cls: "bad", color: "var(--bad)" },
     { key: "none", label: "미응답", icon: "❔", cls: "none", color: "var(--text-dim)" },
   ];
 
   function confidenceMeta(value) {
-    return CONFIDENCE.find((x) => x.key === value) || CONFIDENCE[3];
+    return CONFIDENCE.find((x) => x.key === value) ||
+      CONFIDENCE.find((x) => x.key === "none");
   }
 
   function verdictMeta(v) {
@@ -1195,7 +1197,7 @@
 
   // ── ② AI 자동리뷰 결과 만족도 ───────────────────────────────
   function confidenceSection(rows) {
-    const counts = { high: 0, medium: 0, low: 0, none: 0 };
+    const counts = { high: 0, medium: 0, low: 0, bad: 0, none: 0 };
     rows.forEach((r) => { counts[confidenceMeta(r.review_confidence).key]++; });
     const total = rows.length;
     const responses = total - counts.none;
@@ -1229,7 +1231,7 @@
       `<div class="cf-score"><div class="cf-score-num">${posRate}<span class="cf-score-unit">%</span></div>` +
       `<div class="cf-score-label">😊 High 만족 비율<br><span class="dim">(응답 ${responses}건 기준)</span></div></div>` +
       `<div class="cf-bar-wrap"><div class="cf-bar" role="img" ` +
-      `aria-label="만족도 구성: High ${counts.high}건, Medium ${counts.medium}건, Low ${counts.low}건, 미응답 ${counts.none}건">${segs}</div>` +
+      `aria-label="만족도 구성: High ${counts.high}건, Medium ${counts.medium}건, Low ${counts.low}건, Bad ${counts.bad}건, 미응답 ${counts.none}건">${segs}</div>` +
       `<div class="cf-bar-legend">` +
       CONFIDENCE.map((m) => `<span class="cf-lg"><span class="cf-dot ${m.cls}"></span>${m.icon} ${m.label} <strong>${counts[m.key]}</strong></span>`).join("") +
       `</div></div></div>` +

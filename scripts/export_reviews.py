@@ -50,6 +50,7 @@ CONFIDENCE_LABELS = {
     "ai-review-confidence-high": "high",
     "ai-review-confidence-medium": "medium",
     "ai-review-confidence-low": "low",
+    "ai-review-confidence-bad": "bad",
 }
 
 _VERDICT_RE = re.compile(r"(사용 가능|추가 검토 필요|사용 비권고)")

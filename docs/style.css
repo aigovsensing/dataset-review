@@ -11,6 +11,7 @@
   --accent: #34d399;
   --warn: #fbbf24;
   --fail: #f87171;
+  --bad: #e11d48;
   --radius: 12px;
   --header-bg: linear-gradient(135deg, #182238 0%, #101726 100%);
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -29,6 +30,7 @@
   --accent: #059669;
   --warn: #b45309;
   --fail: #dc2626;
+  --bad: #be123c;
   --header-bg: linear-gradient(135deg, #e6edf9 0%, #f4f6fb 100%);
   --shadow: 0 6px 20px rgba(30, 50, 90, 0.10);
 }
@@ -599,6 +601,7 @@ input[type="text"]:focus, textarea:focus {
 .cf-seg.high { background: var(--accent); }
 .cf-seg.medium { background: var(--warn); }
 .cf-seg.low { background: var(--fail); }
+.cf-seg.bad { background: var(--bad); }
 .cf-seg.none { background: var(--text-dim); }
 .cf-bar-legend {
   display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px;
@@ -610,10 +613,11 @@ input[type="text"]:focus, textarea:focus {
 .cf-dot.high { background: var(--accent); }
 .cf-dot.medium { background: var(--warn); }
 .cf-dot.low { background: var(--fail); }
+.cf-dot.bad { background: var(--bad); }
 .cf-dot.none { background: var(--text-dim); }
 
 /* ② 레벨별 카드 */
-.cf-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.cf-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
 .cf-card {
   position: relative; text-align: center; overflow: hidden;
   padding: 16px 12px 18px; border-radius: 14px;
@@ -623,10 +627,12 @@ input[type="text"]:focus, textarea:focus {
 .cf-card.high::before { background: var(--accent); }
 .cf-card.medium::before { background: var(--warn); }
 .cf-card.low::before { background: var(--fail); }
+.cf-card.bad::before { background: var(--bad); }
 .cf-card.none::before { background: var(--text-dim); }
 .cf-card.high { background: color-mix(in srgb, var(--accent) 11%, var(--surface-2)); }
 .cf-card.medium { background: color-mix(in srgb, var(--warn) 13%, var(--surface-2)); }
 .cf-card.low { background: color-mix(in srgb, var(--fail) 13%, var(--surface-2)); }
+.cf-card.bad { background: color-mix(in srgb, var(--bad) 13%, var(--surface-2)); }
 .cf-emoji { font-size: 1.8rem; line-height: 1; }
 .cf-label { margin-top: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-dim); }
 .cf-count { margin-top: 8px; font-size: 2rem; font-weight: 800; line-height: 1; color: var(--text); }
@@ -635,6 +641,7 @@ input[type="text"]:focus, textarea:focus {
 .cf-card.high .cf-pct { color: var(--accent); }
 .cf-card.medium .cf-pct { color: var(--warn); }
 .cf-card.low .cf-pct { color: var(--fail); }
+.cf-card.bad .cf-pct { color: var(--bad); }
 .cf-card.none .cf-pct { color: var(--text-dim); }
 
 /* 검토 추이 */
@@ -713,6 +720,7 @@ table.dash-table tbody tr.ds-row:hover { background: var(--surface-2); }
 .cbadge.high { background: rgba(52, 211, 153, 0.15); color: var(--accent); }
 .cbadge.medium { background: rgba(251, 191, 36, 0.18); color: var(--warn); }
 .cbadge.low { background: rgba(248, 113, 113, 0.15); color: var(--fail); }
+.cbadge.bad { background: rgba(225, 29, 72, 0.15); color: var(--bad); }
 .cbadge.none { background: rgba(154, 166, 189, 0.15); color: var(--text-dim); }
 
 /* 상세 드릴다운(종합의견 4×3) */
