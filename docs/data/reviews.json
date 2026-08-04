@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-08-04T03:39:31.120475Z",
+  "exported_at": "2026-08-04T09:18:23.131419Z",
   "rows": [
     {
       "issue": 31,
@@ -45,7 +45,7 @@
       "verdict": "사용 비권고",
       "model": "gemini-2.5-flash",
       "status": "reviewed",
-      "review_confidence": "",
+      "review_confidence": "medium",
       "license_check": "`ImageNet-Hard` 자체 라이선스 명시 없음. 상위 데이터셋 `ImageNet`은 비상업적 연구 목적만 허용. `ObjectNet`은 상업적 이용 가능하나 모델 파라미터 튜닝 금지. `ImageNet-R`은 교육 및 정보 제공 목적 명시.",
       "license_judgment": "`ImageNet-Hard`는 상위 데이터셋의 가장 제한적인 라이선스 조건을 상속하므로, 상업적 이용 및 AI 모델 학습에 심각한 제약이 있음.",
       "license_basis": "`ImageNet` 공식 홈페이지의 비상업적 이용 명시 ([출처](https://www.image-net.org/download-images)), `ObjectNet` 라이선스의 모델 튜닝 금지 조항 ([출처](https://objectnet.dev/downloads/objectnet-1.0.zip)), `ImageNet-R`의 교육 및 정보 제공 목적 명시 ([출처](https://hyper.ai/datasets/14088007621184))",
@@ -72,7 +72,7 @@
       "litigation_basis": "",
       "author": "aigovsensing",
       "created_at": "2026-08-03T05:13:48Z",
-      "updated_at": "2026-08-03T05:14:48Z",
+      "updated_at": "2026-08-04T09:17:59Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/30",
       "state": "open",
       "comments": 2
