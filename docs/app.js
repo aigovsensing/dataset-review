@@ -949,7 +949,9 @@
   }
 
   // 검색어를 적용한 {r, i} 목록.
-  // 검색 대상: 데이터셋 명칭 · 소송 원고 · 소송 피고 · 소송번호(도켓).
+  // 검색 대상: 데이터셋 명칭 · 소송 원고 · 소송 피고 · 소송번호(도켓) · 사건명.
+  // (원고/피고가 '미상'인 건도 당사자명이 사건명에 담기는 경우가 많아 사건명도 포함한다.
+  //  예: 피고 필드가 비어도 사건명 "Nassif et al v. Samsung Electronics ..." 로 검색 가능)
   function litFiltered() {
     const q = (dashState.litSearch || "").trim().toLowerCase();
     const all = litRows.map((r, i) => ({ r, i }));
@@ -960,6 +962,7 @@
         r.litigation_plaintiff,       // 소송 원고 명칭
         r.litigation_defendant,       // 소송 피고 명칭
         r.litigation_docket,          // 소송번호 명칭(도켓)
+        r.litigation_case,            // 사건명(당사자명이 포함되는 경우 대비)
       ]
         .map((v) => String(v || "").toLowerCase())
         .join(" ");
