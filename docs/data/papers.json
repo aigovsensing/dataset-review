@@ -1,4 +1,39 @@
 {
-  "exported_at": "",
-  "rows": []
+  "exported_at": "2026-08-07T08:13:27.920874Z",
+  "rows": [
+    {
+      "issue": 34,
+      "title": "Scalable Hybrid Electrode-Based Capacitive Deionization Modules for Practical Water Softening",
+      "status": "reviewed",
+      "experiment": "아니오",
+      "data_type": "자체 생성",
+      "privacy": "미포함",
+      "copyright": "문제없음",
+      "summary": "본 논문은 롤투롤 전극 제조 및 모듈 스택 실험을 다룬 수처리 공학 연구로, 외부 AI 데이터셋 및 개인정보 사용 없이 연구진이 직접 수행한 실험·시뮬레이션 데이터를 활용한 연구입니다",
+      "model": "gemini-3.6-flash",
+      "author": "aigovsensing",
+      "created_at": "2026-08-07T02:37:18Z",
+      "updated_at": "2026-08-07T02:37:57Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/34",
+      "state": "open",
+      "comments": 2
+    },
+    {
+      "issue": 33,
+      "title": "Deep Residual Learning for Image Recognition",
+      "status": "reviewed",
+      "experiment": "예",
+      "data_type": "외부 Dataset",
+      "privacy": "미포함",
+      "copyright": "문제없음",
+      "summary": "본 논문은 외부 공개 AI 데이터셋(ImageNet, CIFAR-10, PASCAL VOC, MS COCO)을 사용하여 심층 잔차 학습(ResNet) 모델을 평가한 실험 연구로, 개인정보 노출 및 저작권 문제는 확인되지 않습니다",
+      "model": "gemini-3.6-flash",
+      "author": "aigovsensing",
+      "created_at": "2026-08-07T02:14:21Z",
+      "updated_at": "2026-08-07T02:24:53Z",
+      "url": "https://github.com/aigovsensing/dataset-review/issues/33",
+      "state": "open",
+      "comments": 2
+    }
+  ]
 }
