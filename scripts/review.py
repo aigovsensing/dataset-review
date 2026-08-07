@@ -137,6 +137,12 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
         )
     lines += [
         "",
+        "[소송 리스크 — 필수] 소송 URL 제공 여부와 무관하게, 이 데이터셋(및 원본 데이터셋)이 "
+        "'저작권자 허가 없이 AI 모델 학습에 무단 사용되어 제기된 소송'에 연루됐는지 Google 검색으로 "
+        "반드시 조사하라(예: \"<데이터셋명>\" lawsuit / copyright infringement / AI training lawsuit). "
+        "확인되면 '3. 소송 리스크'에 사건 개요·근거 강도와 함께 보고하고, 검색으로도 확인되지 않으면 "
+        "'해당 없음 (검색 결과 관련 소송 미확인)'으로 표기한다(검색 없이 '해당 없음' 단정 금지).",
+        "",
         "출력은 시스템 지침의 [출력 형식]을 정확히 따른다.",
     ]
     return "\n".join(lines)
