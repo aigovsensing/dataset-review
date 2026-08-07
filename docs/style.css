@@ -138,6 +138,8 @@ body {
 .pbadge.ok { background: rgba(52, 211, 153, 0.18); color: var(--accent); }
 .pbadge.warn { background: rgba(251, 191, 36, 0.20); color: var(--warn); }
 .pbadge.fail { background: rgba(248, 113, 113, 0.18); color: var(--fail); }
+.pbadge.info { background: rgba(79, 140, 255, 0.16); color: var(--primary); }
+.pbadge.none { background: rgba(154, 166, 189, 0.15); color: var(--text-dim); }
 
 .tabs {
   display: flex;

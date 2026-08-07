@@ -124,6 +124,7 @@
     how: "ℹ️ 이용 안내",
     "paper-request": "📝 논문 검토 요청",
     "paper-results": "📋 논문 검토 결과",
+    "paper-dashboard": "📊 논문 대시보드",
     "paper-how": "ℹ️ 논문 이용 안내",
   };
   const VALID_TABS = Object.keys(TAB_LABELS);
@@ -172,6 +173,7 @@
     });
     if (target === "results") loadResults();
     if (target === "paper-results") loadPaperResults();
+    if (target === "paper-dashboard") loadPaperDashboard();
     if (target === "dashboard") {
       const wantSub = sub && DASH_SECTIONS.includes(sub) ? sub : null;
       if (wantSub) dashState.section = wantSub; // 첫 렌더 시 이 섹션이 열리도록
@@ -569,6 +571,198 @@
   }
   const paperRefresh = $("#paper-refresh-btn");
   if (paperRefresh) paperRefresh.addEventListener("click", () => loadPaperResults(true));
+
+  // ═══════════════ 논문 대시보드 ═══════════════
+  const paperDash = { rows: [], exportedAt: "", loaded: false, page: 1, pageSize: 10, search: "" };
+  const PAPER_PAGE_SIZES = [5, 10, 15, 20, 30, 50];
+
+  // 값별 배지 색상(ok=초록, warn=노랑, fail=빨강, none=회색, info=파랑)
+  const PBADGE = {
+    "예": "info", "아니오": "none",
+    "외부 Dataset": "warn", "자체 생성": "ok", "혼합": "info", "미사용": "none",
+    "포함": "fail", "미포함": "ok",
+    "문제없음": "ok", "검토 필요": "warn",
+    "확인 불가": "none", "": "none",
+  };
+  const DT_COLOR = {
+    "외부 Dataset": "var(--warn)", "자체 생성": "var(--accent)", "혼합": "var(--primary)",
+    "미사용": "var(--text-dim)", "확인 불가": "var(--border)",
+  };
+  const pbadge = (v) => `<span class="pbadge ${PBADGE[v] || "none"}">${escapeHtml(v || "-")}</span>`;
+
+  function loadPaperDashboard(force) {
+    const body = $("#paper-dash-body");
+    if (!body) return;
+    if (paperDash.loaded && !force) return;
+    paperDash.loaded = true;
+    body.innerHTML = '<p class="dim">불러오는 중…</p>';
+    fetch("data/papers.json", { cache: "no-cache" })
+      .then((res) => { if (!res.ok) throw new Error("papers.json " + res.status); return res.json(); })
+      .then((data) => {
+        paperDash.rows = Array.isArray(data) ? data : (Array.isArray(data.rows) ? data.rows : []);
+        paperDash.exportedAt = Array.isArray(data) ? "" : (data.exported_at || "");
+        renderPaperDashboard();
+      })
+      .catch(() => {
+        body.innerHTML =
+          '<p class="dim">아직 집계된 논문 검토 결과가 없습니다. 논문을 검토 요청하면 ' +
+          '일일 집계(export) 후 이곳에 표시됩니다.</p>' + paperGhLink;
+      });
+  }
+
+  function renderPaperDashboard() {
+    const body = $("#paper-dash-body");
+    if (!body) return;
+    const rows = paperDash.rows;
+    if (!rows.length) {
+      body.innerHTML = '<p class="dim">아직 집계된 논문 검토 결과가 없습니다.</p>';
+      return;
+    }
+    const total = rows.length;
+    const n = (pred) => rows.filter(pred).length;
+    const experiments = n((r) => r.experiment === "예");
+    const external = n((r) => r.data_type === "외부 Dataset");
+    const selfgen = n((r) => r.data_type === "자체 생성");
+    const privacy = n((r) => r.privacy === "포함");
+    const copyright = n((r) => r.copyright === "검토 필요");
+    const latest = paperDash.exportedAt ? new Date(paperDash.exportedAt).toLocaleString("ko-KR") : "-";
+
+    // 데이터 유형 구성 막대
+    const DT_ORDER = ["외부 Dataset", "자체 생성", "혼합", "미사용", "확인 불가"];
+    const dtCounts = {};
+    DT_ORDER.forEach((k) => (dtCounts[k] = 0));
+    rows.forEach((r) => { dtCounts[r.data_type || "확인 불가"] = (dtCounts[r.data_type || "확인 불가"] || 0) + 1; });
+    const segs = DT_ORDER.filter((k) => dtCounts[k] > 0).map((k) => {
+      const pct = (dtCounts[k] / total) * 100;
+      const lbl = pct >= 10 ? `${Math.round(pct)}%` : "";
+      return `<span class="st-seg" style="width:${pct.toFixed(2)}%;background:${DT_COLOR[k]}" ` +
+        `title="${k} · ${dtCounts[k]}건 (${Math.round(pct)}%)">${lbl}</span>`;
+    }).join("");
+    const legend = DT_ORDER.filter((k) => dtCounts[k] > 0).map((k) =>
+      `<span class="cf-lg"><span class="cf-dot" style="background:${DT_COLOR[k]}"></span>${k} <strong>${dtCounts[k]}</strong></span>`
+    ).join("");
+
+    const riskTile = (ico, num, label, hint) =>
+      `<div class="st-risk"><span class="st-risk-ico" aria-hidden="true">${ico}</span>` +
+      `<div><div class="st-risk-num">${num}</div>` +
+      `<div class="st-risk-label">${label} <span class="dim">${hint}</span></div></div></div>`;
+
+    // 검색/페이지 컨트롤 + 표
+    const sizeOpts = PAPER_PAGE_SIZES.map((s) =>
+      `<option value="${s}"${s === paperDash.pageSize ? " selected" : ""}>${s}</option>`).join("");
+
+    body.innerHTML =
+      `<p class="dash-updated dim">최근 집계: ${escapeHtml(latest)} · 총 <strong>${total}</strong>건</p>` +
+      `<div class="dash-section"><h4>🧭 검토 현황</h4>` +
+      `<p class="st-intro">지금까지 <strong>${total}편</strong>의 논문을 법무 검토했습니다. ` +
+      `그중 <strong class="st-hl-ok">${experiments}편</strong>이 데이터셋을 이용한 실험 논문으로 판정되었습니다.</p>` +
+      `<div class="st-risks">` +
+      riskTile("🧪", `${experiments}편`, "실험 데이터셋 사용", "(예로 판정)") +
+      riskTile("🌐", `${external}편`, "외부 Dataset 사용", "(제3자 공개 데이터셋)") +
+      riskTile("🛠️", `${selfgen}편`, "자체 생성 데이터", "(연구자 실험 생성)") +
+      riskTile("🔒", `${privacy}편`, "개인정보 포함", "(식별정보 사용)") +
+      riskTile("©️", `${copyright}편`, "저작권 검토 필요", "(출처·라이선스 확인)") +
+      `</div></div>` +
+      `<div class="dash-section"><h4>📈 데이터 유형 분포</h4>` +
+      `<div class="st-bar" role="img" aria-label="데이터 유형 분포">${segs}</div>` +
+      `<div class="cf-bar-legend" style="margin-top:10px">${legend}</div></div>` +
+      `<div class="dash-section"><h4>🗂️ 논문별 검토 결과</h4>` +
+      `<div class="lit-controls">` +
+      `<input type="search" id="paper-dash-search" class="results-search" ` +
+      `placeholder="🔍 논문 제목으로 검색" value="${escapeHtml(paperDash.search || "")}" />` +
+      `<label class="page-size">페이지당 <select id="paper-dash-size">${sizeOpts}</select> 편</label>` +
+      `</div>` +
+      `<div class="dash-table-wrap"><table class="dash-table"><thead><tr>` +
+      `<th>논문</th><th>실험논문</th><th>데이터 유형</th><th>개인정보</th><th>저작권</th>` +
+      `<th>모델</th><th>요청일</th></tr></thead><tbody id="paper-dash-tbody"></tbody></table></div>` +
+      `<div id="paper-dash-pager" class="results-pager" hidden>` +
+      `<button id="paper-dash-prev" class="btn ghost small" type="button">← 이전</button>` +
+      `<span id="paper-dash-info" class="page-info"></span>` +
+      `<button id="paper-dash-next" class="btn ghost small" type="button">다음 →</button></div>` +
+      `<p class="dim" style="font-size:0.82rem;margin-top:10px">행을 클릭하면 요약과 GitHub 이슈 링크가 펼쳐집니다.</p>` +
+      `</div>`;
+
+    bindPaperDashControls();
+    renderPaperTbody();
+  }
+
+  function paperFiltered() {
+    const q = (paperDash.search || "").trim().toLowerCase();
+    if (!q) return paperDash.rows;
+    return paperDash.rows.filter((r) => String(r.title || "").toLowerCase().includes(q));
+  }
+
+  function renderPaperTbody() {
+    const tbody = $("#paper-dash-tbody");
+    if (!tbody) return;
+    const all = paperFiltered();
+    const total = all.length;
+    const pages = Math.max(1, Math.ceil(total / paperDash.pageSize));
+    if (paperDash.page > pages) paperDash.page = pages;
+    if (paperDash.page < 1) paperDash.page = 1;
+    if (!total) {
+      tbody.innerHTML = `<tr><td colspan="7" class="dim">조건에 맞는 논문이 없습니다.</td></tr>`;
+      updatePaperPager(0, pages);
+      return;
+    }
+    const start = (paperDash.page - 1) * paperDash.pageSize;
+    const rows = all.slice(start, start + paperDash.pageSize);
+    updatePaperPager(total, pages);
+    tbody.innerHTML = rows.map((r, idx) => {
+      const date = r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "-";
+      const main =
+        `<tr class="ds-row" data-pidx="${idx}">` +
+        `<td><span class="ds-link">${escapeHtml(r.title || ("#" + r.issue))}</span></td>` +
+        `<td>${pbadge(r.experiment)}</td>` +
+        `<td>${pbadge(r.data_type)}</td>` +
+        `<td>${pbadge(r.privacy)}</td>` +
+        `<td>${pbadge(r.copyright)}</td>` +
+        `<td class="dim" style="white-space:nowrap">${escapeHtml(r.model || "-")}</td>` +
+        `<td class="dim" style="white-space:nowrap">${date}</td></tr>`;
+      const summary = r.summary ? `<p style="margin:0 0 8px">${escapeHtml(r.summary)}</p>` : "";
+      const detail =
+        `<tr class="detail-row" data-pdetail="${idx}" hidden><td colspan="7">` +
+        `<div class="detail-inner">${summary}` +
+        `<p class="di-foot"><a class="btn ghost small" href="${escapeHtml(r.url || "#")}" ` +
+        `target="_blank" rel="noopener">GitHub 이슈 #${r.issue} 상세 보기 →</a></p></div></td></tr>`;
+      return main + detail;
+    }).join("");
+  }
+
+  function updatePaperPager(total, pages) {
+    const pager = $("#paper-dash-pager");
+    if (!pager) return;
+    if (total <= 0) { pager.hidden = true; return; }
+    pager.hidden = false;
+    const info = $("#paper-dash-info");
+    if (info) info.textContent = `${paperDash.page} / ${pages} 페이지 · 총 ${total}편`;
+    const prev = $("#paper-dash-prev");
+    const next = $("#paper-dash-next");
+    if (prev) prev.disabled = paperDash.page <= 1;
+    if (next) next.disabled = paperDash.page >= pages;
+  }
+
+  function bindPaperDashControls() {
+    const search = $("#paper-dash-search");
+    if (search) search.addEventListener("input", () => { paperDash.search = search.value; paperDash.page = 1; renderPaperTbody(); });
+    const size = $("#paper-dash-size");
+    if (size) size.addEventListener("change", () => { paperDash.pageSize = parseInt(size.value, 10) || 10; paperDash.page = 1; renderPaperTbody(); });
+    const prev = $("#paper-dash-prev");
+    const next = $("#paper-dash-next");
+    if (prev) prev.addEventListener("click", () => { paperDash.page -= 1; renderPaperTbody(); });
+    if (next) next.addEventListener("click", () => { paperDash.page += 1; renderPaperTbody(); });
+    const tbody = $("#paper-dash-tbody");
+    if (tbody) tbody.addEventListener("click", (e) => {
+      const row = e.target.closest("tr.ds-row");
+      if (!row) return;
+      const idx = row.getAttribute("data-pidx");
+      const detail = tbody.querySelector(`tr.detail-row[data-pdetail="${idx}"]`);
+      if (detail) { detail.hidden = !detail.hidden; row.classList.toggle("open", !detail.hidden); }
+    });
+  }
+
+  const paperDashRefresh = $("#paper-dash-refresh");
+  if (paperDashRefresh) paperDashRefresh.addEventListener("click", () => loadPaperDashboard(true));
 
   // ---- 검토 결과 목록 ----
   const CACHE_KEY = `dr_results_${owner}_${repo}`;

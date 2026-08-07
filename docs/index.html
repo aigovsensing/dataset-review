@@ -106,6 +106,7 @@
   <nav class="tabs wrap mode-paper" role="tablist">
     <button class="tab" data-tab="paper-request" role="tab">📝 검토 요청</button>
     <button class="tab" data-tab="paper-results" role="tab">📋 검토 결과</button>
+    <button class="tab" data-tab="paper-dashboard" role="tab">📊 대시보드</button>
     <button class="tab" data-tab="paper-how" role="tab">ℹ️ 이용 안내</button>
   </nav>
 
@@ -392,6 +393,28 @@
         </div>
         <p class="dim">최근 논문 법무 검토 이슈입니다. 항목을 클릭하면 GitHub 이슈에서 상세 결과(개인정보·저작권·데이터셋 검증)를 볼 수 있습니다.</p>
         <div id="paper-results-list" class="paper-list">
+          <p class="dim">불러오는 중…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 논문 대시보드 -->
+    <section id="tab-paper-dashboard" class="tab-panel">
+      <div class="card">
+        <div class="results-head">
+          <h3>📊 논문 검토 대시보드</h3>
+          <div class="results-actions">
+            <a class="btn ghost small" href="data/papers.csv" download="papers.csv"
+               title="집계 데이터를 CSV로 내려받기">⬇️ CSV</a>
+            <a class="btn ghost small" href="data/papers.json" download="papers.json"
+               title="집계 데이터를 JSON으로 내려받기">⬇️ JSON</a>
+            <button id="paper-dash-refresh" class="btn ghost small" type="button">새로고침</button>
+          </div>
+        </div>
+        <p class="dim">논문 법무 검토 결과를 집계·시각화한 현황입니다.
+          <strong>실험 데이터셋 사용 여부</strong>, <strong>데이터 유형</strong>(외부 Dataset vs 자체 생성),
+          <strong>개인정보 · 저작권</strong> 판정을 논문별로 열람할 수 있습니다. 누락 방지를 위해 매일 정기 갱신됩니다.</p>
+        <div id="paper-dash-body">
           <p class="dim">불러오는 중…</p>
         </div>
       </div>

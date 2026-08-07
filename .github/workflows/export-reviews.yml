@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - "scripts/export_reviews.py"
+      - "scripts/export_papers.py"
       - ".github/workflows/export-reviews.yml"
   issues:
     types: [labeled, unlabeled]
@@ -37,17 +38,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: 검토 결과 내보내기 (CSV/JSON 생성)
+      - name: 데이터셋 검토 결과 내보내기 (CSV/JSON 생성)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python scripts/export_reviews.py
 
+      - name: 논문 검토 결과 내보내기 (CSV/JSON 생성)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/export_papers.py
+
       - name: 변경 시 커밋·푸시
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data/reviews.csv docs/data/reviews.json
+          git add docs/data/reviews.csv docs/data/reviews.json docs/data/papers.csv docs/data/papers.json
           if git diff --cached --quiet; then
             echo "변경 없음 — 커밋 생략"
           else
