@@ -72,6 +72,25 @@ def first_url(text: str) -> str:
     return m.group(0).rstrip(").,]") if m else (text or "").strip()
 
 
+# GitHub 이슈에 드래그&드롭으로 첨부한 파일 링크(공개 저장소는 인증 없이 접근 가능).
+_GH_ATTACH_RES = [
+    re.compile(r"https://github\.com/user-attachments/assets/[0-9a-f-]+", re.I),
+    re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/files/\d+/\S+?\.pdf", re.I),
+    re.compile(r"https://[\w.-]*githubusercontent\.com/\S+?\.pdf", re.I),
+]
+
+
+def attachment_urls(body: str) -> list[str]:
+    """이슈 본문에서 GitHub 첨부 파일(PDF 등) URL 후보를 순서대로 추출(중복 제거)."""
+    found: list[str] = []
+    for rx in _GH_ATTACH_RES:
+        for u in rx.findall(body or ""):
+            u = u.rstrip(").,]")
+            if u not in found:
+                found.append(u)
+    return found
+
+
 def normalize_pdf_url(url: str) -> str:
     """arXiv abs 링크는 PDF 링크로 변환한다(그 외는 그대로)."""
     m = re.match(r"https?://arxiv\.org/abs/([\w.\-/]+)", url, re.I)
@@ -80,9 +99,27 @@ def normalize_pdf_url(url: str) -> str:
     return url
 
 
+# 봇 접근을 차단(403/로그인 게이트)하는 것으로 알려진 호스트 — PDF 첨부를 권장.
+BLOCKED_HOSTS = ("researchgate.net", "academia.edu", "sciencedirect.com", "ieeexplore.ieee.org")
+
+
+def is_blocked_host(url: str) -> bool:
+    return any(h in (url or "").lower() for h in BLOCKED_HOSTS)
+
+
 def fetch_bytes(url: str) -> tuple[bytes, str]:
-    """URL 을 내려받아 (본문 바이트, content-type) 을 반환. 실패 시 예외."""
-    req = urllib.request.Request(url, headers={"User-Agent": "dataset-review-bot/1.0 (+github-actions)"})
+    """URL 을 내려받아 (본문 바이트, content-type) 을 반환. 실패 시 예외.
+
+    일부 오픈액세스 서버는 기본 봇 UA 를 차단하므로 브라우저 유사 UA 를 사용한다.
+    """
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0 Safari/537.36 dataset-review-bot"
+        ),
+        "Accept": "application/pdf,text/html;q=0.9,*/*;q=0.8",
+    }
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=90) as resp:  # noqa: S310 - 신뢰된 사용자 입력 URL
         ctype = (resp.headers.get("Content-Type") or "").lower()
         data = resp.read(MAX_PDF_BYTES + 1)
@@ -213,11 +250,14 @@ def run_paper_review(title: str, body: str) -> str:
     name = derive_paper_title(title, fields)
     raw_url = fields.get("paper_url") or ""
     url = normalize_pdf_url(first_url(raw_url))
+    # 이슈 본문에 드래그&드롭으로 첨부한 PDF 링크(있으면 우선 다운로드 후보에 포함)
+    attachments = attachment_urls(body)
 
-    if not url:
+    if not url and not attachments:
         raise RuntimeError(
-            "검토할 논문 URL 이 없습니다 (논문 PDF 또는 웹페이지 URL 미입력). "
-            "Gemini API 를 호출하지 않고 종료했습니다. 이슈 폼을 채워 'rerun-review' 로 재시도하세요."
+            "검토할 논문 URL 이 없습니다 (논문 PDF 링크·웹페이지 URL·첨부 PDF 모두 없음). "
+            "Gemini API 를 호출하지 않고 종료했습니다. 이슈 폼을 채우거나 PDF 를 첨부한 뒤 "
+            "'rerun-review' 로 재시도하세요."
         )
 
     client = genai.Client(api_key=api_key)
@@ -227,32 +267,59 @@ def run_paper_review(title: str, body: str) -> str:
         max_output_tokens=32768,
     )
 
-    # ── 논문 원문 확보: PDF 는 직접 첨부, 그 외 웹페이지는 url_context 로 판독 ──
+    # ── 논문 원문 확보 ──────────────────────────────────────────────
+    # PDF 우선: 입력 URL + 이슈 첨부 파일을 차례로 내려받아 첫 번째 PDF 를 직접 판독한다.
+    # (ResearchGate 등 봇 차단 페이지는 첨부 PDF 로 우회할 수 있다.)
+    # PDF 를 못 구하면 웹페이지 URL 을 url_context 로 판독한다.
     mode = "url"
     source_note = ""
     contents: list = []
     tools = None
-    try:
-        data, ctype = fetch_bytes(url)
-        if looks_like_pdf(data, ctype):
-            mode = "pdf"
-            prompt_text = build_paper_prompt(name, fields, mode, url)
-            if len(data) <= INLINE_PDF_CAP:
-                pdf_part = types.Part.from_bytes(data=data, mime_type="application/pdf")
-                contents = [pdf_part, prompt_text]
-                source_note = "PDF 원문 직접 판독(inline)"
-            else:
-                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tf:
-                    tf.write(data)
-                    tmp_path = tf.name
-                uploaded = client.files.upload(file=tmp_path)
-                contents = [uploaded, prompt_text]
-                source_note = "PDF 원문 직접 판독(Files API)"
-            print(f"[diag] paper mode=pdf bytes={len(data)}", file=sys.stderr)
-    except Exception as exc:  # noqa: BLE001 - 다운로드 실패 시 URL 판독으로 폴백
-        print(f"PDF 다운로드 실패({type(exc).__name__}: {str(exc)[:100]}) → URL 판독으로 진행", file=sys.stderr)
 
-    if mode == "url":
+    candidates: list[str] = []
+    for c in ([url] if url else []) + attachments:
+        if c and c not in candidates:
+            candidates.append(c)
+
+    pdf_data = None
+    pdf_from = ""
+    for cand in candidates:
+        try:
+            data, ctype = fetch_bytes(cand)
+            if looks_like_pdf(data, ctype):
+                pdf_data = data
+                pdf_from = cand
+                break
+            print(f"[diag] 후보 non-PDF(ctype={ctype[:40]}): {cand[:80]}", file=sys.stderr)
+        except Exception as exc:  # noqa: BLE001 - 다음 후보로 진행
+            print(f"다운로드 실패({type(exc).__name__}: {str(exc)[:80]}): {cand[:80]}", file=sys.stderr)
+
+    if pdf_data is not None:
+        mode = "pdf"
+        is_attach = pdf_from in attachments
+        prompt_text = build_paper_prompt(name, fields, mode, pdf_from)
+        via = "이슈 첨부" if is_attach else "URL"
+        if len(pdf_data) <= INLINE_PDF_CAP:
+            pdf_part = types.Part.from_bytes(data=pdf_data, mime_type="application/pdf")
+            contents = [pdf_part, prompt_text]
+            source_note = f"PDF 원문 직접 판독(inline, {via})"
+        else:
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tf:
+                tf.write(pdf_data)
+                tmp_path = tf.name
+            uploaded = client.files.upload(file=tmp_path)
+            contents = [uploaded, prompt_text]
+            source_note = f"PDF 원문 직접 판독(Files API, {via})"
+        print(f"[diag] paper mode=pdf bytes={len(pdf_data)} via={via}", file=sys.stderr)
+    else:
+        # PDF 확보 실패 → 웹페이지 URL 판독. 봇 차단 호스트면 안내를 위해 근거를 남긴다.
+        if not url:
+            raise RuntimeError(
+                "첨부/링크에서 PDF 를 확인하지 못했습니다. 논문 PDF 직접 링크를 넣거나, "
+                "이슈 작성 화면에서 논문 PDF 파일을 드래그&드롭으로 첨부한 뒤 'rerun-review' 로 재시도하세요."
+            )
+        if is_blocked_host(url):
+            print(f"[diag] 봇 차단 가능 호스트: {url}", file=sys.stderr)
         prompt_text = build_paper_prompt(name, fields, mode, url)
         contents = [prompt_text]
         try:
@@ -261,7 +328,9 @@ def run_paper_review(title: str, body: str) -> str:
         except Exception:  # noqa: BLE001 - url_context 미지원 SDK → 검색 그라운딩
             tools = [types.Tool(google_search=types.GoogleSearch())]
             source_note = "웹 검색 그라운딩(url_context 미지원)"
-        print(f"[diag] paper mode=url tools={'url_context' if 'url_context' in source_note else 'search'}", file=sys.stderr)
+        if is_blocked_host(url):
+            source_note += " ⚠️ 로그인/봇 차단 사이트일 수 있어 PDF 첨부를 권장"
+        print(f"[diag] paper mode=url source_note={source_note}", file=sys.stderr)
 
     config = _make_config(types, base_config, tools, 8192)
     config_min = _make_config(types, base_config, tools, 512)
