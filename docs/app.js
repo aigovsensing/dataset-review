@@ -121,8 +121,16 @@
     results: "📋 검토 결과",
     dashboard: "📊 대시보드",
     how: "ℹ️ 이용 안내",
+    "paper-request": "📝 논문 검토 요청",
+    "paper-results": "📋 논문 검토 결과",
+    "paper-how": "ℹ️ 논문 이용 안내",
   };
   const VALID_TABS = Object.keys(TAB_LABELS);
+
+  // 검토 유형(모드) 판별: paper-* 탭이면 논문 모드, 그 외 데이터셋 모드.
+  function deriveMode(tab) {
+    return String(tab || "").indexOf("paper") === 0 ? "paper" : "dataset";
+  }
 
   // 대시보드 세부 메뉴 딥링크: #dashboard/<section>
   //   #dashboard/stats, /litigation, /charts, /trend, /table, /confidence
@@ -151,11 +159,18 @@
   }
   function applyTabFromHash() {
     const { tab: target, sub } = parseHash();
+    const mode = deriveMode(target);
+    // 검토 유형(모드) 반영: 해당 모드의 nav/패널만 노출
+    root.setAttribute("data-mode", mode);
+    document.querySelectorAll("[data-mode-btn]").forEach((b) =>
+      b.classList.toggle("active", b.getAttribute("data-mode-btn") === mode)
+    );
     document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === target));
     document.querySelectorAll(".tab-panel").forEach((p) => {
       p.classList.toggle("active", p.id === `tab-${target}`);
     });
     if (target === "results") loadResults();
+    if (target === "paper-results") loadPaperResults();
     if (target === "dashboard") {
       const wantSub = sub && DASH_SECTIONS.includes(sub) ? sub : null;
       if (wantSub) dashState.section = wantSub; // 첫 렌더 시 이 섹션이 열리도록
@@ -165,6 +180,15 @@
       if (wasLoaded && wantSub) activateDashSection(wantSub);
     }
   }
+
+  // 검토 유형(모드) 전환 버튼: 해당 모드의 기본 탭으로 이동.
+  document.querySelectorAll("[data-mode-btn]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const m = btn.getAttribute("data-mode-btn");
+      if (deriveMode(currentTab()) === m) return; // 이미 해당 모드면 무시
+      location.hash = m === "paper" ? "paper-request" : "dashboard";
+    });
+  });
 
   document.querySelectorAll(".tab").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -437,6 +461,112 @@
       $("#preview").open = true;
     });
   }
+
+  // ═══════════════ 논문 리뷰 (paper) ═══════════════
+  const paperTemplate = cfg.paperTemplate || "paper-review.yml";
+  const paperLabel = cfg.paperLabel || "paper-review";
+
+  function paperValues() {
+    return {
+      title: (document.getElementById("paper-title") || {}).value ?
+        document.getElementById("paper-title").value.trim() : "",
+      url: (document.getElementById("paper-url") || {}).value ?
+        document.getElementById("paper-url").value.trim() : "",
+      notes: (document.getElementById("paper-extra-notes") || {}).value ?
+        document.getElementById("paper-extra-notes").value.trim() : "",
+    };
+  }
+  // 이슈 폼(paper-review.yml) prefill URL. 필드 id: paper-title / paper-url / extra-notes
+  function buildPaperIssueUrl(v) {
+    const params = new URLSearchParams();
+    params.set("template", paperTemplate);
+    params.set("title", `[논문검토] ${v.title || ""}`.trim());
+    if (v.title) params.set("paper-title", v.title);
+    if (v.url) params.set("paper-url", v.url);
+    if (v.notes) params.set("extra-notes", v.notes);
+    return `${repoUrl}/issues/new?${params.toString()}`;
+  }
+
+  const paperForm = $("#paper-form");
+  if (paperForm) {
+    paperForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = paperValues();
+      if (!v.url) {
+        alert("논문 PDF 또는 웹사이트 URL 을 입력해 주세요.");
+        return;
+      }
+      window.open(buildPaperIssueUrl(v), "_blank", "noopener");
+    });
+  }
+  const paperPreviewBtn = $("#paper-preview-btn");
+  if (paperPreviewBtn) {
+    paperPreviewBtn.addEventListener("click", () => {
+      const v = paperValues();
+      const lines = [
+        `제목: [논문검토] ${v.title || ""}`,
+        "",
+        `논문 제목: ${v.title || "(미입력 — 원문에서 확인)"}`,
+        `논문 PDF / 웹사이트 URL: ${v.url || "(미입력)"}`,
+        `추가 참고 사항: ${v.notes || "-"}`,
+      ];
+      $("#paper-preview-body").textContent = lines.join("\n");
+      $("#paper-preview").open = true;
+    });
+  }
+
+  // 논문 검토 결과 목록
+  const paperIssuesUrl = `${repoUrl}/issues?q=is%3Aissue+label%3A${encodeURIComponent(paperLabel)}`;
+  const paperGhLink =
+    `<p><a class="btn ghost small" target="_blank" rel="noopener" href="${paperIssuesUrl}">` +
+    `GitHub에서 이슈 보기 →</a></p>`;
+  let paperLoaded = false;
+  function loadPaperResults(force) {
+    const box = $("#paper-results-list");
+    if (!box) return;
+    if (paperLoaded && !force) return;
+    paperLoaded = true;
+    box.innerHTML = '<p class="dim">불러오는 중…</p>';
+    const api = `https://api.github.com/repos/${owner}/${repo}/issues?labels=${encodeURIComponent(
+      paperLabel
+    )}&state=all&per_page=100&sort=created&direction=desc`;
+    fetch(api, { headers: apiHeaders() })
+      .then((res) => {
+        if (!res.ok) throw new Error("paper issues " + res.status);
+        return res.json();
+      })
+      .then((issues) => {
+        const rows = (issues || []).filter((i) => !i.pull_request);
+        if (!rows.length) {
+          box.innerHTML =
+            '<p class="dim">아직 논문 검토 결과가 없습니다. 첫 논문을 검토 요청해 보세요.</p>' + paperGhLink;
+          return;
+        }
+        box.innerHTML = rows.map((i) => {
+          const date = i.created_at ? new Date(i.created_at).toLocaleDateString("ko-KR") : "";
+          const labels = (i.labels || []).map((l) => (typeof l === "string" ? l : l.name));
+          let badge = '<span class="pbadge warn">대기</span>';
+          if (labels.indexOf("reviewed") > -1) badge = '<span class="pbadge ok">✅ 검토 완료</span>';
+          else if (labels.indexOf("review-failed") > -1) badge = '<span class="pbadge fail">⚠️ 실패</span>';
+          else if (labels.indexOf("reviewing") > -1) badge = '<span class="pbadge warn">⏳ 검토 중</span>';
+          const st = i.state === "closed" ? "닫힘" : "열림";
+          const title = escapeHtml(String(i.title || "").replace(/^\s*\[논문검토\]\s*/, "")) || ("#" + i.number);
+          return (
+            `<a class="paper-item" href="${i.html_url}" target="_blank" rel="noopener">` +
+            `<span class="pi-title">📄 ${title}</span>` +
+            `<span class="pi-meta">${badge}<span class="dim">#${i.number} · ${date} · ${st}</span></span>` +
+            `</a>`
+          );
+        }).join("");
+      })
+      .catch(() => {
+        box.innerHTML =
+          '<p class="dim">목록을 불러올 수 없습니다(공용 IP 레이트리밋일 수 있음). 잠시 후 다시 시도하세요.</p>' +
+          paperGhLink;
+      });
+  }
+  const paperRefresh = $("#paper-refresh-btn");
+  if (paperRefresh) paperRefresh.addEventListener("click", () => loadPaperResults(true));
 
   // ---- 검토 결과 목록 ----
   const CACHE_KEY = `dr_results_${owner}_${repo}`;

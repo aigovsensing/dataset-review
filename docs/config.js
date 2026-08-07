@@ -6,6 +6,9 @@ window.DATASET_REVIEW_CONFIG = {
   template: "dataset-review.yml",
   // 검토 요청 이슈에 부여되는 라벨
   label: "dataset-review",
+  // 연구논문 리뷰용 템플릿 / 라벨
+  paperTemplate: "paper-review.yml",
+  paperLabel: "paper-review",
 
   // ── 간이 접근 암호(약한 게이트) ──────────────────────────────────────
   // 정적 페이지라 실제 보안이 아니라 "아무나 접속" 차단용 최소 장치입니다.

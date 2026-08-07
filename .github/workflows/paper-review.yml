@@ -1,0 +1,88 @@
+name: 연구논문 법무 검토
+
+on:
+  issues:
+    types: [opened, labeled]
+
+# 같은 이슈의 실행을 직렬화하되, 진행 중인 실행은 취소하지 않는다(데이터셋 검토와 동일 정책).
+concurrency:
+  group: paper-review-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  review:
+    # 실행 조건 (누구나 사용 가능 — 작성자 권한 제한 없음):
+    #  1) 'paper-review' 라벨이 있는 이슈만 검토.
+    #  2) opened: 신규 이슈이고 아직 'reviewed' 가 아닐 때 1회.
+    #  3) labeled: 'rerun-review'(재검토)가 새로 붙었을 때만 실행.
+    if: >
+      contains(github.event.issue.labels.*.name, 'paper-review') &&
+      ( ( github.event.action == 'opened' &&
+          !contains(github.event.issue.labels.*.name, 'reviewed') ) ||
+        ( github.event.action == 'labeled' &&
+          github.event.label.name == 'rerun-review' ) )
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v5
+
+      - name: Python 설정
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: pip install -r scripts/requirements.txt
+
+      - name: 검토 시작 알림
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-label "reviewing" --repo "$GITHUB_REPOSITORY" || true
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body "🤖 자동 논문 법무 검토를 시작합니다. 잠시만 기다려 주세요 (보통 1~3분 소요)."
+
+      - name: 논문 법무 검토 실행
+        id: run_review
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-flash-latest' }}
+          GEMINI_SERVICE_TIER: ${{ vars.GEMINI_SERVICE_TIER || 'Standard' }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REVIEW_OUTPUT: review.md
+        run: python scripts/paper_review.py
+        continue-on-error: true
+
+      - name: 검토 결과 이슈 댓글 등록
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file review.md
+
+      - name: 라벨 정리
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REVIEW_OUTCOME: ${{ steps.run_review.outcome }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "reviewing" || true
+          gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "rerun-review" || true
+          if [ "$REVIEW_OUTCOME" = "success" ]; then
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "reviewed" || true
+          else
+            gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "review-failed" || true
+          fi
+
+      - name: 검토 실패 시 run 을 실패로 표시
+        if: steps.run_review.outcome != 'success'
+        run: |
+          echo "::error::논문 법무 검토 실행이 실패했습니다. 이슈 댓글의 오류 메시지를 확인하세요."
+          exit 1

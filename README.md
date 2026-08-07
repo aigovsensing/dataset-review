@@ -181,14 +181,21 @@ flowchart TD
 `gh` CLI로 한 번에 생성:
 ```bash
 R=<owner>/<repo>
-gh label create dataset-review --repo $R --color 1d76db --description "검토 요청 (트리거)" --force
+gh label create dataset-review --repo $R --color 1d76db --description "데이터셋 검토 요청 (트리거)" --force
+gh label create paper-review   --repo $R --color 8250df --description "연구논문 검토 요청 (트리거)" --force
 gh label create reviewing      --repo $R --color fbca04 --description "검토 진행 중" --force
 gh label create reviewed       --repo $R --color 0e8a16 --description "검토 완료" --force
 gh label create review-failed  --repo $R --color d73a4a --description "검토 실패" --force
 gh label create rerun-review   --repo $R --color 5319e7 --description "재검토 강제 실행" --force
 ```
 
-✅ 확인: 저장소 **Issues → Labels** 에 위 5개 라벨이 보이면 정상.
+✅ 확인: 저장소 **Issues → Labels** 에 위 6개 라벨이 보이면 정상.
+
+> **검토 유형 2가지:** 이 저장소는 **데이터셋 검토**(`dataset-review` 라벨 → `scripts/review.py`)와
+> **연구논문 법무 검토**(`paper-review` 라벨 → `scripts/paper_review.py`) 두 워크플로를 제공합니다.
+> 홈페이지 상단의 **🗂️ 데이터셋 리뷰 / 📄 논문 리뷰** 전환 버튼으로 각 요청 폼·결과 목록을 이용합니다.
+> 논문 검토는 PDF 링크(원문 직접 판독) 또는 논문 웹페이지 URL 을 입력받아 **개인정보 · 저작권 ·
+> 데이터셋 검증(외부 Dataset 사용 vs 자체 생성 데이터)** 을 논문 원문 기반으로 검토합니다.
 
 ### 5. 접근 암호 설정 (선택, 약한 게이트)
 
