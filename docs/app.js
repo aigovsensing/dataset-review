@@ -10,7 +10,8 @@
     "dataset-name",
     "related-datasets",
     "paper-urls",
-    "homepage-url",
+    "dataset-repo-url",
+    "code-repo-url",
     "litigation-url",
     "extra-notes",
   ];
@@ -453,7 +454,8 @@
         `데이터셋 명칭: ${values["dataset-name"] || "(미입력)"}`,
         `관련 / 원본 데이터셋: ${values["related-datasets"] || "-"}`,
         `논문 주소: ${values["paper-urls"] || "-"}`,
-        `공식 홈페이지 / 저장소: ${values["homepage-url"] || "-"}`,
+        `데이터셋 저장소: ${values["dataset-repo-url"] || "-"}`,
+        `소스코드 저장소: ${values["code-repo-url"] || "-"}`,
         `관련 소송 (CourtListener): ${values["litigation-url"] || "-"}`,
         `추가 참고 사항: ${values["extra-notes"] || "-"}`,
       ];

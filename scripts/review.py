@@ -37,6 +37,9 @@ FIELD_LABELS = {
     "데이터셋 명칭": "dataset_name",
     "관련 / 원본 데이터셋": "related_datasets",
     "논문 주소 (URL)": "paper_urls",
+    "데이터셋 저장소 URL": "dataset_repo_url",
+    "소스코드 저장소 URL": "code_repo_url",
+    # 구버전 폼 호환: 과거 이슈의 "공식 홈페이지 / 저장소 URL" 도 계속 인식
     "공식 홈페이지 / 저장소 URL": "homepage_url",
     "관련 소송 (CourtListener URL)": "litigation_url",
     "추가 참고 사항": "extra_notes",
@@ -115,8 +118,19 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
         lines.append(f"- 관련 / 원본 데이터셋: {fields['related_datasets']}")
     if fields.get("paper_urls"):
         lines.append(f"- 논문 주소: {fields['paper_urls']}")
-    if fields.get("homepage_url"):
+    if fields.get("dataset_repo_url"):
+        lines.append(f"- 데이터셋 저장소(라이선스 1차 근거): {fields['dataset_repo_url']}")
+    if fields.get("code_repo_url"):
+        lines.append(f"- 소스코드 저장소(참고 — 코드 라이선스, 데이터셋 라이선스와 구분): {fields['code_repo_url']}")
+    if fields.get("homepage_url"):  # 구버전 폼 호환
         lines.append(f"- 공식 홈페이지 / 저장소: {fields['homepage_url']}")
+    if fields.get("dataset_repo_url") or fields.get("code_repo_url"):
+        lines.append(
+            "\n[라이선스 판정 기준] 라이선스는 반드시 **데이터셋 저장소/데이터셋 자체의 라이선스**를 기준으로 "
+            "판정한다. 소스코드 저장소(GitHub 등)의 라이선스는 코드에만 적용될 수 있어 데이터셋 라이선스와 "
+            "다를 수 있으므로, 둘이 다르면 **데이터셋 라이선스를 우선**하고 코드 라이선스는 참고로만 언급한다. "
+            "데이터셋 저장소에 라이선스가 명시돼 있으면 그 원문을 인용한다."
+        )
     if fields.get("litigation_url"):
         lines.append(f"- 관련 소송 (CourtListener): {fields['litigation_url']}")
         cl = parse_courtlistener_url(fields["litigation_url"])
@@ -704,7 +718,7 @@ def run_review(title: str, body: str) -> str:
     # API 를 호출하지 않고 즉시 실패 처리하여 무료 쿼터 낭비를 막는다.
     if not name and not any(
         fields.get(k)
-        for k in ("related_datasets", "paper_urls", "homepage_url", "litigation_url")
+        for k in ("related_datasets", "paper_urls", "dataset_repo_url", "code_repo_url", "homepage_url", "litigation_url")
     ):
         raise RuntimeError(
             "검토할 데이터셋 정보가 없습니다 (명칭·URL 모두 미입력). "
