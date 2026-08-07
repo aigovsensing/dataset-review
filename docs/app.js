@@ -293,7 +293,7 @@
     const params = new URLSearchParams();
     params.set("template", template);
     const name = values["dataset-name"] || "";
-    params.set("title", `[검토] ${name}`.trim());
+    params.set("title", `[데이터셋검토] ${name}`.trim());
     fieldIds.forEach((id) => {
       if (values[id]) params.set(id, values[id]);
     });
@@ -305,9 +305,9 @@
   function normalizeName(s) {
     return String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
   }
-  // 이슈 제목 "[검토] {명칭}" 에서 데이터셋 명칭만 추출.
+  // 이슈 제목 "[데이터셋검토] {명칭}"(구: "[검토]")에서 데이터셋 명칭만 추출.
   function datasetFromTitle(title) {
-    const m = /^\s*\[검토\]\s*(.*)$/.exec(String(title || ""));
+    const m = /^\s*\[(?:데이터셋검토|검토)\]\s*(.*)$/.exec(String(title || ""));
     return (m ? m[1] : String(title || "")).trim();
   }
 
@@ -346,7 +346,7 @@
         if (hit) {
           return {
             number: hit.issue,
-            title: hit.dataset ? `[검토] ${hit.dataset}` : `#${hit.issue}`,
+            title: hit.dataset ? `[데이터셋검토] ${hit.dataset}` : `#${hit.issue}`,
             url: hit.url || `${repoUrl}/issues/${hit.issue}`,
           };
         }
@@ -448,7 +448,7 @@
     previewBtn.addEventListener("click", () => {
       const values = collectValues();
       const lines = [
-        `제목: [검토] ${values["dataset-name"] || ""}`,
+        `제목: [데이터셋검토] ${values["dataset-name"] || ""}`,
         "",
         `데이터셋 명칭: ${values["dataset-name"] || "(미입력)"}`,
         `관련 / 원본 데이터셋: ${values["related-datasets"] || "-"}`,
@@ -679,7 +679,7 @@
       if (r.status && r.status !== "pending") labels.push({ name: r.status });
       return {
         number: r.issue,
-        title: r.dataset ? `[검토] ${r.dataset}` : `#${r.issue}`,
+        title: r.dataset ? `[데이터셋검토] ${r.dataset}` : `#${r.issue}`,
         html_url: r.url,
         created_at: r.created_at,
         state: r.state, // 구버전 JSON 엔 없을 수 있음(그때는 상태·댓글 표기 생략)

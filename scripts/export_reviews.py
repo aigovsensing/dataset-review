@@ -325,7 +325,7 @@ def main() -> int:
             k: "" for k in LITIGATION_FIELDS
         }
         title = it.get("title", "")
-        dataset = parsed["dataset"] or re.sub(r"^\s*\[검토\]\s*", "", title).strip()
+        dataset = parsed["dataset"] or re.sub(r"^\s*\[(?:데이터셋검토|검토)\]\s*", "", title).strip()
         rows.append({
             "issue": num,
             "dataset": dataset,

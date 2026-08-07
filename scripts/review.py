@@ -69,7 +69,7 @@ def derive_dataset_name(title: str, fields: dict[str, str]) -> str:
     """폼의 데이터셋 명칭을 우선 사용하고, 없으면 제목에서 접두어를 제거해 추정."""
     name = fields.get("dataset_name", "").strip()
     if not name and title:
-        name = re.sub(r"^\s*\[검토\]\s*", "", title).strip()
+        name = re.sub(r"^\s*\[(?:데이터셋검토|검토)\]\s*", "", title).strip()
     return name
 
 

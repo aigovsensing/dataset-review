@@ -565,7 +565,7 @@ Actions 탭에서 워크플로가 `Skipped` 라면 실행 조건 미충족입니
 ```bash
 pip install -r scripts/requirements.txt
 export GEMINI_API_KEY=...           # AI Studio 키
-export ISSUE_TITLE="[검토] CelebA"
+export ISSUE_TITLE="[데이터셋검토] CelebA"
 export ISSUE_BODY="### 데이터셋 명칭
 
 CelebA

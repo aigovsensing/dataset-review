@@ -1,6 +1,6 @@
 name: 오픈 데이터셋 법적 리스크 검토 요청
 description: 오픈 데이터셋의 라이선스·생성방식·개인정보 법적 리스크 자동 검토를 요청합니다.
-title: "[검토] "
+title: "[데이터셋검토] "
 labels: ["dataset-review"]
 body:
   - type: markdown
