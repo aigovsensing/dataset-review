@@ -1,12 +1,12 @@
 {
-  "exported_at": "2026-08-07T07:35:49.131541Z",
+  "exported_at": "2026-08-07T07:41:53.230489Z",
   "rows": [
     {
       "issue": 35,
       "dataset": "LIBERO-plus",
       "verdict": "",
       "model": "",
-      "status": "pending",
+      "status": "reviewed",
       "review_confidence": "",
       "license_check": "",
       "license_judgment": "",
@@ -34,7 +34,7 @@
       "litigation_basis": "",
       "author": "aigovsensing",
       "created_at": "2026-08-07T07:35:30Z",
-      "updated_at": "2026-08-07T07:35:30Z",
+      "updated_at": "2026-08-07T07:41:44Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/35",
       "state": "open",
       "comments": 0
