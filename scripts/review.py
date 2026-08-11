@@ -8,8 +8,9 @@ Google 검색 그라운딩과 함께 호출하여 법적 리스크 검토 보고
 
 환경 변수
 ----------
-GEMINI_API_KEY : (필수) Google AI Studio API 키
-GEMINI_MODEL   : (선택) 사용할 모델. 기본값 gemini-2.5-flash
+GEMINI_API_KEY        : (필수) Google AI Studio API 키
+GEMINI_MODEL          : (선택) 주 모델. 기본값 gemini-flash-latest(항상 최신 Flash=3.6)
+GEMINI_MODEL_FALLBACKS: (선택) 쉼표 구분 폴백 목록. 미설정 시 3.6→3.5→…→2.5 순 기본 체인
 ISSUE_TITLE    : (선택) 이슈 제목
 ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 """
@@ -642,9 +643,13 @@ def build_model_chain(primary: str) -> list[str]:
     기본 폴백 체인은 **품질 우선(최신 3.x부터) → 안정성(무료 쿼터가 큰 2.5로 하강)**
     으로 구성한다. 무료 티어에서는 최신 모델의 일일 쿼터가 작아 상시 소진되기 쉬우므로,
     끝을 무료 쿼터가 가장 큰 gemini-2.5-flash-lite 로 두어 어떤 경우에도 답변을 보장한다.
-    (참고: 주 모델 별칭 gemini-flash-latest 가 현재 gemini-3.5-flash 로 해석되면 첫
-     폴백 gemini-3.5-flash 는 같은 쿼터 풀이라 429 시 곧바로 다음으로 넘어간다. 이는
-     향후 별칭이 상위 세대로 올라갈 때 3.5 를 실질 폴백으로 살리기 위한 의도된 중복이다.)
+
+    ⭐ 첫 폴백을 최신 stable 모델 gemini-3.6-flash 로 둔다. 주 모델 별칭
+    gemini-flash-latest 는 현재 gemini-3.6-flash 로 해석되지만, 별칭 호출이 일시적
+    오류·빈 응답을 반환하면 곧바로 구세대(2.5)로 떨어지는 문제가 있었다. 별칭이 실패해도
+    stable 엔드포인트로 3.6 을 한 번 더 명시적으로 시도해, 2.5 로 내려가기 전에 최신
+    세대를 최대한 유지한다. (별칭 라우팅과 stable 엔드포인트는 장애 지점이 달라 재시도
+    가치가 크다.) 이어서 3.5 → 3.x-lite 로 같은 세대를 소진한 뒤에야 2.5 로 하강한다.
     stable 모델 ID 는 https://ai.google.dev/gemini-api/docs/models 기준이며,
     3.1 은 풀 flash 가 없어 flash-lite 만 존재한다. (프리뷰/실험 모델은 불안정하여 제외)
     """
@@ -654,7 +659,9 @@ def build_model_chain(primary: str) -> list[str]:
         [m.strip() for m in env_fb.split(",") if m.strip()]
         if env_fb
         else [
-            "gemini-3.5-flash",       # 최신 풀 Flash (품질 우선)
+            "gemini-3.6-flash",       # 최신 stable Flash (별칭 실패 시에도 3.6 을 한 번 더 명시 시도)
+            "gemini-3.5-flash",       # 이전 세대 풀 Flash
+            "gemini-3.5-flash-lite",  # 3.5 세대 경량
             "gemini-3.1-flash-lite",  # 3.x 세대 경량
             "gemini-2.5-flash",       # 안정성 축 (무료 쿼터 넉넉)
             "gemini-2.5-flash-lite",  # 최종 안전망 (무료 쿼터 최대)

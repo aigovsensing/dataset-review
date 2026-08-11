@@ -117,8 +117,8 @@ flowchart TD
 - **트리거 판정(누구나 사용 가능)**: ① `dataset-review` 라벨 + ② `opened`(신규)·`rerun-review` 이벤트
   — **둘 다 충족**하면 작성자 권한과 무관하게 검토를 실행합니다. 작성자 권한(`author_association`)
   검사는 하지 않으므로 외부인 이슈도 자동 검토됩니다.
-- **모델 폴백**: `gemini-flash-latest`(→ 최신 3.5 Flash) → `gemini-3.5-flash` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite` (품질 우선 → 안정성 하강).
-  `429`(쿼터 소진)·사용 불가면 다음 모델로 자동 폴백합니다.
+- **모델 폴백**: `gemini-flash-latest`(→ 최신 3.6 Flash) → `gemini-3.6-flash` → `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite` (품질 우선 → 안정성 하강).
+  `429`(쿼터 소진)·사용 불가면 다음 모델로 자동 폴백합니다. 별칭 호출이 실패해도 **stable `gemini-3.6-flash` 를 한 번 더 명시적으로 시도**해 2.5 로 내려가기 전 최신 세대를 최대한 유지합니다.
 - **잘림 대응**: 출력이 `MAX_TOKENS`로 잘리면 같은 모델로 **1회 재생성**합니다.
 - **결과 분기**: 성공 → `reviewed` 라벨 + 검토 보고서 댓글 / 실패(모든 모델 쿼터 소진 등) →
   `review-failed` 라벨 + 실패 댓글(`rerun-review`로 재시도).
@@ -375,8 +375,10 @@ collection_check/judgment, privacy_check/judgment, litigation(소송 여부), au
 ### 모델 선택과 무료 한도 (`GEMINI_MODEL`)
 
 기본값은 **`gemini-flash-latest`** — 항상 최신 Flash 로 자동 실행되어 검토 품질을 확보합니다
-(현재 → **`gemini-3.5-flash`** 로 해석). 실제 사용된 버전은 검토 결과 **최상단 `모델 정보`** 줄에
+(현재 → **`gemini-3.6-flash`** 로 해석, 2026-07-21 GA). 실제 사용된 버전은 검토 결과 **최상단 `모델 정보`** 줄에
 표시됩니다. 버전을 바꾸려면 저장소 **Variables** 탭에 `GEMINI_MODEL` 을 지정하세요.
+3.6 을 반드시 쓰고 싶다면 `GEMINI_MODEL=gemini-3.6-flash` 로 고정할 수 있고, 고정하지 않아도 폴백
+체인 첫 단계가 stable `gemini-3.6-flash` 라 별칭 실패 시에도 3.6 이 한 번 더 시도됩니다.
 검토 1건 = 호출 1회이므로 **하루 검토 가능 건수 ≈ 모델의 일일 요청 한도(RPD)** 입니다.
 
 #### 무료 티어 사용 가능 모델
@@ -388,9 +390,11 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 
 | 모델 ID | 세대 | 무료 티어 | 무료 일일 한도(RPD)\* | 품질 · 특성 |
 | --- | --- | :--: | --- | --- |
-| `gemini-flash-latest` (별칭) | 최신 | ✅ | 해석 버전 따름 | 항상 최신 Flash 로 해석(현재 → 3.5). **기본값** |
-| `gemini-3.5-flash` | 3.5 | ✅ | 작음 | 최신 풀 Flash — 품질 최상, 한도 작음 |
-| `gemini-3.1-flash-lite` | 3.1 | ✅ | 중간 | 최신 세대 경량 — 품질·한도 균형 |
+| `gemini-flash-latest` (별칭) | 최신 | ✅ | 해석 버전 따름 | 항상 최신 Flash 로 해석(현재 → 3.6). **기본값** |
+| `gemini-3.6-flash` | 3.6 | ✅ | 작음 | 최신 stable 풀 Flash — 품질 최상, 한도 작음. **폴백 1순위** |
+| `gemini-3.5-flash` | 3.5 | ✅ | 작음 | 이전 세대 풀 Flash |
+| `gemini-3.5-flash-lite` | 3.5 | ✅ | 중간 | 3.5 세대 경량 — 품질·한도 균형 |
+| `gemini-3.1-flash-lite` | 3.1 | ✅ | 중간 | 3.x 세대 경량 — 품질·한도 균형 |
 | `gemini-2.5-flash` | 2.5 | ✅ | 중간 (~250) | 안정적 · 무료 한도 넉넉 |
 | `gemini-2.5-flash-lite` | 2.5 | ✅ | 큼 (~1,000) | **최대 무료 한도** · 최저 비용(품질 다소 낮음) |
 | `gemini-2.5-pro` | 2.5 | ✅ | 작음 (~100) | 가장 정밀 · 한도 작음 |
@@ -403,13 +407,13 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 > ⚠️ **한 가지 주의:** 실제로 `gemini-3.1-flash` 같은 정확한 모델 ID가 존재하는지는
 > [Google 공식 모델 목록](https://ai.google.dev/gemini-api/docs/models)에서 확인하세요. 존재하지
 > 않는 ID를 넣으면 **404로 그 모델은 건너뛰고 폴백**됩니다. 이 저장소 코드/문서는 최신을
-> `gemini-3.5-flash` 로 가정하고 있습니다. (예: `3.1` 은 풀 flash 가 없고 `gemini-3.1-flash-lite`
+> `gemini-3.6-flash` 로 가정하고 있습니다. (예: `3.1` 은 풀 flash 가 없고 `gemini-3.1-flash-lite`
 > 만 존재합니다.)
 
 > ✅ **모델 자동 폴백**: 무료 티어 일일 쿼터는 **모델별로 분리**됩니다. 그래서 기본 모델이
 > `429`(쿼터 소진)이거나 사용 불가하면 **다음 모델로 자동 폴백**해 검토를 계속합니다 —
 > 기본 체인은 **품질 우선(최신 3.x) → 안정성(무료 쿼터가 큰 2.5)** 순으로 내려간다:
-> **`gemini-flash-latest`(→3.5) → `gemini-3.5-flash` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite`**.
+> **`gemini-flash-latest`(→3.6) → `gemini-3.6-flash` → `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite`**.
 > 무료 티어에서는 최신 3.x 쿼터가 작아 상시 소진되기 쉬우므로, 끝을 무료 쿼터가 가장 큰
 > `gemini-2.5-flash-lite` 로 두어 **어떤 경우에도 답변을 보장**한다. 폴백이 일어나면 결과 상단
 > `모델 정보` 에 실제 사용된 모델이 표시됩니다.
@@ -436,9 +440,10 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 
 **`GEMINI_MODEL` 을 언제 지정하나** (기본은 미설정 = `gemini-flash-latest` 권장):
 
-- **그대로 둔다 (권장)** — 최신 3.5 Flash 로 검토하고, 쿼터가 소진되면 위 폴백 체인
-  (`gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite`)으로 자동 하강해
+- **그대로 둔다 (권장)** — 최신 3.6 Flash 로 검토하고, 쿼터가 소진되면 위 폴백 체인
+  (`gemini-3.6-flash` → `gemini-3.5-flash` → … → `gemini-2.5-flash-lite`)으로 자동 하강해
   하루 검토 가능량이 늘어납니다.
+- **3.6 으로 고정** — 항상 최신 stable 3.6 을 쓰려면 `GEMINI_MODEL=gemini-3.6-flash`.
 - **처음부터 2.5 로 고정** — 3.x 쿼터 시도 자체를 건너뛰려면 `GEMINI_MODEL=gemini-2.5-flash`.
 - **최대 검토량** — 무료 한도가 가장 큰 `gemini-2.5-flash-lite`(품질은 다소 낮음).
 - **최고 정밀도** — `gemini-2.5-pro`(한도가 작아 소량 검토에 적합).
@@ -465,16 +470,17 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 
 | 모델 (`GEMINI_MODEL`) | 입력 단가 | 출력 단가 | 검토 1건 토큰 비용\* | 그라운딩(무료 한도 초과 시) |
 | --- | --- | --- | --- | --- |
-| `gemini-flash-latest` (**기본값**) | 해석 버전 따름 | 해석 버전 따름 | 현재 → `gemini-3.5-flash` = **≈ $0.08** | 현재 3.x = +$0.014/건 (월 5,000건 무료 후) |
+| `gemini-flash-latest` (**기본값**) | 해석 버전 따름 | 해석 버전 따름 | 현재 → `gemini-3.6-flash` ≈ 3.x Flash 수준 | 현재 3.x = +$0.014/건 (월 5,000건 무료 후) |
+| `gemini-3.6-flash` (현재 최신) | 3.x Flash 단가 | 3.x Flash 단가 | **≈ $0.08** (3.5 Flash 기준 추정) | +$0.014/건 (월 5,000건 무료 후) |
 | `gemini-3.5-flash` | $1.50 / 1M | $9.00 / 1M | **≈ $0.08** | +$0.014/건 (월 5,000건 무료 후) |
 | `gemini-2.5-flash` | $0.30 / 1M | $2.50 / 1M | **≈ $0.02** | +$0.035/건 (일 1,500건 무료 후) |
 | `gemini-2.5-flash-lite` (최저가) | $0.10 / 1M | $0.40 / 1M | **≈ $0.004** | +$0.035/건 (2.x 공유) |
 
-\* 입력 5K + 출력 8K tokens 가정, 그라운딩 무료 구간 기준. 기본값(→ 3.5 Flash)은 검토 1건 ≈ $0.08,
+\* 입력 5K + 출력 8K tokens 가정, 그라운딩 무료 구간 기준. 기본값(→ 3.6 Flash, 3.x 세대)은 검토 1건 ≈ $0.08,
 `gemini-2.5-flash` 로 고정하면 약 1/4, `gemini-2.5-flash-lite` 는 약 1/20 수준입니다
 (모델 선택은 [위 섹션](#모델-선택과-무료-한도-gemini_model) 참고).
 
-#### ② 검토 요청 횟수별 예상 비용 (기본값 `gemini-flash-latest` → 현재 `gemini-3.5-flash` 기준)
+#### ② 검토 요청 횟수별 예상 비용 (기본값 `gemini-flash-latest` → 현재 `gemini-3.6-flash` 기준)
 
 | 검토 요청 횟수 | 실제 Gemini 호출 횟수 | 무료 티어 비용 | 유료 티어 예상 비용 | 비고 |
 | --- | --- | --- | --- | --- |
