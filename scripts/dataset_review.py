@@ -633,6 +633,19 @@ def is_fallbackable(exc: Exception) -> bool:
     return code in (429, 404) or any(m in msg for m in _FALLBACK_MARKERS) or is_transient(exc)
 
 
+def fallback_reason_tag(exc: Exception) -> str:
+    """폴백 사유를 사람이 읽기 쉬운 짧은 태그로 분류(결과 헤더·로그 표기용)."""
+    code = getattr(exc, "code", None)
+    msg = str(exc).lower()
+    if code == 429 or any(m in msg for m in ("resource_exhausted", "quota", "rate limit")):
+        return "429 무료 쿼터 소진"
+    if code == 404 or any(m in msg for m in ("not_found", "not found", "not supported")):
+        return "404 모델 미지원/불가"
+    if is_transient(exc):
+        return "503 일시 과부하"
+    return type(exc).__name__
+
+
 def build_model_chain(primary: str) -> list[str]:
     """사용자 지정 모델을 최우선으로, 품질→안정성 순으로 내려가는 폴백 체인.
 
@@ -778,6 +791,7 @@ def run_review(title: str, body: str) -> str:
     finish_reason = ""
     used_model = model
     gen_error: Exception | None = None
+    requested_fail_reason = ""  # 요청 모델이 왜 사용되지 못했는지(429/404/503/빈 응답)
 
     for ci, cand in enumerate(model_chain):
         used_model = cand
@@ -821,6 +835,8 @@ def run_review(title: str, body: str) -> str:
             # → 같은 config 재시도로는 동일 결과일 가능성이 크므로 다음(더 안정적인) 모델로 폴백.
             if ci < len(model_chain) - 1:
                 nxt = model_chain[ci + 1]
+                if cand == model and not requested_fail_reason:
+                    requested_fail_reason = "빈 응답(STOP)"
                 print(
                     f"모델 `{cand}` 가 답변 없이 종료(빈 응답, finish_reason={finish_reason or '?'}) "
                     f"→ 다음 모델 `{nxt}` 로 폴백합니다.",
@@ -833,6 +849,8 @@ def run_review(title: str, body: str) -> str:
             gen_error = exc
             if is_fallbackable(exc) and ci < len(model_chain) - 1:
                 nxt = model_chain[ci + 1]
+                if cand == model and not requested_fail_reason:
+                    requested_fail_reason = fallback_reason_tag(exc)
                 print(
                     f"모델 `{cand}` 호출 실패({type(exc).__name__}: {str(exc)[:80]}) "
                     f"→ 다음 모델 `{nxt}` 로 폴백합니다.",
@@ -875,7 +893,8 @@ def run_review(title: str, body: str) -> str:
 
     # 검토 결과 최상단에 표시할 모델/티어 정보 헤더
     if used_model != model:
-        model_line = f"**모델 정보:** `{resolved_model}` (요청 `{model}` 쿼터 소진/불가 → 폴백)"
+        reason = requested_fail_reason or "사용 불가"
+        model_line = f"**모델 정보:** `{resolved_model}` (요청 `{model}` → {reason} → 폴백)"
     elif resolved_model != model:
         model_line = f"**모델 정보:** `{resolved_model}` (요청: `{model}`)"
     else:
