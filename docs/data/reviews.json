@@ -1,12 +1,12 @@
 {
-  "exported_at": "2026-08-12T06:01:55.974593Z",
+  "exported_at": "2026-08-12T06:53:20.507317Z",
   "rows": [
     {
       "issue": 64,
       "dataset": "vintage-ads",
       "verdict": "",
       "model": "",
-      "status": "reviewing",
+      "status": "reviewed",
       "review_confidence": "",
       "license_check": "",
       "license_judgment": "",
@@ -34,7 +34,7 @@
       "litigation_basis": "",
       "author": "aigovsensing",
       "created_at": "2026-08-12T06:01:13Z",
-      "updated_at": "2026-08-12T06:01:13Z",
+      "updated_at": "2026-08-12T06:52:53Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/64",
       "state": "open",
       "comments": 0
