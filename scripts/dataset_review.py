@@ -792,6 +792,7 @@ def run_review(title: str, body: str) -> str:
     used_model = model
     gen_error: Exception | None = None
     requested_fail_reason = ""  # 요청 모델이 왜 사용되지 못했는지(429/404/503/빈 응답)
+    attempts: list[tuple[str, bool]] = []  # 시도한 모델과 성공 여부(헤더에 폴백 경로 표기)
 
     for ci, cand in enumerate(model_chain):
         used_model = cand
@@ -829,10 +830,12 @@ def run_review(title: str, body: str) -> str:
                     )
             # 텍스트가 있으면(잘렸더라도) 이 응답을 채택하고 폴백 중단.
             if text:
+                attempts.append((cand, True))
                 gen_error = None
                 break
             # 예외는 없었지만 답변이 완전히 비었다(STOP인데 text 없음).
             # → 같은 config 재시도로는 동일 결과일 가능성이 크므로 다음(더 안정적인) 모델로 폴백.
+            attempts.append((cand, False))
             if ci < len(model_chain) - 1:
                 nxt = model_chain[ci + 1]
                 if cand == model and not requested_fail_reason:
@@ -847,6 +850,7 @@ def run_review(title: str, body: str) -> str:
             gen_error = None  # 마지막 모델까지 빈 응답 → 아래에서 RuntimeError
         except Exception as exc:  # noqa: BLE001 - 폴백 판단
             gen_error = exc
+            attempts.append((cand, False))
             if is_fallbackable(exc) and ci < len(model_chain) - 1:
                 nxt = model_chain[ci + 1]
                 if cand == model and not requested_fail_reason:
@@ -891,14 +895,18 @@ def run_review(title: str, body: str) -> str:
     service_tier = service_tier or "Standard"
     print(f"[diag] requested={model} used={used_model} resolved={resolved_model} tier={service_tier}", file=sys.stderr)
 
-    # 검토 결과 최상단에 표시할 모델/티어 정보 헤더
-    if used_model != model:
-        reason = requested_fail_reason or "사용 불가"
-        model_line = f"**모델 정보:** `{resolved_model}` (요청 `{model}` → {reason} → 폴백)"
-    elif resolved_model != model:
-        model_line = f"**모델 정보:** `{resolved_model}` (요청: `{model}`)"
-    else:
-        model_line = f"**모델 정보:** `{resolved_model}`"
+    # 검토 결과 최상단에 표시할 모델/티어 정보 헤더.
+    # 폴백 경로를 아이콘으로 시각화한다: ⛔ 실패/건너뜀 → 🟢 최종 사용 모델.
+    if not attempts:
+        attempts = [(used_model, True)]
+    chain_str = " → ".join(f"{'🟢' if ok else '⛔'} {m}" for m, ok in attempts)
+    # 별칭 등으로 실제 해석된 버전이 마지막 시도 ID 와 다르면 덧붙인다.
+    if resolved_model and resolved_model != attempts[-1][0]:
+        chain_str += f" (실제 버전: `{resolved_model}`)"
+    model_line = f"**모델 정보:** {chain_str}"
+    if used_model != model and requested_fail_reason:
+        # 요청 모델이 왜 폴백됐는지 사유를 한 줄 덧붙임(429/404/503/빈 응답)
+        model_line += f"\n<sub>요청 모델 `{model}` 폴백 사유: {requested_fail_reason}</sub>"
     model_header = f"{model_line}\n**서비스 티어:** {service_tier}\n"
 
     # 근거가 있는 문장 끝에 출처 링크([N])를 자동 삽입한다. 그라운딩 supports 의
