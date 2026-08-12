@@ -803,8 +803,10 @@ table.detail-table a.src-link:hover { text-decoration: underline; }
 .lit-empty { margin: 4px 2px 0; font-size: 0.9rem; }
 
 /* 카드 리스트(컴팩트): 데이터셋 1건 = 카드 1개, 세로 공간 최소화 */
-.lit-list { display: grid; gap: 8px; }
+/* minmax(0,1fr): 카드가 긴 텍스트(다건 소송 병합 등)로 컨테이너를 넘어 가로로 늘어나지 않게 함 */
+.lit-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .lit-card {
+  min-width: 0; overflow: hidden;
   border: 1px solid var(--border);
   border-left: 4px solid var(--text-dim);
   border-radius: 10px; background: var(--surface-2);
@@ -821,19 +823,23 @@ table.detail-table a.src-link:hover { text-decoration: underline; }
 .lit-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lit-card-ds {
   font-size: 1.02rem; font-weight: 800; color: var(--text);
-  display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto;
 }
 .lit-card-ds .chev { color: var(--text-dim); font-size: 0.8rem; flex: 0 0 auto; transition: transform 0.15s ease; }
 .lit-card.open .lit-card-ds .chev { transform: rotate(90deg); color: var(--primary); }
+.lit-card-head .lbadge { flex: 0 0 auto; }
 
+/* 사건명: 다건 소송 병합 등 긴 경우 최대 2줄까지만 표시(넘치면 …), 나머지는 펼침에서 확인 */
 .lit-card-case {
   margin-top: 4px; font-size: 0.9rem; font-weight: 600; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
 }
 
 .lit-parties {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px;
   margin-top: 5px; font-size: 0.83rem; color: var(--text);
+  min-width: 0; overflow-wrap: anywhere;
 }
 .lit-party { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
 .lit-party .role {
