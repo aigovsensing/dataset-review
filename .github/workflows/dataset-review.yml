@@ -72,7 +72,7 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           REVIEW_OUTPUT: review.md
-        run: python scripts/review.py
+        run: python scripts/dataset_review.py
         continue-on-error: true
 
       - name: 검토 결과 이슈 댓글 등록

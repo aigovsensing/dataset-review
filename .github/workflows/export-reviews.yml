@@ -9,8 +9,8 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/export_reviews.py"
-      - "scripts/export_papers.py"
+      - "scripts/export_dataset_reviews.py"
+      - "scripts/export_paper_reviews.py"
       - ".github/workflows/export-reviews.yml"
   issues:
     types: [labeled, unlabeled]
@@ -42,13 +42,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python scripts/export_reviews.py
+        run: python scripts/export_dataset_reviews.py
 
       - name: 논문 검토 결과 내보내기 (CSV/JSON 생성)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python scripts/export_papers.py
+        run: python scripts/export_paper_reviews.py
 
       - name: 변경 시 커밋·푸시
         run: |

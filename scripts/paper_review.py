@@ -6,8 +6,8 @@ Gemini API로 논문 원문을 판독하고 Legal Review 보고서를 생성한�
 - PDF URL(또는 arXiv abs) → 원문 PDF를 내려받아 Gemini에 직접 첨부(inline)해 판독.
 - 그 외 웹페이지 → url_context 도구로 페이지를 읽고(미지원 시 Google 검색) 검토.
 
-데이터셋 검토(review.py)와 동일한 실행 구조를 따르며, 공용 헬퍼(재시도·모델 폴백·
-빈 응답 복구·그라운딩 인용·실패 분류 등)를 review.py에서 재사용한다.
+데이터셋 검토(dataset_review.py)와 동일한 실행 구조를 따르며, 공용 헬퍼(재시도·모델
+폴백·빈 응답 복구·그라운딩 인용·실패 분류 등)를 dataset_review.py에서 재사용한다.
 
 환경 변수
 ----------
@@ -26,10 +26,10 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-import review as R  # 공용 헬퍼 재사용 (scripts/ 가 sys.path[0] 이므로 import 가능)
+import dataset_review as R  # 공용 헬퍼 재사용 (scripts/ 가 sys.path[0] 이므로 import 가능)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PAPER_PROMPT_PATH = SCRIPT_DIR / "paper_system_prompt.md"
+PAPER_PROMPT_PATH = SCRIPT_DIR / "system_prompt_paper_review.md"
 
 # 이슈 폼(paper-review.yml) 필드 라벨 → 내부 키
 PAPER_FIELD_LABELS = {
@@ -171,7 +171,7 @@ def _make_config(types, base: dict, tools, budget: int):
 
 
 def _generate(client, model: str, contents, config, config_min):
-    """모델 폴백 + 빈 응답(STOP) 복구 루프. (review.py 의 로직과 동일한 정책)"""
+    """모델 폴백 + 빈 응답(STOP) 복구 루프. (dataset_review.py 의 로직과 동일한 정책)"""
     chain = R.build_model_chain(model)
     print(f"[diag] paper model_chain={chain}", file=sys.stderr)
     response = None

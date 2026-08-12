@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-SYSTEM_PROMPT_PATH = SCRIPT_DIR / "system_prompt.md"
+SYSTEM_PROMPT_PATH = SCRIPT_DIR / "system_prompt_dataset_review.md"
 
 # 비글 마스코트 이미지(이슈 댓글용). GitHub 댓글은 camo 프록시가 SVG 를 잘 렌더링하지
 # 못하므로 PNG(raw URL)를 사용한다. 저장소/브랜치는 GITHUB_REPOSITORY 로부터 유도.

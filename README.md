@@ -42,7 +42,7 @@ GitHub 이슈에 검토 결과를 등록하는 프로젝트입니다. 냄새 잘
 flowchart LR
     U(["👤 사용자"]) -->|"정보 입력"| FORM["📝 검토 요청 폼<br/>docs/ 홈페이지"]
     FORM -->|"이슈 폼 prefill"| ISSUE["🗂️ GitHub 이슈<br/>dataset-review 라벨"]
-    ISSUE -->|"생성 감지"| ACT["🤖 Actions · review.py<br/>Gemini + Google 검색 · 1회"]
+    ISSUE -->|"생성 감지"| ACT["🤖 Actions · dataset_review.py<br/>Gemini + Google 검색 · 1회"]
     ACT -->|"검토 보고서 등록"| COMMENT["💬 이슈 댓글<br/>+ reviewed 라벨"]
     COMMENT -->|"열람"| BOARD["📋 결과 게시판<br/>검색 · 페이지네이션"]
     BOARD --> U
@@ -57,7 +57,7 @@ flowchart LR
 | [`docs/`](docs/) | 🖥️ 입력·열람 | 검토 요청 폼 + 결과 게시판(검색·페이지네이션·낮밤 테마·접근 암호 게이트) |
 | [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/dataset-review.yml) | 📨 접수 | 홈페이지가 prefill 하는 검토 요청 이슈 폼 |
 | [`.github/workflows/`](.github/workflows/dataset-review.yml) | ⚙️ 자동화 | 이슈 감지 → 검토 실행 → 결과 댓글·라벨 처리(무료 쿼터 보호 포함) |
-| [`scripts/review.py`](scripts/review.py) + [`system_prompt.md`](scripts/system_prompt.md) | 🤖 검토 엔진 | Gemini(구글 검색 그라운딩) **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석 |
+| [`scripts/dataset_review.py`](scripts/dataset_review.py) + [`system_prompt_dataset_review.md`](scripts/system_prompt_dataset_review.md) | 🤖 검토 엔진 | Gemini(구글 검색 그라운딩) **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석 |
 
 ## 🔄 데이터 흐름 (Data Flow)
 
@@ -69,14 +69,14 @@ sequenceDiagram
     participant H as 📝 docs/ 홈페이지
     participant I as 🗂️ GitHub 이슈
     participant A as ⚙️ GitHub Actions
-    participant G as 🤖 review.py · Gemini
+    participant G as 🤖 dataset_review.py · Gemini
 
     U->>H: ① 데이터셋 정보 입력 (명칭·논문·소송 URL)
     H->>I: ② 이슈 폼 prefill → 이슈 생성 (dataset-review 라벨)
     I->>A: ③ opened 이벤트로 워크플로 트리거
     Note over A: 작성자 권한 검사 없음 — 누구나 요청 가능<br/>(dataset-review 라벨 이슈면 자동 실행)
     A->>I: ④ reviewing 라벨 + "검토 시작" 댓글
-    A->>G: ⑤ scripts/review.py 실행
+    A->>G: ⑤ scripts/dataset_review.py 실행
     G->>G: ⑥ Gemini 1회 호출 (Google 검색 그라운딩)<br/>MAX_TOKENS 잘림 시 1회 자동 재생성
     alt 검토 성공
         G->>I: ⑦ 검토 보고서 댓글 등록 + reviewed 라벨
@@ -103,7 +103,7 @@ flowchart TD
     B -->|"예"| D{"검토 트리거 이벤트"}
     D -->|"아니오"| X3["건너뜀"]
     D -->|"예"| E["reviewing 라벨 · 검토 시작 댓글"]
-    E --> F["review.py · Gemini 모델 체인 호출"]
+    E --> F["dataset_review.py · Gemini 모델 체인 호출"]
     F --> G{"응답 성공"}
     G -->|"429 · 사용 불가"| H{"다음 모델 있음"}
     H -->|"예"| F
@@ -143,9 +143,9 @@ flowchart TD
 | `.github/ISSUE_TEMPLATE/dataset-review.yml` | 검토 요청 이슈 폼 (홈페이지가 이 폼을 prefill) |
 | `.github/workflows/dataset-review.yml` | 이슈 생성 시 검토를 실행하는 GitHub Actions 워크플로 |
 | `.github/workflows/export-reviews.yml` | 검토 결과를 CSV/JSON 으로 집계·커밋하는 워크플로(매일/수동) |
-| `scripts/review.py` | Gemini 호출 + 검토 보고서 생성 스크립트 |
-| `scripts/export_reviews.py` | 검토 결과 이슈를 파싱해 `docs/data/reviews.csv`·`reviews.json` 생성 |
-| `scripts/system_prompt.md` | 법적 리스크 검토 에이전트 시스템 프롬프트(검토 지침) |
+| `scripts/dataset_review.py` | Gemini 호출 + 검토 보고서 생성 스크립트 |
+| `scripts/export_dataset_reviews.py` | 검토 결과 이슈를 파싱해 `docs/data/reviews.csv`·`reviews.json` 생성 |
+| `scripts/system_prompt_dataset_review.md` | 법적 리스크 검토 에이전트 시스템 프롬프트(검토 지침) |
 | `tools/gemini_api_key_test.sh` | Gemini API 키 동작을 curl 로 확인하는 진단 스크립트 |
 
 ## 설정 방법 (1회)
@@ -191,7 +191,7 @@ gh label create rerun-review   --repo $R --color 5319e7 --description "재검토
 
 ✅ 확인: 저장소 **Issues → Labels** 에 위 6개 라벨이 보이면 정상.
 
-> **검토 유형 2가지:** 이 저장소는 **데이터셋 검토**(`dataset-review` 라벨 → `scripts/review.py`)와
+> **검토 유형 2가지:** 이 저장소는 **데이터셋 검토**(`dataset-review` 라벨 → `scripts/dataset_review.py`)와
 > **연구논문 법무 검토**(`paper-review` 라벨 → `scripts/paper_review.py`) 두 워크플로를 제공합니다.
 > 홈페이지 상단의 **🗂️ 데이터셋 리뷰 / 📄 논문 리뷰** 전환 버튼으로 각 요청 폼·결과 목록을 이용합니다.
 > 논문 검토는 PDF 링크(원문 직접 판독) 또는 논문 웹페이지 URL 을 입력받아 **개인정보 · 저작권 ·
@@ -270,27 +270,27 @@ URL 이 구체적일수록 검토 품질이 올라갑니다. 여러 개는 줄�
 
 **처리 흐름 (arXiv 주소 입력 시)**
 
-1. **폼에서 URL 추출 (코드, AI 아님)** — [`parse_issue_body()`](scripts/review.py#L31)가 이슈 본문의
+1. **폼에서 URL 추출 (코드, AI 아님)** — [`parse_issue_body()`](scripts/dataset_review.py#L31)가 이슈 본문의
    `### 논문 주소 (URL)` 섹션을 정규식으로 파싱해 `fields["paper_urls"]` 에 담습니다.
-2. **프롬프트에 URL 그대로 삽입** — [`build_user_prompt()`](scripts/review.py#L82):
+2. **프롬프트에 URL 그대로 삽입** — [`build_user_prompt()`](scripts/dataset_review.py#L82):
    ```python
    if fields.get("paper_urls"):
        lines.append(f"- 논문 주소: {fields['paper_urls']}")
    ```
    arXiv 전용 처리(PDF 변환·다운로드)는 없습니다. URL 을 텍스트로 넣고, "Google 검색 도구로 논문 등
    공식 자료를 직접 확인 · 이 URL 을 우선 근거로 활용 · 인용 시 출처 URL 함께 제시"라고 지시합니다.
-3. **시스템 지침이 논문 활용 방식을 규정** — [`system_prompt.md`](scripts/system_prompt.md#L27):
+3. **시스템 지침이 논문 활용 방식을 규정** — [`system_prompt_dataset_review.md`](scripts/system_prompt_dataset_review.md#L27):
    *"논문·공식 홈페이지·LICENSE… URL 이 제공되면 Google 검색 도구로 해당 자료를 우선적으로 찾아,
    라이선스 조항·데이터 수집 방법(크롤링·출처·필터링)·개인정보 서술을 원문에서 확인하고 그 문장을
    그대로 인용한다."* → 논문에서 **라이선스 / 데이터 수집 방식 / 개인정보** 3대 항목의 근거를 찾습니다.
-4. **Gemini 1회 호출 (google_search 그라운딩)** — [`review.py`](scripts/review.py#L478):
+4. **Gemini 1회 호출 (google_search 그라운딩)** — [`dataset_review.py`](scripts/dataset_review.py#L478):
    ```python
    tools = [types.Tool(google_search=types.GoogleSearch())]
    ```
    Gemini 가 이 도구로 arXiv 논문(및 관련 공식 자료)을 **실제 검색·열람해 분석**합니다. 논문 내용을
    이해하는 "분석"은 여기서 일어납니다.
 5. **후처리로 인용을 링크화 (코드, AI 아님)** — Gemini 가 근거 문장 끝에 `[cite: N]` 을 붙이면
-   ([`system_prompt.md`](scripts/system_prompt.md#L54)), `linkify_citations()` 가 그 번호를 실제
+   ([`system_prompt_dataset_review.md`](scripts/system_prompt_dataset_review.md#L54)), `linkify_citations()` 가 그 번호를 실제
    출처 URL 링크로 변환하고 그라운딩 출처 목록을 결과 하단에 첨부합니다.
 
 **참고 (이력):** 과거 두 방식을 시도했다가 무료 티어 안정성 문제로 되돌렸습니다.
@@ -303,7 +303,7 @@ Gemini 의 Google 검색 그라운딩이 수행하며, 코드는 그 앞뒤(URL 
 
 ## 검토 결과 내보내기 (CSV · 대시보드/집계용)
 
-모든 검토 결과를 **CSV/JSON 으로 집계**할 수 있습니다. [`scripts/export_reviews.py`](scripts/export_reviews.py)
+모든 검토 결과를 **CSV/JSON 으로 집계**할 수 있습니다. [`scripts/export_dataset_reviews.py`](scripts/export_dataset_reviews.py)
 가 `dataset-review` 이슈들을 모아 각 검토 댓글에서 구조화 필드를 파싱해
 `docs/data/reviews.csv` (Excel 한글 호환 UTF-8 BOM) 와 `docs/data/reviews.json` 을 생성합니다.
 JSON에는 실제 집계 완료 시각인 `exported_at`과 검토 결과 배열 `rows`가 저장됩니다.
@@ -316,7 +316,7 @@ collection_check/judgment, privacy_check/judgment, litigation(소송 여부), au
 - **다운로드**: 홈페이지 **검토 결과** 탭의 **⬇️ CSV** 버튼(= `data/reviews.csv`) 또는 저장소에서 직접 받습니다.
 - **로컬 실행**:
   ```bash
-  GITHUB_TOKEN=$(gh auth token) GITHUB_REPOSITORY=<owner>/<repo> python scripts/export_reviews.py
+  GITHUB_TOKEN=$(gh auth token) GITHUB_REPOSITORY=<owner>/<repo> python scripts/export_dataset_reviews.py
   ```
 - 최신 형식(불릿·4열 표)과 구버전(파이프 표) 검토 댓글을 모두 파싱합니다. 매우 오래된 일부 형식은
   판정·데이터셋만 채워질 수 있으며, 해당 이슈를 `rerun-review` 로 재검토하면 항목 필드까지 채워집니다.
@@ -344,11 +344,11 @@ collection_check/judgment, privacy_check/judgment, litigation(소송 여부), au
 
 | 기능 | 구현 위치 | 방식 |
 | --- | --- | --- |
-| 이슈 폼 파싱 (명칭·URL 추출) | `scripts/review.py` `parse_issue_body()` | 정규식 |
-| 입력 사전 검증 (빈 이슈 차단) | `scripts/review.py` `run_review()` | 필드 검사 — 검토할 정보가 없으면 **API 호출 없이** 즉시 실패 처리 |
-| 인용 번호 → 출처 링크 변환 | `scripts/review.py` `linkify_citations()` | 정규식 |
-| 보고서 재구성 (배지·접이식 섹션) | `scripts/review.py` `restructure_review()` | 문자열 처리 |
-| 판정(✅/⚠️/⛔) 추출·배너 생성 | `scripts/review.py` `detect_verdict()` | 패턴 매칭 |
+| 이슈 폼 파싱 (명칭·URL 추출) | `scripts/dataset_review.py` `parse_issue_body()` | 정규식 |
+| 입력 사전 검증 (빈 이슈 차단) | `scripts/dataset_review.py` `run_review()` | 필드 검사 — 검토할 정보가 없으면 **API 호출 없이** 즉시 실패 처리 |
+| 인용 번호 → 출처 링크 변환 | `scripts/dataset_review.py` `linkify_citations()` | 정규식 |
+| 보고서 재구성 (배지·접이식 섹션) | `scripts/dataset_review.py` `restructure_review()` | 문자열 처리 |
+| 판정(✅/⚠️/⛔) 추출·배너 생성 | `scripts/dataset_review.py` `detect_verdict()` | 패턴 매칭 |
 | 검토 결과 목록·홈페이지 | `docs/` | 정적 페이지 + GitHub REST API (Gemini 무관) |
 | 라벨 관리·댓글 등록 | 워크플로 | `gh` CLI (Gemini 무관) |
 
@@ -435,7 +435,7 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
    남깁니다. `503` 은 "일시 장애 → 잠시 후 `rerun-review`"로 안내하며, **키·쿼터를 확인하라는
    오진성 문구를 내보내지 않습니다**(401=인증, 429=쿼터, 503=일시 장애를 구분).
 
-> 위 재시도 횟수/대기는 `scripts/review.py` 의 `generate_with_retry` 에서 조정할 수 있습니다.
+> 위 재시도 횟수/대기는 `scripts/dataset_review.py` 의 `generate_with_retry` 에서 조정할 수 있습니다.
 > 특정 모델의 503 이 지속되면 `GEMINI_MODEL` 을 안정 버전(GA)으로 바꾸거나 폴백 체인을 넓히세요.
 
 **`GEMINI_MODEL` 을 언제 지정하나** (기본은 미설정 = `gemini-flash-latest` 권장):
@@ -584,12 +584,12 @@ CelebA
 ### 공식 홈페이지 / 저장소 URL
 
 https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html"
-python scripts/review.py            # review.md 생성
+python scripts/dataset_review.py            # review.md 생성
 ```
 
 ## 참고
 
-- 검토 지침(시스템 프롬프트)은 `scripts/system_prompt.md` 에서 수정할 수 있습니다.
+- 검토 지침(시스템 프롬프트)은 `scripts/system_prompt_dataset_review.md` 에서 수정할 수 있습니다.
 - Gemini의 Google 검색 그라운딩을 사용하므로 검토 결과에는 참조한 공식 출처 URL이 함께 첨부됩니다.
 - Actions 로그의 `[diag] finish_reason=... prompt=... output=...` 줄에서 토큰 사용량과 종료 사유를
   확인할 수 있어, 응답이 비거나 잘릴 때 원인을 진단할 수 있습니다.
