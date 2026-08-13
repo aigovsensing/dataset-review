@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-08-13T01:36:50.370517Z",
+  "exported_at": "2026-08-13T02:49:09.844562Z",
   "rows": [
     {
       "issue": 68,
@@ -42,20 +42,20 @@
     {
       "issue": 67,
       "dataset": "TVSum - Title-based Video Summarization Dataset",
-      "verdict": "",
+      "verdict": "사용 가능",
       "model": "",
       "status": "review-failed",
       "review_confidence": "",
-      "license_check": "",
-      "license_judgment": "",
-      "license_basis": "",
-      "collection_check": "",
-      "collection_judgment": "",
-      "collection_basis": "",
-      "privacy_check": "",
-      "privacy_judgment": "",
-      "privacy_basis": "",
-      "litigation": "",
+      "license_check": "`Creative Commons Attribution 3.0 (CC BY 3.0)`",
+      "license_judgment": "상업적 이용 및 AI 모델 학습 가능",
+      "license_basis": "GitHub 저장소 README 및 여러 공식 문서에 `Creative Commons CC-BY (v3.0) license`로 명시되어 있으며, 이는 상업적 이용 및 2차적 저작물 생성을 허용함 ([출처](https://github.com/yalesong/tvsum), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGGJxTZjFuqC8B10zrHYK6uMB6LQEjSaSaDeIGgjx1vsMp3XHDfqQBJv2RpM6Uge0Dbb2XUQgLud1iPvoUcrAbHnktDAnjrSlTEgEMzuh-jeMStBSh0XGGzcrqZ9aw==), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGZU9gOA_b1YTt0OHa0TmcigZCF5k2YmAXmS4IgFkVBzcjiax5kf7S01st2BFbwE2BQTofmZinuOHihbc1an9JYcVyYTUTc9UzaWnfLdX52tOWsokBWWPuFX79v5bbBK3_4EWjY_lA0XmgRxImdyyjJJKU=))",
+      "collection_check": "YouTube에서 수집된 50개 비디오와 Amazon Mechanical Turk를 통한 크라우드소싱으로 수집된 샷 레벨 중요도 점수 주석으로 구성됨. 원본 데이터셋은 YouTube 비디오이며, `Creative Commons CC-BY (v3.0) license`를 따름.",
+      "collection_judgment": "직접 수집 및 크라우드소싱 기반 데이터로, 원본 라이선스 조건 준수 시 리스크 낮음",
+      "collection_basis": "데이터셋 논문 및 GitHub README에 데이터 수집 및 주석 방식이 명시되어 있으며, YouTube 비디오의 라이선스가 `CC BY 3.0`임을 명시함 ([출처](https://github.com/yalesong/tvsum), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGGJxTZjFuqC8B10zrHYK6uMB6LQEjSaSaDeIGgjx1vsMp3XHDfqQBJv2RpM6Uge0Dbb2XUQgLud1iPvoUcrAbHnktDAnjrSlTEgEMzuh-jeMStBSh0XGGzcrqZ9aw==), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFFKL1P4xrsE6i-LZz1lBDSpjmM6NXrSUrN7Fdq5zwyixl92sI0UYvvg4Y0ooJGxI5CK28bZUDzQRweFL35s6yg9W--OVX1ysXq6Bop75efJPnTHBshCTXOyxL0uJm7Bg8e5iUk4AffIOcdK4bR0wzBlQ_mi9a_6GQgswYRNRaHzko=))",
+      "privacy_check": "데이터셋에 개인 식별 정보가 포함되어 있지 않다고 명시됨.",
+      "privacy_judgment": "개인정보 리스크 없음",
+      "privacy_basis": "Kaggle 페이지의 `README.txt`에 \"No personally identifying information is available in this dataset.\"라고 명시되어 있음 ([출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGpnIoQm-rWaXoSgHzJgdqlj2g11CvyYKZ2VhjQo8E-n3ccWilpP6wdFEh3a58hJHrmYPJtwlEjcg12t1VJAtZ9qzsL50JLUG3Pa95ymeRxS7YE1JxKtMdVw9EKm1bq-kSZ5nU1O949o2bBZxhycUN0fnXxLI4dYeiGQCO3bDn1JY4cUlE3Rw==))",
+      "litigation": "해당 없음",
       "litigation_case": "",
       "litigation_court": "",
       "litigation_docket": "",
@@ -72,10 +72,10 @@
       "litigation_basis": "",
       "author": "hooky119",
       "created_at": "2026-08-13T00:54:44Z",
-      "updated_at": "2026-08-13T01:36:27Z",
+      "updated_at": "2026-08-13T01:38:59Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/67",
       "state": "open",
-      "comments": 2
+      "comments": 4
     },
     {
       "issue": 66,
