@@ -745,7 +745,12 @@ def restructure_review(text: str, name: str) -> str:
                 continue
             blocks.append(f"## {icon} 요약 결론\n\n{body}")  # 폴백(표 원천이 아닐 때만) — 안전
             continue
-        # 상세/소송/근거: 앞 번호 없이 아이콘+제목만. 전부 기본 접힘(<details>) 상태로 둔다.
+        if "출처" in sec_title:
+            # 모델이 쓴 '근거 및 출처' 섹션은 생략한다. 코드가 하단에 본문 [N] 번호와 정확히
+            # 일치하는 통합 '근거 및 출처' 목록을 자동으로 붙이므로, 번호 체계가 다른 모델
+            # 목록을 함께 두면 중복·혼란을 유발한다.
+            continue
+        # 상세/소송: 앞 번호 없이 아이콘+제목만. 전부 기본 접힘(<details>) 상태로 둔다.
         # 본문 헤딩은 볼드로 낮춰 summary(라이선스 등 하위 제목이 더 커 보이는 역전) 방지.
         blocks.append(
             f"<details>\n<summary><b>{icon} {sec_title}</b></summary>\n\n"
@@ -1208,11 +1213,12 @@ def run_review(title: str, body: str) -> str:
         text = restructure_review(text, name)
     parts = [model_header, text]
     if sources:
-        # 그라운딩 출처 목록은 길고 리다이렉트 URL 이라 어수선하므로 접이식으로 감싼다.
+        # 본문 [N] 각주와 번호가 일치하는 단일 '근거 및 출처' 목록. (모델이 쓴 동명 섹션은
+        # restructure_review 에서 생략 — 번호 체계가 달라 중복·혼란을 유발하므로.)
         parts.append(
-            f"\n<details>\n<summary><b>🔎 참고 출처 — {len(sources)}건</b></summary>\n\n"
-            "본문 문장 끝의 `[N]` 링크는 아래 동일 번호 출처로 연결됩니다. "
-            "(Google 검색 그라운딩 + 모델이 인용한 공식 자료)\n\n"
+            f"\n<details>\n<summary><b>📚 근거 및 출처 — {len(sources)}건</b></summary>\n\n"
+            "본문 문장 끝의 `[N]` 링크가 아래 같은 번호의 출처로 연결됩니다 "
+            "(Google 검색 그라운딩 + 모델이 인용한 공식 자료).\n\n"
             + render_sources(sources)
             + "\n\n</details>"
         )
