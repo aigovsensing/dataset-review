@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-08-14T13:25:33.969271Z",
+  "exported_at": "2026-08-14T15:02:07.753024Z",
   "rows": [
     {
       "issue": 84,
@@ -8,15 +8,15 @@
       "model": "",
       "status": "reviewed",
       "review_confidence": "",
-      "license_check": "Hugging Face 데이터셋 저장소에 라이선스 정보 없음",
-      "license_judgment": "확인 불가",
-      "license_basis": "Hugging Face 데이터셋 저장소(`Aman279/Locomo`)에 라이선스 정보가 명시되어 있지 않습니다. ([출처](https://huggingface.co/datasets/Aman279/Locomo))",
-      "collection_check": "LLM 기반 에이전트가 생성한 대화 데이터에 인간 검증 및 편집 과정 포함. 이미지 URL, 캡션, 검색 쿼리 포함. 원본 데이터셋은 `MSC` (persona 생성에 사용)",
-      "collection_judgment": "잠재적 법적 리스크 있음",
-      "collection_basis": "데이터가 LLM에 의해 생성되었고, 이미지 URL 및 검색 쿼리가 포함되어 있으나, LLM 학습 데이터의 출처 및 이용 조건이 명확히 확인되지 않습니다. 또한, 원본 데이터셋 `MSC`의 이용 조건도 확인 불가합니다. ([출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG6ROPc7tY-SI2ZCcnd7IKMjKRzTCDEQLIBq1KN2uwc91iGuwMou-2mrFjnsRaks3_KLFVhI59vXh1HXfaCBlc4mHPg_81oE5h8PjjazMrP9a13gCtnrPsYte8), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHQFD_gJd8LZhrf-jhnhiER2_Q0Ld7V7VyYPjr12uOgldcYeJcOTSmuU-Hn1QlDLVrTIcYgmLmHpeUlEoc8uM6-6ZV4nK4953kBdEgQb-sltACh5RoY8OOki9ESVBJVN9RN), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHsoI2WHDL8VAaF4_gh63ig624QUhq91nnM6XY-jqb5sBad-QFaRHEWWpqypm6mJhcJxgnXynemxrRCUGi5Bj2JH_akwoC5lW0ebXbkhXl9FxCb69f4HAc-MEZ9hlMRA_jlZ32qDfqGVl7xBKwjnM3KM5MWdRYRa0xu1tQ_aP-tOZcb6ztIPOL8XPsPvstCfzLF), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHsoI2WHDL8VAaF4_gh63ig624QUhq91nnM6XY-jqb5sBad-QFaRHEWWpqypm6mJhcJxgnXynemxrRCUGi5Bj2JH_akwoC5lW0ebXbkhXl9FxCb69f4HAc-MEZ9hlMRA_jlZ32qDfqGVl7xBKwjnM3KM5MWdRYRa0xu1tQ_aP-tOZcb6ztIPOL8XPsPvstCfzLF), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGutKJeSIM3sPcBNGiztZj8g8-f2D3OrMnsD0u5Skj079wDoinyv6qiai27zhOz2zgNzgInxte27f9illxsooGMF03o4U1CshDB1KvY1uKs-y19tm1XC2Hjy8I))",
-      "privacy_check": "대화 내용에 스피커 이름, 이미지 URL 포함. 비식별화 여부 및 동의 범위 확인 불가",
-      "privacy_judgment": "잠재적 법적 리스크 있음",
-      "privacy_basis": "데이터셋에 스피커 이름(`speaker_a`, `speaker_b`) 및 이미지 URL(`img_url`)이 포함되어 있다고 명시되어 있으나, 개인정보의 비식별화 여부, 수집 동의 및 활용 범위에 대한 공식적인 정보는 확인되지 않습니다. ([출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF4qQcVUMIIJiw_CHKmy_-VNoY4_ScRfZ1pVKUWJf7yaPYcz8bqDFCOOhgfYg3tn69NkXMH7MlXw4wh30qYYOQbyA_JOhIbWqAA5lFsywNGJ7455Pzd64VBC_GhNa4jsQgq))",
+      "license_check": "Hugging Face 데이터셋 저장소에 라이선스 정보가 명시되어 있지 않음. GitHub 저장소의 `LICENSE.txt` 파일은 존재하나, 데이터셋 자체에 대한 명시적 라이선스 내용은 확인 불가. ([출처](https://huggingface.co/datasets/Aman279/Locomo), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHCUvhEmJDbO8HtJTa-OrxkS5kvl3i2kgGUYKyY0ibPTMn4IYstM94dvrqZBbOAtzJK11ylGLsnlR6F4IBjGaGHL5HkRIDpOJxf_2is4DK1XM4GG1R8Rtz92ecJaUsvT81Q6Q==))",
+      "license_judgment": "라이선스 확인 불가로 사용 비권고.",
+      "license_basis": "데이터셋 저장소에 라이선스가 명확히 명시되어 있지 않아 상업적 이용 및 AI 모델 학습 가능 여부를 판단할 수 없음. ([출처](https://huggingface.co/datasets/Aman279/Locomo))",
+      "collection_check": "LLM 기반 에이전트(GPT-3.5-turbo, GPT-3 text-davinci-003)가 페르소나 및 시간적 이벤트 그래프를 기반으로 대화를 생성하고, 인간 주석자가 장기적인 일관성 및 이벤트 그래프와의 연관성을 위해 검증 및 편집하는 기계-인간 하이브리드 파이프라인을 통해 구축됨. 이미지의 경우 `icrawler` 모듈을 사용하여 검색된 이미지의 웹 URL, 캡션 및 검색 쿼리가 포함되지만, 이미지는 직접 릴리스되지 않음. ([출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHIiuCtkkWxnpAKQjQNuRxwe0ElcbCbDAZeORBfp_2qAl0-UsxAUuq_mDAsubfm14BkqQD0A9aAJ1ZOTPb-GZScs0jsocEFVPjuFSb4qNBABRCFJMknuyeCUKZ_ILUsRiaDNfhol6qrECSUR0TE), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHCUvhEmJDbO8HtJTa-OrxkS5kvl3i2kgGUYKyY0ibPTMn4IYstM94dvrqZBbOAtzJK11ylGLsnlR6F4IBjGaGHL5HkRIDpOJxf_2is4DK1XM4GG1R8Rtz92ecJaUsvT81Q6Q==), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHD5eG9biw78ZV14cgxdpkEqVF1HR8FYfrgKoeCYXl5Nk503ohE_eGOwixDrmbPbuKUcUqnLXbETUxG5GLTgqknUoRcHAtbR5sT2BjGwB600h-SVnnNzdsUaw1lfOWz71vUYdViJ8vci7ojJYrplYieBL8mE9Tvmqw8bfLlQ9ZWSmJkdt9EUFLR))",
+      "collection_judgment": "생성형 AI 활용 데이터로 추가 검토 필요.",
+      "collection_basis": "데이터 생성에 `GPT-3.5-turbo` 및 `GPT-3 text-davinci-003`과 같은 생성형 AI 모델이 사용되었으며, 이들 모델의 학습 데이터 출처 및 이용 조건이 명확히 공개되지 않아 잠재적 법적 리스크가 있음. ([출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHIiuCtkkWxnpAKQjQNuRxwe0ElcbCbDAZeORBfp_2qAl0-UsxAUuq_mDAsubfm14BkqQD0A9aAJ1ZOTPb-GZScs0jsocEFVPjuFSb4qNBABRCFJMknuyeCUKZ_ILUsRiaDNfhol6qrECSUR0TE), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHD5eG9biw78ZV14cgxdpkEqVF1HR8FYfrgKoeCYXl5Nk503ohE_eGOwixDrmbPbuKUcUqnLXbETUxG5GLTgqknUoRcHAtbR5sT2BjGwB600h-SVnnNzdsUaw1lfOWz71vUYdViJ8vci7ojJYrplYieBL8mE9Tvmqw8bfLlQ9ZWSmJkdt9EUFLR))",
+      "privacy_check": "데이터셋은 LLM 에이전트가 생성한 가상 대화로 구성되며, \"persona (natural language profile p with identity, habits, relationships)\"를 포함하지만, 이는 가상 에이전트의 페르소나로 실제 개인정보를 의미하지 않음. 실제 이미지는 릴리스되지 않고 URL, 캡션, 검색 쿼리만 포함됨. 개인정보 포함 여부에 대한 명시적인 언급은 없음. ([출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHIiuCtkkWxnpAKQjQNuRxwe0ElcbCbDAZeORBfp_2qAl0-UsxAUuq_mDAsubfm14BkqQD0A9aAJ1ZOTPb-GZScs0jsocEFVPjuFSb4qNBABRCFJMknuyeCUKZ_ILUsRiaDNfhol6qrECSUR0TE), [출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHCUvhEmJDbO8HtJTa-OrxkS5kvl3i2kgGUYKyY0ibPTMn4IYstM94dvrqZBbOAtzJK11ylGLsnlR6F4IBjGaGHL5HkRIDpOJxf_2is4DK1XM4GG1R8Rtz92ecJaUsvT81Q6Q==))",
+      "privacy_judgment": "미포함.",
+      "privacy_basis": "데이터셋이 가상 에이전트의 대화와 메타데이터로 구성되며, 실제 인물의 개인정보를 직접적으로 포함하지 않는 것으로 판단됨. ([출처](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHIiuCtkkWxnpAKQjQNuRxwe0ElcbCbDAZeORBfp_2qAl0-UsxAUuq_mDAsubfm14BkqQD0A9aAJ1ZOTPb-GZScs0jsocEFVPjuFSb4qNBABRCFJMknuyeCUKZ_ILUsRiaDNfhol6qrECSUR0TE))",
       "litigation": "해당 없음",
       "litigation_case": "",
       "litigation_court": "",
@@ -34,10 +34,10 @@
       "litigation_basis": "",
       "author": "aigovsensing",
       "created_at": "2026-08-14T09:37:38Z",
-      "updated_at": "2026-08-14T13:24:58Z",
+      "updated_at": "2026-08-14T15:01:20Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/84",
       "state": "open",
-      "comments": 2
+      "comments": 4
     },
     {
       "issue": 83,
