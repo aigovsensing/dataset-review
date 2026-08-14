@@ -10,9 +10,7 @@ Google 검색 그라운딩과 함께 호출하여 법적 리스크 검토 보고
 ----------
 GEMINI_API_KEY        : (필수) Google AI Studio API 키
 GEMINI_DEFAULT_MODEL  : (선택) 기본(1차) 검토 모델. 기본값 gemini-flash-latest(항상 최신 Flash 별칭)
-                        (옛 이름 GEMINI_MODEL 도 계속 인식 — 하위호환)
 GEMINI_DEFAULT_FALLBACKS: (선택) 쉼표 구분 폴백 목록. 미설정 시 3.7→3.6→3.5→…→2.5 순 기본 체인
-                        (옛 이름 GEMINI_MODEL_FALLBACKS 도 계속 인식 — 하위호환)
 GEMINI_WRITER_MODEL    : (선택) 하이브리드 2패스 활성화. 설정하면 1차로 그라운딩 가능 모델
                         (무료 티어는 2.5 계열)로 웹검색 근거·출처를 수집한 뒤, 그 근거를
                         이 모델(예: gemini-3.7-flash)에 넘겨 그라운딩 없이 최종 검토문을
@@ -757,11 +755,7 @@ def build_model_chain(primary: str) -> list[str]:
     flash-lite 만 존재한다. (프리뷰/실험 모델은 불안정하여 제외)
     """
     chain = [primary]
-    env_fb = (
-        os.environ.get("GEMINI_DEFAULT_FALLBACKS")
-        or os.environ.get("GEMINI_MODEL_FALLBACKS")  # 옛 이름(하위호환)
-        or ""
-    ).strip()
+    env_fb = (os.environ.get("GEMINI_DEFAULT_FALLBACKS") or "").strip()
     fallbacks = (
         [m.strip() for m in env_fb.split(",") if m.strip()]
         if env_fb
@@ -908,12 +902,7 @@ def run_review(title: str, body: str) -> str:
     # 기본값은 'gemini-flash-latest' 별칭 — 항상 최신 Flash 버전으로 검토 품질을 확보한다.
     # (별칭이 실제로 어떤 버전으로 해석됐는지는 응답의 model_version 으로 확인해 출력한다.)
     # 빈 문자열(예: 미설정 GitHub 변수 vars.GEMINI_DEFAULT_MODEL)도 기본값으로 대체되도록 `or` 사용.
-    # 옛 이름 GEMINI_MODEL 도 계속 인식한다(하위호환).
-    model = (
-        os.environ.get("GEMINI_DEFAULT_MODEL")
-        or os.environ.get("GEMINI_MODEL")
-        or "gemini-flash-latest"
-    )
+    model = os.environ.get("GEMINI_DEFAULT_MODEL") or "gemini-flash-latest"
     system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_issue_body(body)
     name = derive_dataset_name(title, fields)

@@ -65,8 +65,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # 기본(1차) 검토 모델. 저장소 변수 vars.GEMINI_DEFAULT_MODEL 이 없으면 최신 Flash 별칭.
-          # (옛 이름 vars.GEMINI_MODEL 도 계속 인식 — 하위호환. 특정 버전 고정은 이 변수로 지정.)
-          GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || vars.GEMINI_MODEL || 'gemini-flash-latest' }}
+          # (특정 버전 고정은 이 변수로 지정.)
+          GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}
           # (선택) 하이브리드 2패스: vars.GEMINI_WRITER_MODEL 을 지정하면 1차로 그라운딩
           # 가능한 모델(무료 티어는 2.5)로 웹검색 근거·출처를 수집한 뒤, 그 근거를 이 모델
           # (예: gemini-3.7-flash)에 넘겨 그라운딩 없이 최종 검토문을 작성한다. 무료 티어에서

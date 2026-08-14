@@ -398,9 +398,9 @@ collection_check/judgment, privacy_check/judgment, litigation(소송 여부), au
 
 ### 모델 선택과 무료 한도 (`GEMINI_DEFAULT_MODEL`)
 
-> 🏷️ **변수 이름 정리:** 기본(1차) 검토 모델은 **`GEMINI_DEFAULT_MODEL`**, 하이브리드 2패스의
-> 최종 작성 모델은 **`GEMINI_WRITER_MODEL`** 로 이름이 대칭입니다. 옛 이름 **`GEMINI_MODEL`**(및
-> `GEMINI_MODEL_FALLBACKS`)도 그대로 계속 인식하므로 기존 설정은 바꾸지 않아도 됩니다(하위호환).
+> 🏷️ **변수 이름:** 기본(1차) 검토 모델은 **`GEMINI_DEFAULT_MODEL`**, 하이브리드 2패스의
+> 최종 작성 모델은 **`GEMINI_WRITER_MODEL`** 로 이름이 대칭입니다. 폴백 목록은 각각
+> `GEMINI_DEFAULT_FALLBACKS` / `GEMINI_WRITER_FALLBACKS` 입니다.
 
 기본값은 **`gemini-flash-latest`** — 항상 최신 Flash 로 자동 실행되어 검토 품질을 확보합니다
 (현재 → **`gemini-3.6-flash`** 로 해석, 2026-07-21 GA). 실제 사용된 버전은 검토 결과 **최상단 `모델 정보`** 줄에

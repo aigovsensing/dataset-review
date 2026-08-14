@@ -12,7 +12,7 @@ Gemini API로 논문 원문을 판독하고 Legal Review 보고서를 생성한�
 환경 변수
 ----------
 GEMINI_API_KEY : (필수) Google AI Studio API 키
-GEMINI_MODEL   : (선택) 사용할 모델. 기본값 gemini-flash-latest
+GEMINI_DEFAULT_MODEL : (선택) 사용할 모델. 기본값 gemini-flash-latest
 ISSUE_TITLE    : (선택) 이슈 제목
 ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 REVIEW_OUTPUT  : (선택) 결과 저장 경로. 기본 review.md
@@ -249,7 +249,7 @@ def run_paper_review(title: str, body: str) -> str:
             "저장소 Settings → Secrets → Actions 에 GEMINI_API_KEY 를 등록하세요."
         )
 
-    model = os.environ.get("GEMINI_MODEL") or "gemini-flash-latest"
+    model = os.environ.get("GEMINI_DEFAULT_MODEL") or "gemini-flash-latest"
     system_prompt = PAPER_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_paper_body(body)
     name = derive_paper_title(title, fields)
