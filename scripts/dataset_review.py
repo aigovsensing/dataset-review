@@ -630,9 +630,11 @@ def restructure_review(text: str, name: str) -> str:
     """모델 출력을 스캔하기 쉬운 형태로 재구성.
 
     - 상단에 데이터셋명 + 판정 배지 배너를 붙인다.
-    - 배너 바로 아래에 '종합의견'(복사·붙여넣기용 회신문)을 펼친 상태로 노출.
-    - 1. 요약 결론은 펼친 상태로 노출.
-    - 2~4 상세/소송/근거 섹션은 접이식(<details>)으로 감싸 어수선함을 줄인다.
+    - 배너 바로 아래에 '종합의견' 표(복사·붙여넣기용 요약)를 펼친 상태로 노출.
+    - '1. 요약 결론' 은 이 표의 원천이라 내용이 겹치므로, 표를 그 섹션에서 만든 경우
+      별도 블록으로 다시 보여주지 않는다(중복 제거).
+    - 상세/소송/근거 섹션은 앞 번호 없이 아이콘+제목의 접이식(<details>)으로 정리하고
+      첫 상세 섹션만 펼친다(번호가 2부터 시작해 보이는 혼란 방지).
     - 예상 형식(## N. 제목)이 아니면 원문을 그대로 두어 안전하게 처리한다.
     """
     text = ensure_detail_section_header(text)
@@ -655,8 +657,10 @@ def restructure_review(text: str, name: str) -> str:
     #  - 결론 문단은 '## 종합의견' 에서 가져와 콜아웃으로 덧붙인다.
     lead_raw = text[: matches[0].start()].strip()
     sec1_end = matches[1].start() if len(matches) > 1 else len(text)
-    table = summary_from_yoyak(text[matches[0].end():sec1_end], verdict_line) or \
-        summary_from_opinion(lead_raw, verdict_line)
+    table = summary_from_yoyak(text[matches[0].end():sec1_end], verdict_line)
+    table_from_section1 = bool(table)  # 표를 '1. 요약 결론' 에서 만들었는가(=그 섹션은 중복)
+    if not table:
+        table = summary_from_opinion(lead_raw, verdict_line)
     if table:
         conclusion = opinion_conclusion(lead_raw)
         lead = table + (f"\n\n> 💬 **결론** — {conclusion}" if conclusion else "")
@@ -665,6 +669,7 @@ def restructure_review(text: str, name: str) -> str:
 
     icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "🎓", "5": "📚"}
     blocks: list[str] = []
+    first_detail = True
     for i, m in enumerate(matches):
         num, sec_title = m.group(1), m.group(2).strip()
         start = m.end()
@@ -672,13 +677,18 @@ def restructure_review(text: str, name: str) -> str:
         body = text[start:end].strip().strip("-").strip()
         icon = icons.get(num, "📄")
         if num == "1":
-            blocks.append(f"## {icon} 요약 결론\n\n{body}")
-        else:
-            open_attr = " open" if num == "2" else ""
-            blocks.append(
-                f"<details{open_attr}>\n<summary><b>{icon} {num}. {sec_title}</b></summary>\n\n"
-                f"{body}\n\n</details>"
-            )
+            # '1. 요약 결론' = 상단 종합의견 표의 원천. 표를 이 섹션에서 만들었으면 중복이라 생략.
+            if table_from_section1:
+                continue
+            blocks.append(f"## {icon} 요약 결론\n\n{body}")  # 폴백(표 원천이 아닐 때만) — 안전
+            continue
+        # 상세/소송/근거: 앞 번호 없이 아이콘+제목만. 첫 상세 섹션만 펼친다.
+        open_attr = " open" if first_detail else ""
+        first_detail = False
+        blocks.append(
+            f"<details{open_attr}>\n<summary><b>{icon} {sec_title}</b></summary>\n\n"
+            f"{body}\n\n</details>"
+        )
 
     pieces = [banner, "---"]
     if lead:
