@@ -1102,6 +1102,7 @@
     section: null, // 대시보드 세부 메뉴(선택된 섹션 key)
     litSearch: "", // 소송 현황 데이터셋 검색어
     litPage: 1, litPageSize: 5, // 소송 현황 게시판 페이지네이션
+    trendUnit: "day", // 검토 추이 단위(day/month/year)
   };
   const DASH_PAGE_SIZES = [5, 10, 15, 30, 50, 70, 100];
 
@@ -1179,6 +1180,7 @@
     bindDashSubnav();
     bindDashTable();
     bindLitTable();
+    bindTrend();
   }
 
   // 지정한 섹션만 보이고 나머지는 숨긴다(세부 메뉴/딥링크 공통).
@@ -1649,31 +1651,82 @@
     );
   }
 
-  // ── ④ 검토 추이 (요청일 기준) ────────────────────────────────
+  // ── ④ 검토 추이 (요청일 기준, 일/월/연 단위 전환) ──────────────
+  const TREND_UNITS = [
+    { key: "day", label: "일별", max: 14, note: "일" },
+    { key: "month", label: "월별", max: 12, note: "개월" },
+    { key: "year", label: "연도별", max: 20, note: "년" },
+  ];
+  function trendBucketKey(dateStr, unit) {
+    if (unit === "year") return dateStr.slice(0, 4);   // YYYY
+    if (unit === "month") return dateStr.slice(0, 7);  // YYYY-MM
+    return dateStr.slice(0, 10);                        // YYYY-MM-DD
+  }
+  function trendBucketLabel(key, unit) {
+    if (unit === "year") return key;                   // 2026
+    if (unit === "month") return key.slice(2);         // YY-MM
+    return key.slice(5);                               // MM-DD
+  }
+
   function trendSection(rows) {
+    const has = rows.some((r) => (r.created_at || "").slice(0, 10));
+    if (!has) return "";
+    const toggle = TREND_UNITS.map((u) =>
+      `<button class="trend-unit-btn${(dashState.trendUnit || "day") === u.key ? " active" : ""}" ` +
+      `type="button" data-unit="${u.key}">${u.label}</button>`
+    ).join("");
+    return (
+      `<div class="dash-section"><h4>🗓️ 검토 추이 ` +
+      `<span class="dim" id="trend-range" style="font-size:0.8rem"></span></h4>` +
+      `<div class="trend-toolbar" id="trend-unit" role="tablist" aria-label="검토 추이 단위">${toggle}</div>` +
+      `<div class="chart-box"><div class="trend" id="trend-chart"></div></div></div>`
+    );
+  }
+
+  function renderTrend() {
+    const box = $("#trend-chart");
+    if (!box) return;
+    const unit = dashState.trendUnit || "day";
+    const meta = TREND_UNITS.find((u) => u.key === unit) || TREND_UNITS[0];
     const map = new Map();
-    rows.forEach((r) => {
+    dashState.rows.forEach((r) => {
       const d = (r.created_at || "").slice(0, 10);
-      if (d) map.set(d, (map.get(d) || 0) + 1);
+      if (d) {
+        const k = trendBucketKey(d, unit);
+        map.set(k, (map.get(k) || 0) + 1);
+      }
     });
-    const days = Array.from(map.keys()).sort().slice(-14);
-    if (!days.length) return "";
-    const max = Math.max(...days.map((d) => map.get(d)));
-    const bars = days.map((d) => {
-      const cnt = map.get(d);
+    const keys = Array.from(map.keys()).sort().slice(-meta.max);
+    // 활성 토글 반영
+    document.querySelectorAll("#trend-unit .trend-unit-btn").forEach((b) =>
+      b.classList.toggle("active", b.getAttribute("data-unit") === unit)
+    );
+    const range = $("#trend-range");
+    if (range) range.textContent = keys.length ? `(최근 ${keys.length}${meta.note})` : "";
+    if (!keys.length) { box.innerHTML = '<p class="dim">표시할 데이터가 없습니다.</p>'; return; }
+    const max = Math.max(...keys.map((k) => map.get(k)));
+    box.innerHTML = keys.map((k) => {
+      const cnt = map.get(k);
       const h = max ? Math.round((cnt / max) * 100) : 0;
-      const md = d.slice(5); // MM-DD
       return (
-        `<div class="trend-col" title="${d}: ${cnt}건">` +
+        `<div class="trend-col" title="${k}: ${cnt}건">` +
         `<span class="trend-cnt">${cnt}</span>` +
         `<div class="trend-bar" style="height:${h}%"></div>` +
-        `<span class="trend-date">${md}</span></div>`
+        `<span class="trend-date">${trendBucketLabel(k, unit)}</span></div>`
       );
     }).join("");
-    return (
-      `<div class="dash-section"><h4>🗓️ 검토 추이 <span class="dim" style="font-size:0.8rem">(최근 ${days.length}일)</span></h4>` +
-      `<div class="chart-box"><div class="trend">${bars}</div></div></div>`
-    );
+  }
+
+  function bindTrend() {
+    const nav = $("#trend-unit");
+    if (!nav) return;
+    nav.querySelectorAll(".trend-unit-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        dashState.trendUnit = btn.getAttribute("data-unit");
+        renderTrend();
+      });
+    });
+    renderTrend();
   }
 
   // ── ⑤ 데이터셋별 상세 (필터 + 드릴다운 테이블) ───────────────
