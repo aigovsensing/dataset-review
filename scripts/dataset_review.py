@@ -335,6 +335,23 @@ def unify_citations(text: str, sources: list[tuple[str, str]]) -> tuple[str, lis
     return _SRC_WORD_LINK_RE.sub(repl, text), order
 
 
+# 번호 인용 링크가 구분자 없이 붙은 경우: '](url)[N](' 경계.
+_ADJACENT_CITE_RE = re.compile(r"(\]\(https?://[^)\s]+\))(\[\d)")
+
+
+def separate_adjacent_citations(text: str) -> str:
+    """붙어 있는 번호 인용 링크(…](u)[11](u)[12](u)…)를 콤마로 분리한다.
+
+    구분자가 없으면 링크 텍스트 '11','12',… 가 이어져 '111213…' 처럼 하나의 큰 숫자로
+    보인다. 3개 이상 연속도 모두 분리되도록 더 이상 바뀌지 않을 때까지 반복 적용한다.
+    """
+    prev = None
+    while prev != text:
+        prev = text
+        text = _ADJACENT_CITE_RE.sub(r"\1, \2", text)
+    return text
+
+
 def insert_grounding_citations(raw_text: str, response) -> str:
     """근거가 있는 문장 끝에 출처 링크 `[N]` 을 자동 삽입한다.
 
@@ -404,7 +421,8 @@ def insert_grounding_citations(raw_text: str, response) -> str:
     for pos in sorted(at.keys(), reverse=True):
         seen: set[int] = set()
         marks: list[str] = []
-        for n, uri in at[pos]:
+        # 번호 오름차순으로 정렬해 표기(11,12,…) — 한 문장에 여러 출처가 붙을 때 가독성.
+        for n, uri in sorted(at[pos], key=lambda t: t[0]):
             if n in seen:
                 continue
             seen.add(n)
@@ -412,8 +430,9 @@ def insert_grounding_citations(raw_text: str, response) -> str:
         if not marks:
             continue
         # 문장 끝에 이미 공백/개행이 있으면 앞 공백을 넣지 않아 이중 공백을 피한다.
+        # 여러 각주는 콤마+공백으로 분리해 '111213…' 처럼 한 덩어리로 보이지 않게 한다.
         lead = b"" if (pos > 0 and data[pos - 1:pos] in (b" ", b"\n", b"\t")) else b" "
-        data = data[:pos] + lead + "".join(marks).encode("utf-8") + data[pos:]
+        data = data[:pos] + lead + ", ".join(marks).encode("utf-8") + data[pos:]
     return data.decode("utf-8", errors="ignore")
 
 
@@ -1174,6 +1193,7 @@ def run_review(title: str, body: str) -> str:
         text = linkify_bracket_citations(text, sources)  # 맨 `[N]` → `[N](url)`
         text = link_source_refs(text, sources)           # 본문 `[출처 N]` 을 실제 출처 URL 링크로
         text, sources = unify_citations(text, sources)   # '출처' 단어 링크 → 번호 [N] 로 통일
+        text = separate_adjacent_citations(text)         # 붙은 번호 인용을 콤마로 분리
         text = number_source_list(text)                  # '5. 근거 및 출처' 목록 번호 매김
         text = restructure_review(text, name)
     else:
@@ -1183,6 +1203,7 @@ def run_review(title: str, body: str) -> str:
         text = linkify_citations(text, sources)  # 모델이 남긴 잔여 `cite: N` 도 링크로(있으면)
         text = link_source_refs(text, sources)   # 본문 `[출처 N]` 을 실제 출처 URL 링크로 변환
         text, sources = unify_citations(text, sources)  # '출처' 단어 링크 → 번호 [N] 로 통일
+        text = separate_adjacent_citations(text)  # 붙은 번호 인용을 콤마로 분리
         text = number_source_list(text)          # '5. 근거 및 출처' 목록에 1) 2) 3) 번호 매김
         text = restructure_review(text, name)
     parts = [model_header, text]
