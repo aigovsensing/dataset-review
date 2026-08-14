@@ -669,7 +669,6 @@ def restructure_review(text: str, name: str) -> str:
 
     icons = {"1": "🧭", "2": "🔍", "3": "⚖️", "4": "🎓", "5": "📚"}
     blocks: list[str] = []
-    first_detail = True
     for i, m in enumerate(matches):
         num, sec_title = m.group(1), m.group(2).strip()
         start = m.end()
@@ -682,11 +681,9 @@ def restructure_review(text: str, name: str) -> str:
                 continue
             blocks.append(f"## {icon} 요약 결론\n\n{body}")  # 폴백(표 원천이 아닐 때만) — 안전
             continue
-        # 상세/소송/근거: 앞 번호 없이 아이콘+제목만. 첫 상세 섹션만 펼친다.
-        open_attr = " open" if first_detail else ""
-        first_detail = False
+        # 상세/소송/근거: 앞 번호 없이 아이콘+제목만. 전부 기본 접힘(<details>) 상태로 둔다.
         blocks.append(
-            f"<details{open_attr}>\n<summary><b>{icon} {sec_title}</b></summary>\n\n"
+            f"<details>\n<summary><b>{icon} {sec_title}</b></summary>\n\n"
             f"{body}\n\n</details>"
         )
 
