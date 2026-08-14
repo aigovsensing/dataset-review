@@ -10,199 +10,31 @@
 
 </div>
 
-오픈 데이터셋의 **라이선스 · 데이터 생성/수집 방식 · 개인정보 포함 여부**를 자동으로 검토하여
-GitHub 이슈에 검토 결과를 등록하는 프로젝트입니다. 냄새 잘 맡는 탐지견 **똘똘이 비글**처럼,
-데이터셋의 숨은 법적 리스크를 킁킁대며 찾아냅니다.
+오픈 데이터셋의 **라이선스 · 데이터 생성/수집 방식 · 개인정보 포함 여부 · 소송 리스크**를
+GitHub 이슈로 요청하면 **Gemini(구글 검색 그라운딩)** 가 자동 검토해 결과를 이슈 댓글로 등록합니다.
+백엔드 서버 없이 **GitHub Pages + Actions + Google AI Studio 무료 API** 만으로 동작합니다.
 
 > 본 검토는 **회사 내부의 사전 리스크 검토용 참고 자료**이며, 법률 자문이나 법적 판단을 대체하지 않습니다.
 
-## 📑 목차
+---
 
-**처음이라면** → [설정 방법](#설정-방법-1회)으로 바로 시작하세요. **모델/쿼터**가 궁금하면
-→ [무료 Gemini API 안정 운영](#-무료-gemini-api-안정-운영-호출-최소화-설계). **문제 해결**은
-→ [트러블슈팅](#알려진-이슈--트러블슈팅).
+## 🚀 빠른 시작 (Getting Started)
 
-- **소개 · 구조**
-  - [🧩 한눈에 보기](#-한눈에-보기) · [🔄 데이터 흐름](#-데이터-흐름-data-flow) · [⚙️ 동작 흐름](#-동작-흐름-operation-flow) · [⛔ 자의적 해석 금지 · 문장별 출처](#-자의적-해석-금지--문장별-출처-링크-검토-신뢰성-핵심) · [구성 요소](#구성-요소)
-- **시작하기**
-  - [설정 방법 (1회)](#설정-방법-1회) · [사용 방법](#사용-방법) · [라벨](#라벨)
-- **운영 · 참고**
-  - [검토 결과 내보내기 (CSV)](#검토-결과-내보내기-csv--대시보드집계용)
-  - [무료 Gemini API 안정 운영](#-무료-gemini-api-안정-운영-호출-최소화-설계)
-    - [모델 선택과 무료 한도](#모델-선택과-무료-한도-gemini_default_model) · [무료 티어 사용 가능 모델](#무료-티어-사용-가능-모델) · [무료로 3.x 쓰기 (하이브리드 2패스)](#무료로-3x-결과-받기--하이브리드-2패스-gemini_writer_model) · [503 자동 복구](#503일시-과부하-대응--3단계-자동-복구) · [예상 API 비용](#-예상-ai-api-비용-검토-요청-횟수별)
-  - [소송 리스크 검토](#소송-리스크-검토-ai-학습-데이터-무단-활용)
-- **문제 해결 · 기타**
-  - [알려진 이슈 / 트러블슈팅](#알려진-이슈--트러블슈팅) · [로컬 실행 / 테스트](#로컬-실행--테스트) · [참고](#참고) · [라이선스](#라이선스)
+배포·운영에 필요한 최소 단계입니다. 각 단계의 상세·확인 방법은 **[설정 가이드](documents/setup.md)** 를 보세요.
 
-## 🧩 한눈에 보기
+### 1. Gemini API 키 등록
+[AI Studio](https://aistudio.google.com/apikey) 에서 무료 키를 발급받아(카드 등록 불필요),
+저장소 **Settings → Secrets and variables → Actions → Secrets** 에 등록합니다.
+- Name: `GEMINI_API_KEY` / Value: 발급받은 키
 
-**사용자 입력 → GitHub 이슈 → 자동 검토(Gemini) → 결과 열람** 이 하나의 서버리스 파이프라인으로 연결됩니다.
+> 모델은 기본값 `gemini-flash-latest`(최신 Flash)로 자동 동작합니다. 그 외 변수는 전부 **선택**입니다 →
+> [모델·쿼터 가이드](documents/models-and-quota.md). 무료 티어에서 3.x 결과를 받는
+> [하이브리드 2패스](documents/models-and-quota.md#무료로-3x-결과-받기--하이브리드-2패스-gemini_writer_model)도 여기 있습니다.
 
-```mermaid
-flowchart LR
-    U(["👤 사용자"]) -->|"정보 입력"| FORM["📝 검토 요청 폼<br/>docs/ 홈페이지"]
-    FORM -->|"이슈 폼 prefill"| ISSUE["🗂️ GitHub 이슈<br/>dataset-review 라벨"]
-    ISSUE -->|"생성 감지"| ACT["🤖 Actions · dataset_review.py<br/>Gemini + Google 검색 · 1회"]
-    ACT -->|"검토 보고서 등록"| COMMENT["💬 이슈 댓글<br/>+ reviewed 라벨"]
-    COMMENT -->|"열람"| BOARD["📋 결과 게시판<br/>검색 · 페이지네이션"]
-    BOARD --> U
-    classDef ai fill:#fff3cd,stroke:#e0a800,color:#111;
-    classDef gh fill:#dbeafe,stroke:#3b82f6,color:#111;
-    class ACT ai;
-    class ISSUE,COMMENT gh;
-```
-
-| 컴포넌트 | 역할 | 한 줄 설명 |
-| --- | --- | --- |
-| [`docs/`](docs/) | 🖥️ 입력·열람 | 검토 요청 폼 + 결과 게시판(검색·페이지네이션·낮밤 테마·접근 암호 게이트) |
-| [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/dataset-review.yml) | 📨 접수 | 홈페이지가 prefill 하는 검토 요청 이슈 폼 |
-| [`.github/workflows/`](.github/workflows/dataset-review.yml) | ⚙️ 자동화 | 이슈 감지 → 검토 실행 → 결과 댓글·라벨 처리(무료 쿼터 보호 포함) |
-| [`scripts/dataset_review.py`](scripts/dataset_review.py) + [`system_prompt_dataset_review.md`](scripts/system_prompt_dataset_review.md) | 🤖 검토 엔진 | Gemini(구글 검색 그라운딩) **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석 |
-
-## 🔄 데이터 흐름 (Data Flow)
-
-이슈 하나가 생성되어 검토 결과가 등록되기까지의 상호작용 순서입니다.
-
-```mermaid
-sequenceDiagram
-    actor U as 👤 사용자
-    participant H as 📝 docs/ 홈페이지
-    participant I as 🗂️ GitHub 이슈
-    participant A as ⚙️ GitHub Actions
-    participant G as 🤖 dataset_review.py · Gemini
-
-    U->>H: ① 데이터셋 정보 입력 (명칭·논문·소송 URL)
-    H->>I: ② 이슈 폼 prefill → 이슈 생성 (dataset-review 라벨)
-    I->>A: ③ opened 이벤트로 워크플로 트리거
-    Note over A: 작성자 권한 검사 없음 — 누구나 요청 가능<br/>(dataset-review 라벨 이슈면 자동 실행)
-    A->>I: ④ reviewing 라벨 + "검토 시작" 댓글
-    A->>G: ⑤ scripts/dataset_review.py 실행
-    G->>G: ⑥ Gemini 1회 호출 (Google 검색 그라운딩)<br/>MAX_TOKENS 잘림 시 1회 자동 재생성
-    alt 검토 성공
-        G->>I: ⑦ 검토 보고서 댓글 등록 + reviewed 라벨
-    else 검토 실패 (쿼터/오류)
-        G->>I: ⑦′ 실패 안내 댓글 + review-failed 라벨
-    end
-    U->>I: ⑧ 결과 열람 (홈페이지 게시판 또는 이슈 댓글)
-    Note over U,I: 재검토가 필요하면 rerun-review 라벨을 붙여 다시 실행
-```
-
-> **핵심 원칙**: *검토는 자동, 최종 판단의 책임은 사람.* 본 검토는 참고 자료이며 법률 자문을
-> 대체하지 않습니다. 무료 티어 보호를 위해 검토 1건당 Gemini 호출은 **정확히 1회**이고, 실패는
-> `review-failed` 라벨로 명확히 표시되며 재검토는 `rerun-review` 라벨로만 실행됩니다.
-
-## ⚙️ 동작 흐름 (Operation Flow)
-
-이슈가 생성된 뒤 **어떤 조건·분기로 검토가 실행되는지**(운영 관점)를 나타냅니다.
-(컴포넌트 간 상호작용 순서는 위 **데이터 흐름** 시퀀스 다이어그램을 참고하세요.)
-
-```mermaid
-flowchart TD
-    A(["이슈 생성 또는 라벨 이벤트"]) --> B{"검토 요청 라벨 있음"}
-    B -->|"아니오"| X["건너뜀"]
-    B -->|"예"| D{"검토 트리거 이벤트"}
-    D -->|"아니오"| X3["건너뜀"]
-    D -->|"예"| E["reviewing 라벨 · 검토 시작 댓글"]
-    E --> F["dataset_review.py · Gemini 모델 체인 호출"]
-    F --> G{"응답 성공"}
-    G -->|"429 · 사용 불가"| H{"다음 모델 있음"}
-    H -->|"예"| F
-    H -->|"아니오"| FAIL["review-failed 라벨 · 실패 댓글"]
-    G -->|"예"| I{"출력 잘림 MAX_TOKENS"}
-    I -->|"예 · 1회 재생성"| F
-    I -->|"아니오"| J["reviewed 라벨 · 검토 보고서 댓글"]
-    J --> K(["홈페이지·이슈 열람 · CSV 집계"])
-```
-
-- **트리거 판정(누구나 사용 가능)**: ① `dataset-review` 라벨 + ② `opened`(신규)·`rerun-review` 이벤트
-  — **둘 다 충족**하면 작성자 권한과 무관하게 검토를 실행합니다. 작성자 권한(`author_association`)
-  검사는 하지 않으므로 외부인 이슈도 자동 검토됩니다.
-- **모델 폴백**: `gemini-flash-latest` → `gemini-3.7-flash` → `gemini-3.6-flash` → `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite` (품질 우선 → 안정성 하강).
-  `429`(쿼터 소진)·사용 불가면 다음 모델로 자동 폴백합니다. 별칭 호출이 실패해도 **최신 세대(`gemini-3.7-flash`/`gemini-3.6-flash`)를 명시적으로 시도**해 2.5 로 내려가기 전 최신 세대를 최대한 유지합니다. 무료 티어에서 **3.x 로 결과를 받으려면** → [하이브리드 2패스](#무료로-3x-결과-받기--하이브리드-2패스-gemini_writer_model).
-- **잘림 대응**: 출력이 `MAX_TOKENS`로 잘리면 같은 모델로 **1회 재생성**합니다.
-- **결과 분기**: 성공 → `reviewed` 라벨 + 검토 보고서 댓글 / 실패(모든 모델 쿼터 소진 등) →
-  `review-failed` 라벨 + 실패 댓글(`rerun-review`로 재시도).
-
-### 설계 특징
-
-- **백엔드 서버 없음**: 정적 홈페이지 + GitHub 이슈 폼 + GitHub Actions로만 동작합니다.
-- **API 키 노출 없음**: Gemini API 키는 GitHub Secrets에만 저장됩니다.
-- **완전 무료**: GitHub Pages / Actions 무료 티어 + Google AI Studio 무료 API.
-- **AI 호출 최소화 설계**: 검토 1건당 Gemini 호출은 **정확히 1회**이며, 그 외 모든 기능
-  (이슈 파싱, 보고서 정리, 인용 링크, 결과 목록 등)은 AI 없이 일반 코드로 동작합니다.
-  → 자세한 내용은 [무료 Gemini API 안정 운영](#-무료-gemini-api-안정-운영-호출-최소화-설계) 참고.
-- **논문 기반 분석**: 이슈에 논문 주소(예: `arxiv.org/abs/...`)를 입력하면 Gemini 가 Google
-  검색 그라운딩으로 해당 논문과 공식 자료를 찾아 라이선스·데이터 수집 방법을 분석하고, 근거
-  문장을 출처와 함께 인용합니다.
-- **⛔ 자의적 해석 금지 · 문장별 출처**: 법적 리스크 검토이므로 근거 없는 해석·추리를 사실처럼
-  쓰지 않습니다. 데이터셋·논문 검토 **양쪽 시스템 프롬프트**에 강제되어 있습니다(아래 원칙 참고).
-
-### ⛔ 자의적 해석 금지 · 문장별 출처 링크 (검토 신뢰성 핵심)
-
-법적 리스크 판단이므로 **출처 없는 자의적 해석·추리 문구를 사실처럼 서술하는 것을 금지**합니다.
-이 원칙은 **데이터셋 검토([`system_prompt_dataset_review.md`](scripts/system_prompt_dataset_review.md))와
-논문 검토([`system_prompt_paper_review.md`](scripts/system_prompt_paper_review.md)) 프롬프트에 동일하게**
-반영되어 있습니다.
-
-- **인용 ≠ 해석**: 큰따옴표(`"..."`) 원문 인용은 **출처(데이터셋 카드·문서·논문 원문)에 그 문장이
-  실제로 존재할 때만** 사용합니다. 없는 문구를 지어내 `"…로 명시되어 있습니다"`처럼 쓰지 않으며,
-  모델의 종합·추정은 `추정:`으로 **해석임을 명시**합니다.
-- **사용자 입력(prompt)은 근거가 아님**: `[prompt]`·"요청에 따르면" 등을 근거로 쓰지 않습니다.
-  근거는 오직 Google 검색으로 확인한 공식 자료 URL(또는 논문 원문 위치)입니다.
-- **출처에 없으면 지어내지 않음**: 데이터셋 카드/README·논문에 해당 설명이 없거나 비어 있으면
-  "공식 설명 없음"이라고 사실 그대로 적고 **"확인 불가"**로 판정합니다.
-- **문장 말미 출처 표기**: 각 항목의 `확인 결과`(논문은 `Reason`·`Result`) 등 **사실을 주장하는
-  모든 문장 끝에 실제 출처 URL `([출처](URL))`(논문은 위치 `p.N/섹션` 또는 URL)을 표기**합니다.
-  뒷받침 출처가 없으면 표기 대신 **"확인 불가"**로 둡니다.
-- **검증 불가한 서술은 쓰지 않음**: 공식 출처로 확인되지 않는 내용은 서술 대신 "확인 불가"로 대체합니다.
-
-> 배경: 초기에 모델이 데이터셋 카드에 없는 요약 문구를 인용처럼 서술하거나 `[prompt]`를 근거로
-> 표기하는 사례가 있어, 위 규칙을 두 검토 프롬프트에 명시적으로 추가했습니다.
-
-## 구성 요소
-
-| 경로 | 설명 |
-| --- | --- |
-| `docs/` | GitHub Pages로 배포되는 입력 홈페이지 (`index.html`, `app.js`, `style.css`, `config.js`) |
-| `.github/ISSUE_TEMPLATE/dataset-review.yml` | 검토 요청 이슈 폼 (홈페이지가 이 폼을 prefill) |
-| `.github/workflows/dataset-review.yml` | 이슈 생성 시 검토를 실행하는 GitHub Actions 워크플로 |
-| `.github/workflows/export-reviews.yml` | 검토 결과를 CSV/JSON 으로 집계·커밋하는 워크플로(매일/수동) |
-| `scripts/dataset_review.py` | Gemini 호출 + 검토 보고서 생성 스크립트 |
-| `scripts/export_dataset_reviews.py` | 검토 결과 이슈를 파싱해 `docs/data/reviews.csv`·`reviews.json` 생성 |
-| `scripts/system_prompt_dataset_review.md` | 법적 리스크 검토 에이전트 시스템 프롬프트(검토 지침) |
-| `tools/gemini_api_key_test.sh` | Gemini API 키 동작을 curl 로 확인하는 진단 스크립트 |
-
-## 설정 방법 (1회)
-
-> 아래 1~4단계를 마치면 바로 사용할 수 있습니다. 각 단계 끝의 ✅ 확인 방법으로 검증하세요.
-
-### 1. Google AI Studio API 키 발급
-1. <https://aistudio.google.com/apikey> 에서 무료 API 키 발급 (Google 계정만 있으면 무료·카드 등록 불필요)
-2. 저장소 **Settings → Secrets and variables → Actions → New repository secret**
-   - Name: `GEMINI_API_KEY`
-   - Value: 발급받은 키
-3. (선택) 모델은 기본값 `gemini-flash-latest`(최신 Flash 자동)로 동작합니다. 버전 고정·변경은
-   **Variables** 탭에 `GEMINI_DEFAULT_MODEL` 을 추가하세요. → [모델 선택과 무료 한도](#모델-선택과-무료-한도-gemini_default_model) 참고.
-
-✅ 확인: `./tools/gemini_api_key_test.sh <API_KEY>` 실행 → 초록색 ✓ 가 나오면 키 정상.
-
-### 2. GitHub Pages 활성화
-- **Settings → Pages → Source: Deploy from a branch**
-- Branch: `main` / 폴더: `/docs` 선택 후 저장
-- 배포 URL: `https://<owner>.github.io/<repo>/` (본 저장소: <https://aigovsensing.github.io/dataset-review/>)
-
-✅ 확인: 배포 URL 접속 시 "검토 요청" 입력 폼이 보이면 정상 (반영까지 1~2분 소요).
-
-### 3. Actions 권한 확인
-- **Settings → Actions → General → Workflow permissions**
-- **Read and write permissions** 활성화 (이슈에 댓글/라벨을 달기 위해 필요)
-
-### 4. 라벨 생성 (필수) ⚠️
-> **중요:** 이슈 폼 템플릿은 저장소에 **이미 존재하는 라벨만** 자동 적용합니다.
-> `dataset-review` 라벨이 저장소에 없으면 검토 요청 이슈에 라벨이 붙지 않아 워크플로가
-> `Skipped` 됩니다. 아래 라벨을 **미리 생성**해 두어야 합니다.
-
+### 2. 라벨 생성 (필수 ⚠️)
+이슈 폼은 **이미 존재하는 라벨만** 자동 적용합니다. `dataset-review` 라벨이 없으면 워크플로가 `Skipped` 됩니다.
 `gh` CLI로 한 번에 생성:
+
 ```bash
 R=<owner>/<repo>
 gh label create dataset-review --repo $R --color 1d76db --description "데이터셋 검토 요청 (트리거)" --force
@@ -213,435 +45,20 @@ gh label create review-failed  --repo $R --color d73a4a --description "검토 �
 gh label create rerun-review   --repo $R --color 5319e7 --description "재검토 강제 실행" --force
 ```
 
-✅ 확인: 저장소 **Issues → Labels** 에 위 6개 라벨이 보이면 정상.
-
-> **검토 유형 2가지:** 이 저장소는 **데이터셋 검토**(`dataset-review` 라벨 → `scripts/dataset_review.py`)와
-> **연구논문 법무 검토**(`paper-review` 라벨 → `scripts/paper_review.py`) 두 워크플로를 제공합니다.
-> 홈페이지 상단의 **🗂️ 데이터셋 리뷰 / 📄 논문 리뷰** 전환 버튼으로 각 요청 폼·결과 목록을 이용합니다.
-> 논문 검토는 PDF 링크(원문 직접 판독) 또는 논문 웹페이지 URL 을 입력받아 **개인정보 · 저작권 ·
-> 데이터셋 검증(외부 Dataset 사용 vs 자체 생성 데이터)** 을 논문 원문 기반으로 검토합니다.
-
-### 5. 접근 암호 설정 (선택, 약한 게이트)
-
-홈페이지에 아무나 접속하지 못하도록 최소한의 접근 암호를 걸 수 있습니다.
-기본 암호는 `guest2848` 입니다. 암호를 바꾸려면 SHA-256 해시를 계산해 `docs/config.js` 의
-`authHash` 값을 교체하세요.
-
-```bash
-printf '%s' '새암호' | sha256sum   # 출력된 해시를 docs/config.js 의 authHash 에 붙여넣기
-```
-
-- 게이트를 끄려면 `authHash` 를 `""` 로 둡니다.
-- 인증되면 해당 브라우저(`localStorage`)에 기억되어 다시 묻지 않습니다.
-- ⚠️ **이것은 실제 보안이 아닙니다.** 정적 페이지 특성상 소스(해시)가 공개되므로
-  마음먹은 사용자는 우회할 수 있는 **단순 차단 장치**입니다. 민감 정보 보호 용도로는
-  부적합하며, "아무나 우연히 접속" 을 막는 정도로만 사용하세요. (검토 내용 자체는 GitHub
-  이슈에 있고, 결과 목록도 GitHub API 로 조회되므로 이 게이트로 보호되지 않습니다.)
-
-### 6. 다른 저장소로 재배포하는 경우
-- 이 저장소를 Fork(또는 Use this template)한 뒤, `docs/config.js` 의 `owner` / `repo` 값을 수정합니다.
-- 위 1~4번(API 키 Secret, Pages, Actions 권한, 라벨 생성)을 새 저장소에서도 수행합니다.
-
-## 사용 방법
-
-1. **검토 요청** — 홈페이지(GitHub Pages)의 **검토 요청** 탭에서 데이터셋 명칭(필수)과
-   논문 주소, 공식 홈페이지, 관련 소송 URL 등을 입력하고 **"검토 요청 (GitHub 이슈 생성)"**
-   버튼을 누릅니다. 폼 내용이 미리 채워진 GitHub 이슈 작성 페이지가 열리며, 여기서
-   **Create issue** 를 눌러야 이슈가 실제로 생성됩니다. (GitHub 로그인 필요)
-   - ♻️ **중복 방지**: 같은 데이터셋 명칭이 이미 검토되어 이슈로 등록되어 있으면, 홈페이지가
-     신규 이슈 작성 페이지를 열지 않고 **기존 이슈 주소**를 안내합니다. 다시 검토하려면
-     안내된 이슈로 이동해 `rerun-review` 라벨을 추가(체크)하세요(중복 검토·쿼터 낭비 방지).
-     동명의 다른 데이터셋이라면 안내창의 **‘그래도 새 이슈로 요청’** 으로 새로 등록할 수 있습니다.
-2. **자동 검토** — 이슈가 생성되면 GitHub Actions 가 즉시 실행됩니다. 별도의 승인 절차나
-   작성자 권한 제한이 **없으며**, 누구나 연 이슈가 자동으로 검토됩니다. 보통 1~3분 뒤
-   검토 보고서가 이슈 댓글로 등록되고 `reviewed` 라벨이 붙습니다.
-   - ⚠️ 개방형 운영이므로 외부인의 무분별한 이슈가 Gemini 무료 쿼터를 소진할 수 있습니다.
-     제한이 필요하면 워크플로의 `author_association` 게이트를 복구하세요.
-3. **결과 열람** — 홈페이지의 **검토 결과** 탭 또는 GitHub 이슈에서 직접 확인합니다.
-   보고서 최상단의 **종합의견**은 요청자에게 그대로 복사·회신할 수 있는 요약문입니다.
-   - 🔍 **검색**: 데이터셋 명칭·제목으로 목록을 필터링할 수 있습니다.
-   - 📄 **게시판/페이지네이션**: 기본 한 페이지 10건씩 보이며, **페이지당 개수**를
-     5·10·15·20·30·50·100 중에서 고르고 이전/다음으로 페이지를 넘길 수 있습니다.
-   - 📊 **대시보드**: **대시보드** 탭에서 검토 현황을 한눈에 봅니다. 판정별 건수(사용 가능/
-     추가 검토 필요/사용 비권고), **내부 판단 분포 도넛**, **검토 항목별(라이선스·수집·개인정보)
-     리스크 스택 막대**, **검토 추이**, 그리고 데이터셋별 표에서 행을 펼치면 종합의견의
-     **확인 결과 · 내부 판단 · 판단 근거**를 열람할 수 있습니다(판정 필터·검색·게시판 지원,
-     기본 5건/페이지, 5·10·15·30·50·70·100 선택). 집계 데이터(`docs/data/reviews.json`)는
-     만족도 레이블 변경 시 자동 반영되며, 매일 정기 갱신도 실행됩니다.
-   - ⚖️ **소송이 걸려있는 데이터셋 현황**: 대시보드 상단에 소송·법적 분쟁 이력이 확인된
-     데이터셋을 **사건명 · 사건번호 · 원고 · 피고 · 침해 입증 근거 강도(강/중/약)** 표로 모아
-     보여줍니다. 행을 펼치면 **법원 · 사건 상태 · 침해 주장 요지 · 원고가 어떻게 알아냈는가(판단
-     기준) · 소장 항 번호 · 소장 원문 인용 · 내부 판단 · 판단 근거**까지 열람할 수 있습니다.
-     이 정보는 검토 보고서의 「3. 소송 리스크」 섹션에서 자동 파싱되어 집계됩니다.
-   - 🔗 **메뉴별 공유 링크**: 탭 우측의 **🔗 공유** 버튼을 누르면 각 메뉴로 바로 열리는
-     주소를 복사할 수 있습니다. 주소 끝의 해시로 메뉴가 결정됩니다 —
-     `…/#request`(검토 요청) · `…/#results`(검토 결과) · `…/#dashboard`(대시보드) ·
-     `…/#how`(이용 안내). 예: `https://aigovsensing.github.io/dataset-review/#dashboard`
-4. **재검토** — 입력을 수정했거나 결과가 미흡하면 이슈에 `rerun-review` 라벨을 붙이세요.
-   해당 이슈만 다시 검토됩니다. (Gemini 호출이 1회 추가되므로 필요할 때만 사용)
-
-### 입력 팁: 논문·공식 URL 을 함께 입력하면 정확도가 올라갑니다
-
-논문 주소(예: `https://arxiv.org/abs/xxxx.xxxxx`), 공식 홈페이지, LICENSE/Terms, GitHub·
-Hugging Face 주소를 입력하면 Gemini 가 Google 검색 그라운딩으로 그 자료들을 우선적으로
-찾아 라이선스 조항·데이터 수집 방법·개인정보 처리 서술을 원문 근거와 함께 인용합니다.
-URL 이 구체적일수록 검토 품질이 올라갑니다. 여러 개는 줄바꿈으로 구분해 입력합니다.
-
-### 논문 주소(arXiv)는 어떻게 분석되나?
-
-> **결론부터**: 코드가 arXiv PDF 를 직접 다운로드·파싱하지는 **않습니다.** 그 URL 을 Gemini 에
-> 넘겨, **Gemini 가 Google 검색 그라운딩으로 논문을 찾아 분석·인용**하도록 되어 있습니다.
-
-**처리 흐름 (arXiv 주소 입력 시)**
-
-1. **폼에서 URL 추출 (코드, AI 아님)** — [`parse_issue_body()`](scripts/dataset_review.py#L31)가 이슈 본문의
-   `### 논문 주소 (URL)` 섹션을 정규식으로 파싱해 `fields["paper_urls"]` 에 담습니다.
-2. **프롬프트에 URL 그대로 삽입** — [`build_user_prompt()`](scripts/dataset_review.py#L82):
-   ```python
-   if fields.get("paper_urls"):
-       lines.append(f"- 논문 주소: {fields['paper_urls']}")
-   ```
-   arXiv 전용 처리(PDF 변환·다운로드)는 없습니다. URL 을 텍스트로 넣고, "Google 검색 도구로 논문 등
-   공식 자료를 직접 확인 · 이 URL 을 우선 근거로 활용 · 인용 시 출처 URL 함께 제시"라고 지시합니다.
-3. **시스템 지침이 논문 활용 방식을 규정** — [`system_prompt_dataset_review.md`](scripts/system_prompt_dataset_review.md#L27):
-   *"논문·공식 홈페이지·LICENSE… URL 이 제공되면 Google 검색 도구로 해당 자료를 우선적으로 찾아,
-   라이선스 조항·데이터 수집 방법(크롤링·출처·필터링)·개인정보 서술을 원문에서 확인하고 그 문장을
-   그대로 인용한다."* → 논문에서 **라이선스 / 데이터 수집 방식 / 개인정보** 3대 항목의 근거를 찾습니다.
-4. **Gemini 1회 호출 (google_search 그라운딩)** — [`dataset_review.py`](scripts/dataset_review.py#L478):
-   ```python
-   tools = [types.Tool(google_search=types.GoogleSearch())]
-   ```
-   Gemini 가 이 도구로 arXiv 논문(및 관련 공식 자료)을 **실제 검색·열람해 분석**합니다. 논문 내용을
-   이해하는 "분석"은 여기서 일어납니다.
-5. **후처리로 인용을 링크화 (코드, AI 아님)** — Gemini 가 근거 문장 끝에 `[cite: N]` 을 붙이면
-   ([`system_prompt_dataset_review.md`](scripts/system_prompt_dataset_review.md#L54)), `linkify_citations()` 가 그 번호를 실제
-   출처 URL 링크로 변환하고 그라운딩 출처 목록을 결과 하단에 첨부합니다.
-
-**참고 (이력):** 과거 두 방식을 시도했다가 무료 티어 안정성 문제로 되돌렸습니다.
-- `url_context` 도구(모델이 PDF 원문을 직접 읽기) → 대용량 논문 PDF 에서 **빈 응답 실패**
-- arXiv API 로 초록을 코드로 가져와 주입 → 모델이 초록을 출력에 되풀이하는 **무한 반복 루프**
-
-그래서 현재는 가장 안정적인 **google_search 그라운딩 단독** 방식입니다. 정리하면 — arXiv URL 은
-"Gemini 에게 이 논문을 찾아 근거로 쓰라"는 **지시의 입력**으로 쓰이고, 실제 논문 읽기·분석은
-Gemini 의 Google 검색 그라운딩이 수행하며, 코드는 그 앞뒤(URL 추출·인용 링크화·출처 첨부)를 담당합니다.
-
-## 검토 결과 내보내기 (CSV · 대시보드/집계용)
-
-모든 검토 결과를 **CSV/JSON 으로 집계**할 수 있습니다. [`scripts/export_dataset_reviews.py`](scripts/export_dataset_reviews.py)
-가 `dataset-review` 이슈들을 모아 각 검토 댓글에서 구조화 필드를 파싱해
-`docs/data/reviews.csv` (Excel 한글 호환 UTF-8 BOM) 와 `docs/data/reviews.json` 을 생성합니다.
-JSON에는 실제 집계 완료 시각인 `exported_at`과 검토 결과 배열 `rows`가 저장됩니다.
-
-**컬럼**: `issue, dataset, verdict(판정), model, status, review_confidence(자동리뷰 만족도), license_check/judgment,
-collection_check/judgment, privacy_check/judgment, litigation(소송 여부), author, created_at, updated_at, url`
-
-- **자동 갱신**: [`export-reviews.yml`](.github/workflows/export-reviews.yml) 워크플로가 **이슈 레이블 변경 시와 매일**(및 수동
-  `Run workflow`) 실행되어 CSV 를 커밋합니다.
-- **다운로드**: 홈페이지 **검토 결과** 탭의 **⬇️ CSV** 버튼(= `data/reviews.csv`) 또는 저장소에서 직접 받습니다.
-- **로컬 실행**:
-  ```bash
-  GITHUB_TOKEN=$(gh auth token) GITHUB_REPOSITORY=<owner>/<repo> python scripts/export_dataset_reviews.py
-  ```
-- 최신 형식(불릿·4열 표)과 구버전(파이프 표) 검토 댓글을 모두 파싱합니다. 매우 오래된 일부 형식은
-  판정·데이터셋만 채워질 수 있으며, 해당 이슈를 `rerun-review` 로 재검토하면 항목 필드까지 채워집니다.
-
-## 라벨
-
-| 라벨 | 의미 |
-| --- | --- |
-| `dataset-review` | 검토 요청 이슈 (트리거). **사전 생성 필요** — 이슈 폼이 이 라벨을 부여 |
-| `reviewing` | 검토 진행 중 (워크플로가 자동 부여/제거) |
-| `reviewed` | 검토 완료 (워크플로가 자동 부여) |
-| `review-failed` | 검토 실패 — API 키/쿼터 등 확인 필요 (워크플로가 자동 부여) |
-| `rerun-review` | 이 라벨을 추가하면 재검토를 강제 실행 |
-
-## 💰 무료 Gemini API 안정 운영 (호출 최소화 설계)
-
-이 프로젝트는 **Google AI Studio 무료 API 키**로 운영되는 것을 전제로 설계되었습니다.
-핵심 원칙은 두 가지입니다.
-
-1. **검토 1건 = Gemini API 호출 정확히 1회.** 그 이상은 어떤 경로로도 발생하지 않습니다.
-2. **AI 없이 구현 가능한 기능은 전부 일반 코드로 구현.** Gemini 는 오직 "법적 리스크 판단"
-   한 곳에만 사용합니다.
-
-### AI 를 쓰지 않는 부분 (일반 코드로 구현된 기능)
-
-| 기능 | 구현 위치 | 방식 |
-| --- | --- | --- |
-| 이슈 폼 파싱 (명칭·URL 추출) | `scripts/dataset_review.py` `parse_issue_body()` | 정규식 |
-| 입력 사전 검증 (빈 이슈 차단) | `scripts/dataset_review.py` `run_review()` | 필드 검사 — 검토할 정보가 없으면 **API 호출 없이** 즉시 실패 처리 |
-| 인용 번호 → 출처 링크 변환 | `scripts/dataset_review.py` `linkify_citations()` | 정규식 |
-| 보고서 재구성 (배지·접이식 섹션) | `scripts/dataset_review.py` `restructure_review()` | 문자열 처리 |
-| 판정(✅/⚠️/⛔) 추출·배너 생성 | `scripts/dataset_review.py` `detect_verdict()` | 패턴 매칭 |
-| 검토 결과 목록·홈페이지 | `docs/` | 정적 페이지 + GitHub REST API (Gemini 무관) |
-| 라벨 관리·댓글 등록 | 워크플로 | `gh` CLI (Gemini 무관) |
-
-### 호출 횟수를 줄이는 장치
-
-- **개방형 트리거 (누구나 사용 가능):** 작성자 권한(`author_association`) 검사를 하지 않으므로
-  외부인(`NONE`)이 연 이슈도 `dataset-review` 라벨만 있으면 자동으로 검토(=Gemini 호출)가
-  실행됩니다.
-  - ⚠️ **쿼터 주의:** 개방형 운영이라 외부인의 무분별한 이슈가 무료 Gemini 쿼터를 소진할 수
-    있습니다. 제한이 필요하면 워크플로 `if` 조건에 작성자/승인(`review-approved`) 게이트를
-    복구하세요.
-- **이벤트당 정확히 1회 실행:** 이슈 `opened` 시 1회, 이후에는 `rerun-review`(재검토) 라벨을
-  붙였을 때만 재실행됩니다. 워크플로가 스스로 붙이는 `reviewing`/`reviewed` 라벨 이벤트는
-  실행 조건에서 제외되어 자기 자신을 재트리거하지 않습니다.
-- **중복 실행 방지:** `reviewed` 라벨이 붙은 이슈는 재검토되지 않습니다(재검토는 `rerun-review` 라벨로만).
-- **동시 실행 직렬화:** `concurrency` 설정으로 같은 이슈의 실행을 직렬화합니다(진행 중인 검토는
-  취소하지 않아, 검토가 도중에 끊기지 않습니다).
-- **빈 입력 차단:** 데이터셋 명칭과 URL 이 모두 비어 있는 이슈는 Gemini 를 호출하지 않고
-  실패 댓글만 남깁니다.
-- **일시 오류 재시도 + 모델 자동 폴백:** 503/500 등 일시 서버 오류는 같은 모델로 지수 백오프
-  재시도하고, `429`(쿼터 소진)·모델 불가 시에는 무료 쿼터가 더 큰 **다음 모델로 자동 폴백**합니다
-  (아래 [모델 선택](#모델-선택과-무료-한도-gemini_default_model) 참고).
-
-### 모델 선택과 무료 한도 (`GEMINI_DEFAULT_MODEL`)
-
-> 🏷️ **변수 이름:** 기본(1차) 검토 모델은 **`GEMINI_DEFAULT_MODEL`**, 하이브리드 2패스의
-> 최종 작성 모델은 **`GEMINI_WRITER_MODEL`** 로 이름이 대칭입니다. 폴백 목록은 각각
-> `GEMINI_DEFAULT_FALLBACKS` / `GEMINI_WRITER_FALLBACKS` 입니다.
-
-기본값은 **`gemini-flash-latest`** — 항상 최신 Flash 로 자동 실행되어 검토 품질을 확보합니다
-(현재 → **`gemini-3.6-flash`** 로 해석, 2026-07-21 GA). 실제 사용된 버전은 검토 결과 **최상단 `모델 정보`** 줄에
-표시됩니다. 버전을 바꾸려면 저장소 **Variables** 탭에 `GEMINI_DEFAULT_MODEL` 을 지정하세요.
-3.6 을 반드시 쓰고 싶다면 `GEMINI_DEFAULT_MODEL=gemini-3.6-flash` 로 고정할 수 있고, 고정하지 않아도 폴백
-체인 첫 단계가 stable `gemini-3.6-flash` 라 별칭 실패 시에도 3.6 이 한 번 더 시도됩니다.
-검토 1건 = 호출 1회이므로 **하루 검토 가능 건수 ≈ 모델의 일일 요청 한도(RPD)** 입니다.
-
-#### 무료 티어 사용 가능 모델
-
-Google AI Studio **무료 API 키**(Google 계정만 있으면 카드 등록 없이 발급)로 호출할 수 있는 주요
-Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리**되며, **신규·상위 모델일수록 한도가
-작습니다**. 그래서 무료 계정에서는 최신 3.x 쿼터가 금방 소진되어 폴백 체인이 2.5 로 안착하는 경우가
-많습니다.
-
-| 모델 ID | 세대 | 무료 티어 | 무료 일일 한도(RPD)\* | 품질 · 특성 |
-| --- | --- | :--: | --- | --- |
-| `gemini-flash-latest` (별칭) | 최신 | ✅ | 해석 버전 따름 | 항상 최신 Flash 로 해석. **기본값** |
-| `gemini-3.7-flash` | 3.7 | ✅ | 작음 | 최신 세대 Flash — 품질 최상, 한도 작음. **폴백 1순위** |
-| `gemini-3.6-flash` | 3.6 | ✅ | 작음 | 직전 stable 풀 Flash — 별칭 실패 시 재시도 |
-| `gemini-3.5-flash` | 3.5 | ✅ | 작음 | 이전 세대 풀 Flash |
-| `gemini-3.5-flash-lite` | 3.5 | ✅ | 중간 | 3.5 세대 경량 — 품질·한도 균형 |
-| `gemini-3.1-flash-lite` | 3.1 | ✅ | 중간 | 3.x 세대 경량 — 품질·한도 균형 |
-| `gemini-2.5-flash` | 2.5 | ✅ | 중간 (~250) | 안정적 · 무료 한도 넉넉 |
-| `gemini-2.5-flash-lite` | 2.5 | ✅ | 큼 (~1,000) | **최대 무료 한도** · 최저 비용(품질 다소 낮음) |
-| `gemini-2.5-pro` | 2.5 | ✅ | 작음 (~100) | 가장 정밀 · 한도 작음 |
-| `gemini-3-flash-preview` 등 preview/experimental | — | ⚠️ 제한적 | 매우 작음 | **불안정 — 이 앱에서는 미사용** |
-
-\* Google 은 더 이상 무료 RPD **수치를 공식 문서에 게시하지 않고** 계정별
-[AI Studio 대시보드](https://aistudio.google.com/rate-limit)에서만 보여줍니다. 위 수치는 과거 관측
-기반 **대략치이며 수시로 변동**됩니다 — 정확한 값은 본인 계정 대시보드에서 확인하세요.
-
-> ⚠️ **한 가지 주의:** 실제로 `gemini-3.1-flash` 같은 정확한 모델 ID가 존재하는지는
-> [Google 공식 모델 목록](https://ai.google.dev/gemini-api/docs/models)에서 확인하세요. 존재하지
-> 않는 ID를 넣으면 **404로 그 모델은 건너뛰고 폴백**됩니다. 이 저장소 코드/문서는 최신을
-> `gemini-3.6-flash` 로 가정하고 있습니다. (예: `3.1` 은 풀 flash 가 없고 `gemini-3.1-flash-lite`
-> 만 존재합니다.)
-
-> ✅ **모델 자동 폴백**: 무료 티어 일일 쿼터는 **모델별로 분리**됩니다. 그래서 기본 모델이
-> `429`(쿼터 소진)이거나 사용 불가하면 **다음 모델로 자동 폴백**해 검토를 계속합니다 —
-> 기본 체인은 **품질 우선(최신 3.x) → 안정성(무료 쿼터가 큰 2.5)** 순으로 내려간다:
-> **`gemini-flash-latest` → `gemini-3.7-flash` → `gemini-3.6-flash` → `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite`**.
-> 무료 티어에서는 최신 3.x 쿼터가 작아 상시 소진되기 쉬우므로, 끝을 무료 쿼터가 가장 큰
-> `gemini-2.5-flash-lite` 로 두어 **어떤 경우에도 답변을 보장**한다. 폴백이 일어나면 결과 상단
-> `모델 정보` 에 실제 사용된 모델이 표시됩니다.
-> (체인은 `GEMINI_DEFAULT_FALLBACKS` 변수로 커스터마이즈 가능. stable 모델 ID 는
-> [공식 목록](https://ai.google.dev/gemini-api/docs/models) 참고 — 3.1 은 풀 flash 없이 `flash-lite` 만 존재.)
-
-#### 503(일시 과부하) 대응 — 3단계 자동 복구
-
-특정 모델이 트래픽 급증으로 `503 UNAVAILABLE`("high demand")을 반환하는 것은 **키·쿼터 문제가
-아니라 구글 서버 쪽 일시 장애**입니다. 검토가 이런 일시 오류 하나로 죽지 않도록, 아래 3단계로
-자동 복구합니다.
-
-1. **같은 모델 재시도 (지수 백오프)** — `503`/`500`/`502`/`504` 등 일시적 서버 오류는 같은 모델로
-   **최대 4회**(대기 5s → 10s → 20s, 최대 ~35초) 재시도합니다. 짧은 스파이크는 여기서 대부분 흡수됩니다.
-2. **다른 모델로 폴백** — 재시도가 모두 소진돼도 죽지 않고, `429`(쿼터)와 **동일하게 다음 모델로
-   자동 폴백**합니다. 'high demand'는 특정 모델 고유의 과부하일 때가 많아, 체인의 다른 모델은
-   통과할 확률이 높습니다.
-3. **원인별 정확한 실패 안내** — 체인의 모든 모델까지 실패하면, 오류 코드에 맞는 안내를 이슈 댓글로
-   남깁니다. `503` 은 "일시 장애 → 잠시 후 `rerun-review`"로 안내하며, **키·쿼터를 확인하라는
-   오진성 문구를 내보내지 않습니다**(401=인증, 429=쿼터, 503=일시 장애를 구분).
-
-> 위 재시도 횟수/대기는 `scripts/dataset_review.py` 의 `generate_with_retry` 에서 조정할 수 있습니다.
-> 특정 모델의 503 이 지속되면 `GEMINI_DEFAULT_MODEL` 을 안정 버전(GA)으로 바꾸거나 폴백 체인을 넓히세요.
-
-**`GEMINI_DEFAULT_MODEL` 을 언제 지정하나** (기본은 미설정 = `gemini-flash-latest` 권장):
-
-- **그대로 둔다 (권장)** — 최신 3.6 Flash 로 검토하고, 쿼터가 소진되면 위 폴백 체인
-  (`gemini-3.6-flash` → `gemini-3.5-flash` → … → `gemini-2.5-flash-lite`)으로 자동 하강해
-  하루 검토 가능량이 늘어납니다.
-- **3.6 으로 고정** — 항상 최신 stable 3.6 을 쓰려면 `GEMINI_DEFAULT_MODEL=gemini-3.6-flash`.
-- **처음부터 2.5 로 고정** — 3.x 쿼터 시도 자체를 건너뛰려면 `GEMINI_DEFAULT_MODEL=gemini-2.5-flash`.
-- **최대 검토량** — 무료 한도가 가장 큰 `gemini-2.5-flash-lite`(품질은 다소 낮음).
-- **최고 정밀도** — `gemini-2.5-pro`(한도가 작아 소량 검토에 적합).
-
-> 각 모델의 무료 한도·품질은 위 [무료 티어 사용 가능 모델](#무료-티어-사용-가능-모델) 표를 참고하세요.
-> (`rerun-review` 는 호출을 1회 더 소모합니다. 실패 대처는 [트러블슈팅](#review-failed-라벨이-붙은-경우) 참고.)
-
-#### 무료로 3.x 결과 받기 — 하이브리드 2패스 (`GEMINI_WRITER_MODEL`)
-
-**증상.** 무료 키로는 검토가 거의 항상 `gemini-2.5-flash` 로 안착하고, 3.x(`gemini-3.7-flash` 등)는
-매번 `429` 로 건너뛰어집니다. 이유는 **모델이 아니라 검색 그라운딩(`google_search`) 도구**입니다 —
-무료 티어에서 **검색 그라운딩 쿼터는 2.5 계열에만 열려 있어**, 3.x 를 그라운딩과 함께 호출하면
-`429 RESOURCE_EXHAUSTED` 가 납니다. 반면 **3.x 도 그라운딩 없이 본문 생성은 무료로 정상**입니다.
-(직접 확인: [`tools/gemini_api_key_test.sh`](tools/gemini_api_key_test.sh) 실행 → `PLN`(그라운딩 없음)은
-3.x 도 `200`, `GRD`(그라운딩)만 `429` 로 찍힘.)
-
-**해결 — 하이브리드 2패스.** 근거 수집과 최종 작성을 분리해, 무료로 **3.x 품질 + 출처 링크**를 모두 얻습니다.
-
-1. **1차 (그라운딩 O)** — 그라운딩 가능한 모델(무료는 2.5)로 웹검색 근거·출처를 수집하고 문장별 `[N]` 인용 초안을 만듭니다.
-2. **2차 (그라운딩 X)** — 그 근거·출처를 `GEMINI_WRITER_MODEL`(예: `gemini-3.7-flash`)에 넘겨, 검색 없이 **최종 검토문**을 작성합니다. 출처 번호·URL 은 그대로 보존하고 새 URL/사실은 지어내지 않도록 지시합니다.
-
-> ✅ **안전장치:** 2차(3.x)가 실패하면 자동으로 **1차(그라운딩) 결과로 폴백**합니다. 즉 하이브리드를
-> 켜도 품질 하한은 **기존 단일 패스와 동일**하며, 절대 나빠지지 않습니다.
-
-**켜는 법** — 저장소 **Settings → Secrets and variables → Actions → Variables** 에 추가:
-
-| 변수 | 값(예) | 설명 |
-| --- | --- | --- |
-| `GEMINI_WRITER_MODEL` | `gemini-3.7-flash` | **이것만 설정하면 하이브리드 활성화.** 최종 작성에 쓸 3.x 모델 |
-| `GEMINI_DEFAULT_MODEL` | `gemini-2.5-flash` | (권장) 1차 그라운딩이 곧장 2.5 로 가 무의미한 3.x 그라운딩 `429` 캐스케이드 제거 |
-| `GEMINI_WRITER_FALLBACKS` | `gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash` | (선택) 최종 모델 폴백. 미설정 시 3.7→3.6→3.5→3.5-lite |
-
-- 미설정이면 **기존 단일 패스 동작 그대로**(옵트인).
-- 검토 1건당 무료 호출이 **2회**(2.5 그라운딩 1 + 3.x 최종 1)로 늘지만, 둘 다 무료 티어 범위입니다.
-  1차 그라운딩 호출량은 기존과 동일하고, 무그라운딩 3.x 호출 1회가 더해질 뿐입니다.
-
-**결과 확인.** 검토 결과 상단 `모델 정보` 에 `근거 수집: gemini-2.5-flash → 최종 작성: gemini-3.7-flash
-(그라운딩 없음)` 이 표시되고, Actions 로그에 `[diag] hybrid final pass used=gemini-3.7-flash` 가 찍히면
-정상 동작입니다. 본문 문장 끝의 `[N]` 출처 링크와 하단 '참고 출처' 목록은 그대로 유지됩니다.
-
-> ℹ️ 최종 본문은 3.x 가 **1차에서 수집된 근거만으로** 작성합니다(추가 검색 없음). 출처는 2.5 의
-> 검색 그라운딩에서 나오고, 종합·서술 품질은 3.x 가 담당합니다. 순수 무료 티어에서 3.x 에 **직접**
-> 그라운딩을 붙이는 방법은 없으므로(쿼터 0), 이 분리가 무료로 3.x 를 쓰는 유일하게 유효한 방식입니다.
-
-> ⚠️ 저장소 설정의 **"Allow GitHub Actions to create and approve pull requests"** 옵션은
-> `GITHUB_TOKEN` 의 PR 권한만 제어하며 **워크플로 실행 횟수·Gemini 호출과 무관**합니다(쿼터 보호 효과 없음).
-
-### 💵 예상 AI API 비용 (검토 요청 횟수별)
-
-> 이 앱은 기본적으로 **Google AI Studio 무료 티어**로 동작하므로 **실제 비용은 $0** 입니다(일일·분당
-> 요청 한도 내). 아래 유료 비용은 무료 한도를 초과해 **유료 티어로 전환할 경우의 참고 추정치**입니다.
-> 요금은 수시로 변동되니 반드시 [공식 요금 페이지](https://ai.google.dev/gemini-api/docs/pricing)를
-> 확인하세요. **(기준: 2026-07)**
-
-- **호출 구조**: 홈페이지에서 **"검토 요청 (GitHub 이슈 생성)" 1건 = Gemini `generateContent` 1회 호출**
-  (+ Google 검색 그라운딩 1회). 출력이 토큰 한도로 잘리면 자동으로 **1회 재생성**하므로 드물게 2회가 됩니다.
-- **검토 1건당 토큰(실측 대략)**: 입력 ~5K tokens, 출력(사고 포함) ~8K tokens. 데이터셋·논문·소송 입력
-  복잡도에 따라 달라집니다.
-
-#### ① 모델별 검토 1건당 단가 (유료 티어)
-
-| 모델 (`GEMINI_DEFAULT_MODEL`) | 입력 단가 | 출력 단가 | 검토 1건 토큰 비용\* | 그라운딩(무료 한도 초과 시) |
-| --- | --- | --- | --- | --- |
-| `gemini-flash-latest` (**기본값**) | 해석 버전 따름 | 해석 버전 따름 | 현재 → `gemini-3.6-flash` ≈ 3.x Flash 수준 | 현재 3.x = +$0.014/건 (월 5,000건 무료 후) |
-| `gemini-3.6-flash` (현재 최신) | 3.x Flash 단가 | 3.x Flash 단가 | **≈ $0.08** (3.5 Flash 기준 추정) | +$0.014/건 (월 5,000건 무료 후) |
-| `gemini-3.5-flash` | $1.50 / 1M | $9.00 / 1M | **≈ $0.08** | +$0.014/건 (월 5,000건 무료 후) |
-| `gemini-2.5-flash` | $0.30 / 1M | $2.50 / 1M | **≈ $0.02** | +$0.035/건 (일 1,500건 무료 후) |
-| `gemini-2.5-flash-lite` (최저가) | $0.10 / 1M | $0.40 / 1M | **≈ $0.004** | +$0.035/건 (2.x 공유) |
-
-\* 입력 5K + 출력 8K tokens 가정, 그라운딩 무료 구간 기준. 기본값(→ 3.6 Flash, 3.x 세대)은 검토 1건 ≈ $0.08,
-`gemini-2.5-flash` 로 고정하면 약 1/4, `gemini-2.5-flash-lite` 는 약 1/20 수준입니다
-(모델 선택은 [위 섹션](#모델-선택과-무료-한도-gemini_default_model) 참고).
-
-#### ② 검토 요청 횟수별 예상 비용 (기본값 `gemini-flash-latest` → 현재 `gemini-3.6-flash` 기준)
-
-| 검토 요청 횟수 | 실제 Gemini 호출 횟수 | 무료 티어 비용 | 유료 티어 예상 비용 | 비고 |
-| --- | --- | --- | --- | --- |
-| 1건 | 1회 (드물게 2회) | **$0** | ≈ $0.08 | 그라운딩 월 5,000건 무료 내 |
-| 10건 | ≈ 10회 | **$0** | ≈ $0.8 | |
-| 100건 | ≈ 100회 | **$0** | ≈ $8 | |
-| 1,000건 | ≈ 1,000회 | $0 (여러 날 분산 시) | ≈ $80 | 무료 일일 한도(RPD) 초과 가능 → 유료 필요 |
-| 10,000건 | ≈ 10,000회 | 한도 초과 | ≈ $800 (+그라운딩 초과분) | 월 5,000건 초과분은 그라운딩 $0.014/건 별도 |
-
-> 요금 출처: [Gemini API Pricing (공식)](https://ai.google.dev/gemini-api/docs/pricing) · 그라운딩은
-> Gemini 2.x = 일 1,500건 무료 후 $35/1,000건, Gemini 3.x = 월 5,000건 무료 후 $14/1,000건.
-
-## 소송 리스크 검토 (AI 학습 데이터 무단 활용)
-
-모든 데이터셋 검토는 `3. 소송 리스크` 섹션에서, 해당 데이터셋(및 원본 데이터셋)이
-**저작권자 허가 없이 AI 모델 학습에 무단 사용되어 제기된 소송**에 연루됐는지를
-**소송 URL 제공 여부와 무관하게 Google 검색으로 능동 조사**합니다. 검색으로 관련 소송이
-확인되면 사건 개요·근거 강도와 함께 보고하고, 확인되지 않으면
-`해당 없음 (검색 결과 관련 소송 미확인)` 으로 표기합니다(검색 없이 단정하지 않음).
-
-추가로 **관련 소송(CourtListener 등) URL** 을 함께 입력하면(권장), 해당 사건을 반드시
-조사·보고하며 검토 결과 `3. 소송 리스크` 섹션에 다음을 정리합니다.
-
-- **원고가 침해를 어떻게 입증했는가**를 근거 강도 **강 / 중 / 약** 으로 분류
-  - **강(强)** — 피고의 논문·법정 문서 자인, 법원 사실인정·디스커버리
-  - **중(中)** — 제3자 조사, 모델 자기 진술, "on information and belief" 등 논증적 추론
-  - **약(弱)** — 명칭만 언급, 본문 근거 부재
-- 근거가 된 **소장 원문 문장 직접 인용 + 항 번호** 표기 후 한국어 요약
-
-## 알려진 이슈 / 트러블슈팅
-
-### 이슈를 만들었는데 검토가 실행되지 않는 경우
-
-Actions 탭에서 워크플로가 `Skipped` 라면 실행 조건 미충족입니다. 순서대로 확인하세요.
-
-1. **이슈에 `dataset-review` 라벨이 있는가?** — 없다면 저장소에 라벨이 미리 생성되지 않은
-   것입니다. [설정 4번](#4-라벨-생성-필수-)으로 라벨을 만들고, 기존 이슈에 라벨을 수동으로
-   붙인 뒤 `rerun-review` 라벨을 추가하세요.
-2. **트리거 이벤트가 맞는가?** — `opened`(신규 생성) 또는 `rerun-review` 라벨 추가일 때만
-   실행됩니다. 이미 `reviewed` 라벨이 붙은 이슈는 `rerun-review` 라벨을 추가해야 재검토됩니다.
-   (작성자 권한 제한은 없으므로 외부 사용자 이슈도 자동 실행됩니다.)
-3. 워크플로가 실행됐는데 실패했다면 이슈의 오류 댓글과 Actions 로그를 확인하세요.
-
-### `review-failed` 라벨이 붙은 경우
-
-이슈의 오류 댓글에서 원인을 확인할 수 있습니다.
-
-| 오류 메시지 | 원인 | 조치 |
-| --- | --- | --- |
-| `GEMINI_API_KEY 환경 변수가 설정되어 있지 않습니다` | Secret 미등록 | 설정 1번 수행 |
-| `429` / `RESOURCE_EXHAUSTED` | **폴백 체인의 모든 모델**까지 일일 한도 소진 | 다음 날 `rerun-review` (또는 `GEMINI_DEFAULT_FALLBACKS` 확장) |
-| `503` / `high demand` (재시도·폴백 후에도 실패) | Google 서버 일시 혼잡 (키·쿼터 무관) | 잠시 후 `rerun-review` — [503 자동 복구](#503일시-과부하-대응--3단계-자동-복구) 참고 |
-| `검토할 데이터셋 정보가 없습니다` | 이슈 폼이 비어 있음 | 이슈 본문 수정 후 `rerun-review` |
-| `Gemini 응답이 비어 있습니다` | thinking 예산 소진 등으로 답변 없이 종료(`finish_reason=STOP`, 빈 텍스트) — 빈 응답 시 thinking 최소화 재생성 + 다음 모델 폴백을 자동 시도하며, **폴백 체인 전체가 빈 응답**일 때만 표시 | 잠시 후 `rerun-review` 로 재시도 |
-
-### "검토 결과" 목록에 `GitHub API 403` 이 표시되는 경우 ⚠️ (운영 필독)
-
-홈페이지의 **검토 결과** 탭 목록은 브라우저에서 **비인증(토큰 없이)** GitHub REST API를 호출합니다.
-비인증 요청은 **IP당 시간당 60회**로 제한됩니다.
-
-- 결정적으로, **회사 프록시/NAT 때문에 사내 모든 사용자가 같은 공용 IP를 공유**합니다.
-  그래서 60회/시간 한도가 **사무실 전체에서 순식간에 소진되어 403(rate limit exceeded)** 이 발생합니다.
-- 인증을 붙이면(시간당 5,000회) 해결되지만, 그러려면 **토큰을 브라우저에 노출**해야 하므로
-  보안상 부적절합니다. 따라서 인증은 적용하지 않습니다.
-
-이는 코드 버그가 아니라 GitHub의 정상적인 비인증 API 한도이며, 공용 IP 환경 특성상 자주 발생합니다.
-대신 다음과 같이 견고하게 처리합니다.
-
-- **한도 초과를 명확히 안내** — 원인과 **리셋 예상 시각**(`X-RateLimit-Reset`)을 표시
-- **마지막 목록 캐시** — 마지막으로 성공한 목록을 `localStorage` 에 저장해 실패 시 "최신이 아닐 수 있음"
-  표기와 함께 보여줌
-- **GitHub 이슈 페이지 직접 링크** 제공 — 웹 이슈 페이지는 API 한도와 무관하므로 언제든 조회 가능
-
-> **대처:** 목록이 안 보이면 잠시(최대 1시간, 리셋 시각까지) 기다리거나, "GitHub에서 이슈 보기" 링크로
-> 직접 확인하세요. 상세 검토 결과(이슈 댓글)는 이 한도와 무관하게 항상 열람할 수 있습니다.
-
-#### 선택: 본인 GitHub 토큰으로 한도 올리기 (60 → 5,000회/시간)
-
-검토 결과 탭의 **🔑 인증** 버튼(한도 초과 시 자동으로 열림)에서 본인의 GitHub 토큰을 입력하면
-해당 브라우저에서의 목록 조회 한도가 **시간당 5,000회**로 올라갑니다.
-
-- **토큰 생성:** [github.com/settings/tokens/new](https://github.com/settings/tokens/new) —
-  공개 저장소 조회에는 **권한(scope)이 필요 없으므로** 스코프를 선택하지 않은(read-only) 토큰이 가장 안전합니다.
-- **저장 위치:** 토큰은 **사용자 브라우저의 `localStorage`(`dr_github_token`)에만** 저장되고 GitHub API
-  호출의 `Authorization` 헤더로만 사용됩니다. **저장소에 커밋되거나 외부로 전송되지 않습니다.**
-- **주의:** 토큰을 브라우저에 두는 것이므로 **공용 PC에서는 사용 후 반드시 "삭제"** 하세요. 잘못된/만료된
-  토큰은 401로 안내되며, 다시 입력하거나 삭제할 수 있습니다.
-- 이 방식은 개별 사용자가 스스로 선택하는 옵션입니다. 서버나 페이지에 공용 토큰을 심지 않는 이유는,
-  정적 페이지에 토큰을 두면 누구나 열람·악용할 수 있어 보안상 부적절하기 때문입니다.
-
-## 로컬 실행 / 테스트
+### 3. Pages · Actions 권한
+- **Settings → Pages → Deploy from a branch → `main` / `/docs`** (입력·결과 홈페이지 배포)
+- **Settings → Actions → General → Workflow permissions → Read and write** (이슈 댓글·라벨용)
+
+### 4. 검토 요청 → 자동 검토
+배포된 홈페이지(`https://<owner>.github.io/<repo>/`)의 **검토 요청** 탭에서 데이터셋 정보를 입력하면
+GitHub 이슈가 생성되고, Actions 가 **1~3분 내** 검토 보고서를 이슈 댓글로 등록합니다.
+→ 자세한 사용법·결과 열람·재검토는 **[사용 가이드](documents/usage.md)**.
+
+### 로컬에서 한 번 실행해 보기
 
 ```bash
 pip install -r scripts/requirements.txt
-export GEMINI_API_KEY=...           # AI Studio 키
+export GEMINI_API_KEY=...            # AI Studio 키
 export ISSUE_TITLE="[데이터셋검토] CelebA"
 export ISSUE_BODY="### 데이터셋 명칭
 
@@ -650,18 +67,34 @@ CelebA
 ### 공식 홈페이지 / 저장소 URL
 
 https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html"
-python scripts/dataset_review.py            # review.md 생성
+python scripts/dataset_review.py     # review.md 생성
 ```
 
-## 참고
+키가 정상인지 먼저 확인: `./tools/gemini_api_key_test.sh <API_KEY>` → 초록색 ✓.
 
-- 검토 지침(시스템 프롬프트)은 `scripts/system_prompt_dataset_review.md` 에서 수정할 수 있습니다.
-- Gemini의 Google 검색 그라운딩을 사용하므로 검토 결과에는 참조한 공식 출처 URL이 함께 첨부됩니다.
-- Actions 로그의 `[diag] finish_reason=... prompt=... output=...` 줄에서 토큰 사용량과 종료 사유를
-  확인할 수 있어, 응답이 비거나 잘릴 때 원인을 진단할 수 있습니다.
-- API 키 동작 확인은 `tools/gemini_api_key_test.sh` 로 테스트할 수 있습니다.
-- 검토 결과 맨 위에는 요청자에게 바로 복사·회신할 수 있는 **`종합의견`**(라이선스·수집방법·개인정보
-  3줄 요약 + 리스크 결론)이 표시되며, 상세 분석은 그 아래 접이식 섹션으로 정리됩니다.
+---
+
+## 📚 문서 (Documentation)
+
+세부 내용은 [`documents/`](documents/) 폴더로 분리했습니다.
+
+| 문서 | 내용 |
+| --- | --- |
+| [설정 (Setup)](documents/setup.md) | API 키·라벨·Pages·Actions 권한·접근 암호·재배포 등 1회 설정 상세 |
+| [사용 (Usage)](documents/usage.md) | 검토 요청·결과 열람·대시보드·재검토, 입력 팁, 논문(arXiv) 분석 방식, CSV 내보내기, 라벨 |
+| [구조와 동작 (Architecture)](documents/architecture.md) | 데이터 흐름·동작 흐름 다이어그램, 설계 특징, 자의적 해석 금지 원칙, 구성 요소 |
+| [모델·무료 쿼터·비용 (Models & Quota)](documents/models-and-quota.md) | 무료 운영 설계, 모델 선택/폴백, 무료 티어 모델, 503 자동 복구, **하이브리드 2패스**, 예상 비용 |
+| [소송 리스크 검토](documents/litigation.md) | AI 학습 데이터 무단 활용 소송 조사·근거 강도 분류 방식 |
+| [트러블슈팅](documents/troubleshooting.md) | 검토 미실행·`review-failed`·GitHub API 403 등 문제 해결 |
+| [로컬 실행 / 개발](documents/development.md) | 로컬 실행법, 시스템 프롬프트 수정, 진단 로그 |
+
+**검토 유형 2가지:** 데이터셋 검토(`dataset-review` 라벨)와 연구논문 법무 검토(`paper-review` 라벨)를
+제공하며, 홈페이지 상단의 **🗂️ 데이터셋 / 📄 논문** 전환 버튼으로 각 요청 폼·결과 목록을 이용합니다.
+
+## 🔗 링크
+
+- 공식 홈페이지(데모): <https://aigovsensing.github.io/dataset-review/>
+- 저장소: <https://github.com/aigovsensing/dataset-review>
 
 ## 라이선스
 
