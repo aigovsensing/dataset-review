@@ -29,7 +29,7 @@ GitHub 이슈에 검토 결과를 등록하는 프로젝트입니다. 냄새 잘
 - **운영 · 참고**
   - [검토 결과 내보내기 (CSV)](#검토-결과-내보내기-csv--대시보드집계용)
   - [무료 Gemini API 안정 운영](#-무료-gemini-api-안정-운영-호출-최소화-설계)
-    - [모델 선택과 무료 한도](#모델-선택과-무료-한도-gemini_model) · [무료 티어 사용 가능 모델](#무료-티어-사용-가능-모델) · [무료로 3.x 쓰기 (하이브리드 2패스)](#무료로-3x-결과-받기--하이브리드-2패스-gemini_writer_model) · [503 자동 복구](#503일시-과부하-대응--3단계-자동-복구) · [예상 API 비용](#-예상-ai-api-비용-검토-요청-횟수별)
+    - [모델 선택과 무료 한도](#모델-선택과-무료-한도-gemini_default_model) · [무료 티어 사용 가능 모델](#무료-티어-사용-가능-모델) · [무료로 3.x 쓰기 (하이브리드 2패스)](#무료로-3x-결과-받기--하이브리드-2패스-gemini_writer_model) · [503 자동 복구](#503일시-과부하-대응--3단계-자동-복구) · [예상 API 비용](#-예상-ai-api-비용-검토-요청-횟수별)
   - [소송 리스크 검토](#소송-리스크-검토-ai-학습-데이터-무단-활용)
 - **문제 해결 · 기타**
   - [알려진 이슈 / 트러블슈팅](#알려진-이슈--트러블슈팅) · [로컬 실행 / 테스트](#로컬-실행--테스트) · [참고](#참고) · [라이선스](#라이선스)
@@ -182,7 +182,7 @@ flowchart TD
    - Name: `GEMINI_API_KEY`
    - Value: 발급받은 키
 3. (선택) 모델은 기본값 `gemini-flash-latest`(최신 Flash 자동)로 동작합니다. 버전 고정·변경은
-   **Variables** 탭에 `GEMINI_MODEL` 을 추가하세요. → [모델 선택과 무료 한도](#모델-선택과-무료-한도-gemini_model) 참고.
+   **Variables** 탭에 `GEMINI_DEFAULT_MODEL` 을 추가하세요. → [모델 선택과 무료 한도](#모델-선택과-무료-한도-gemini_default_model) 참고.
 
 ✅ 확인: `./tools/gemini_api_key_test.sh <API_KEY>` 실행 → 초록색 ✓ 가 나오면 키 정상.
 
@@ -394,14 +394,18 @@ collection_check/judgment, privacy_check/judgment, litigation(소송 여부), au
   실패 댓글만 남깁니다.
 - **일시 오류 재시도 + 모델 자동 폴백:** 503/500 등 일시 서버 오류는 같은 모델로 지수 백오프
   재시도하고, `429`(쿼터 소진)·모델 불가 시에는 무료 쿼터가 더 큰 **다음 모델로 자동 폴백**합니다
-  (아래 [모델 선택](#모델-선택과-무료-한도-gemini_model) 참고).
+  (아래 [모델 선택](#모델-선택과-무료-한도-gemini_default_model) 참고).
 
-### 모델 선택과 무료 한도 (`GEMINI_MODEL`)
+### 모델 선택과 무료 한도 (`GEMINI_DEFAULT_MODEL`)
+
+> 🏷️ **변수 이름 정리:** 기본(1차) 검토 모델은 **`GEMINI_DEFAULT_MODEL`**, 하이브리드 2패스의
+> 최종 작성 모델은 **`GEMINI_WRITER_MODEL`** 로 이름이 대칭입니다. 옛 이름 **`GEMINI_MODEL`**(및
+> `GEMINI_MODEL_FALLBACKS`)도 그대로 계속 인식하므로 기존 설정은 바꾸지 않아도 됩니다(하위호환).
 
 기본값은 **`gemini-flash-latest`** — 항상 최신 Flash 로 자동 실행되어 검토 품질을 확보합니다
 (현재 → **`gemini-3.6-flash`** 로 해석, 2026-07-21 GA). 실제 사용된 버전은 검토 결과 **최상단 `모델 정보`** 줄에
-표시됩니다. 버전을 바꾸려면 저장소 **Variables** 탭에 `GEMINI_MODEL` 을 지정하세요.
-3.6 을 반드시 쓰고 싶다면 `GEMINI_MODEL=gemini-3.6-flash` 로 고정할 수 있고, 고정하지 않아도 폴백
+표시됩니다. 버전을 바꾸려면 저장소 **Variables** 탭에 `GEMINI_DEFAULT_MODEL` 을 지정하세요.
+3.6 을 반드시 쓰고 싶다면 `GEMINI_DEFAULT_MODEL=gemini-3.6-flash` 로 고정할 수 있고, 고정하지 않아도 폴백
 체인 첫 단계가 stable `gemini-3.6-flash` 라 별칭 실패 시에도 3.6 이 한 번 더 시도됩니다.
 검토 1건 = 호출 1회이므로 **하루 검토 가능 건수 ≈ 모델의 일일 요청 한도(RPD)** 입니다.
 
@@ -442,7 +446,7 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 > 무료 티어에서는 최신 3.x 쿼터가 작아 상시 소진되기 쉬우므로, 끝을 무료 쿼터가 가장 큰
 > `gemini-2.5-flash-lite` 로 두어 **어떤 경우에도 답변을 보장**한다. 폴백이 일어나면 결과 상단
 > `모델 정보` 에 실제 사용된 모델이 표시됩니다.
-> (체인은 `GEMINI_MODEL_FALLBACKS` 변수로 커스터마이즈 가능. stable 모델 ID 는
+> (체인은 `GEMINI_DEFAULT_FALLBACKS` 변수로 커스터마이즈 가능. stable 모델 ID 는
 > [공식 목록](https://ai.google.dev/gemini-api/docs/models) 참고 — 3.1 은 풀 flash 없이 `flash-lite` 만 존재.)
 
 #### 503(일시 과부하) 대응 — 3단계 자동 복구
@@ -461,15 +465,15 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
    오진성 문구를 내보내지 않습니다**(401=인증, 429=쿼터, 503=일시 장애를 구분).
 
 > 위 재시도 횟수/대기는 `scripts/dataset_review.py` 의 `generate_with_retry` 에서 조정할 수 있습니다.
-> 특정 모델의 503 이 지속되면 `GEMINI_MODEL` 을 안정 버전(GA)으로 바꾸거나 폴백 체인을 넓히세요.
+> 특정 모델의 503 이 지속되면 `GEMINI_DEFAULT_MODEL` 을 안정 버전(GA)으로 바꾸거나 폴백 체인을 넓히세요.
 
-**`GEMINI_MODEL` 을 언제 지정하나** (기본은 미설정 = `gemini-flash-latest` 권장):
+**`GEMINI_DEFAULT_MODEL` 을 언제 지정하나** (기본은 미설정 = `gemini-flash-latest` 권장):
 
 - **그대로 둔다 (권장)** — 최신 3.6 Flash 로 검토하고, 쿼터가 소진되면 위 폴백 체인
   (`gemini-3.6-flash` → `gemini-3.5-flash` → … → `gemini-2.5-flash-lite`)으로 자동 하강해
   하루 검토 가능량이 늘어납니다.
-- **3.6 으로 고정** — 항상 최신 stable 3.6 을 쓰려면 `GEMINI_MODEL=gemini-3.6-flash`.
-- **처음부터 2.5 로 고정** — 3.x 쿼터 시도 자체를 건너뛰려면 `GEMINI_MODEL=gemini-2.5-flash`.
+- **3.6 으로 고정** — 항상 최신 stable 3.6 을 쓰려면 `GEMINI_DEFAULT_MODEL=gemini-3.6-flash`.
+- **처음부터 2.5 로 고정** — 3.x 쿼터 시도 자체를 건너뛰려면 `GEMINI_DEFAULT_MODEL=gemini-2.5-flash`.
 - **최대 검토량** — 무료 한도가 가장 큰 `gemini-2.5-flash-lite`(품질은 다소 낮음).
 - **최고 정밀도** — `gemini-2.5-pro`(한도가 작아 소량 검토에 적합).
 
@@ -498,7 +502,7 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 | 변수 | 값(예) | 설명 |
 | --- | --- | --- |
 | `GEMINI_WRITER_MODEL` | `gemini-3.7-flash` | **이것만 설정하면 하이브리드 활성화.** 최종 작성에 쓸 3.x 모델 |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | (권장) 1차 그라운딩이 곧장 2.5 로 가 무의미한 3.x 그라운딩 `429` 캐스케이드 제거 |
+| `GEMINI_DEFAULT_MODEL` | `gemini-2.5-flash` | (권장) 1차 그라운딩이 곧장 2.5 로 가 무의미한 3.x 그라운딩 `429` 캐스케이드 제거 |
 | `GEMINI_WRITER_FALLBACKS` | `gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash` | (선택) 최종 모델 폴백. 미설정 시 3.7→3.6→3.5→3.5-lite |
 
 - 미설정이면 **기존 단일 패스 동작 그대로**(옵트인).
@@ -530,7 +534,7 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 
 #### ① 모델별 검토 1건당 단가 (유료 티어)
 
-| 모델 (`GEMINI_MODEL`) | 입력 단가 | 출력 단가 | 검토 1건 토큰 비용\* | 그라운딩(무료 한도 초과 시) |
+| 모델 (`GEMINI_DEFAULT_MODEL`) | 입력 단가 | 출력 단가 | 검토 1건 토큰 비용\* | 그라운딩(무료 한도 초과 시) |
 | --- | --- | --- | --- | --- |
 | `gemini-flash-latest` (**기본값**) | 해석 버전 따름 | 해석 버전 따름 | 현재 → `gemini-3.6-flash` ≈ 3.x Flash 수준 | 현재 3.x = +$0.014/건 (월 5,000건 무료 후) |
 | `gemini-3.6-flash` (현재 최신) | 3.x Flash 단가 | 3.x Flash 단가 | **≈ $0.08** (3.5 Flash 기준 추정) | +$0.014/건 (월 5,000건 무료 후) |
@@ -540,7 +544,7 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 
 \* 입력 5K + 출력 8K tokens 가정, 그라운딩 무료 구간 기준. 기본값(→ 3.6 Flash, 3.x 세대)은 검토 1건 ≈ $0.08,
 `gemini-2.5-flash` 로 고정하면 약 1/4, `gemini-2.5-flash-lite` 는 약 1/20 수준입니다
-(모델 선택은 [위 섹션](#모델-선택과-무료-한도-gemini_model) 참고).
+(모델 선택은 [위 섹션](#모델-선택과-무료-한도-gemini_default_model) 참고).
 
 #### ② 검토 요청 횟수별 예상 비용 (기본값 `gemini-flash-latest` → 현재 `gemini-3.6-flash` 기준)
 
@@ -593,7 +597,7 @@ Actions 탭에서 워크플로가 `Skipped` 라면 실행 조건 미충족입니
 | 오류 메시지 | 원인 | 조치 |
 | --- | --- | --- |
 | `GEMINI_API_KEY 환경 변수가 설정되어 있지 않습니다` | Secret 미등록 | 설정 1번 수행 |
-| `429` / `RESOURCE_EXHAUSTED` | **폴백 체인의 모든 모델**까지 일일 한도 소진 | 다음 날 `rerun-review` (또는 `GEMINI_MODEL_FALLBACKS` 확장) |
+| `429` / `RESOURCE_EXHAUSTED` | **폴백 체인의 모든 모델**까지 일일 한도 소진 | 다음 날 `rerun-review` (또는 `GEMINI_DEFAULT_FALLBACKS` 확장) |
 | `503` / `high demand` (재시도·폴백 후에도 실패) | Google 서버 일시 혼잡 (키·쿼터 무관) | 잠시 후 `rerun-review` — [503 자동 복구](#503일시-과부하-대응--3단계-자동-복구) 참고 |
 | `검토할 데이터셋 정보가 없습니다` | 이슈 폼이 비어 있음 | 이슈 본문 수정 후 `rerun-review` |
 | `Gemini 응답이 비어 있습니다` | thinking 예산 소진 등으로 답변 없이 종료(`finish_reason=STOP`, 빈 텍스트) — 빈 응답 시 thinking 최소화 재생성 + 다음 모델 폴백을 자동 시도하며, **폴백 체인 전체가 빈 응답**일 때만 표시 | 잠시 후 `rerun-review` 로 재시도 |
