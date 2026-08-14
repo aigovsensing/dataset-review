@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/beagle.svg" alt="똘똘이 비글(Beagle) 마스코트" width="150" height="150" />
+<img src="docs/beagle-sniff.gif" alt="똘똘이 비글(Beagle) 마스코트" width="150" height="150" />
 
 # 🐶 똘똘이 비글 · Beagle
 
