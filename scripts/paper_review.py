@@ -361,16 +361,16 @@ def run_paper_review(title: str, body: str) -> str:
             pass
     service_tier = service_tier or "Free"
 
+    # 상단 정보 박스 — 한눈에 읽히도록 아이콘+라벨로 한 줄씩 분리(블록쿼트, 줄끝 두 칸=줄바꿈).
+    hdr = [f"🤖 **검토 모델** &nbsp;`{resolved_model}`"]
     if used_model != model:
-        model_line = f"**모델 정보:** `{resolved_model}` (요청 `{model}` 쿼터 소진/불가 → 폴백)"
+        hdr.append(f"<sub>⚠️ 요청 `{model}` → 폴백(쿼터 소진/불가), 실제 사용 `{used_model}`</sub>")
     elif resolved_model != model:
-        model_line = f"**모델 정보:** `{resolved_model}` (요청: `{model}`)"
-    else:
-        model_line = f"**모델 정보:** `{resolved_model}`"
-    header = (
-        f"{model_line}\n**서비스 티어:** {service_tier}\n"
-        f"**원문 판독 방식:** {source_note}\n**대상:** {url}\n"
-    )
+        hdr.append(f"<sub>요청 `{model}` → 실제 버전 `{resolved_model}`</sub>")
+    hdr.append(f"🏷️ **서비스 티어** &nbsp;`{service_tier}`")
+    hdr.append(f"📄 **원문 판독 방식** &nbsp;{source_note}")
+    hdr.append(f"🔗 **대상** &nbsp;{url}")
+    header = "\n".join(f"> {ln}  " for ln in hdr) + "\n"
 
     text = R.insert_grounding_citations(response.text or text, response)
     text = R.strip_preamble(text)

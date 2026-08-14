@@ -1091,24 +1091,25 @@ def run_review(title: str, body: str) -> str:
         else:
             print("[diag] hybrid final pass 전 모델 실패 → 1차(그라운딩) 결과 사용", file=sys.stderr)
 
-    # 검토 결과 최상단에 표시할 모델/티어 정보 헤더.
-    # 폴백 경로를 아이콘으로 시각화한다: ⛔ 실패/건너뜀 → 🟢 최종 사용 모델.
-    if not attempts:
-        attempts = [(used_model, True)]
-    chain_str = " → ".join(f"{'🟢' if ok else '⛔'} {m}" for m, ok in attempts)
-    # 별칭 등으로 실제 해석된 버전이 마지막 시도 ID 와 다르면 덧붙인다.
-    if resolved_model and resolved_model != attempts[-1][0]:
-        chain_str += f" (실제 버전: `{resolved_model}`)"
-    model_line = f"**모델 정보:** {chain_str}"
-    if used_model != model and requested_fail_reason:
-        # 요청 모델이 왜 폴백됐는지 사유를 한 줄 덧붙임(429/404/503/빈 응답)
-        model_line += f"\n<sub>요청 모델 `{model}` 폴백 사유: {requested_fail_reason}</sub>"
+    # 검토 결과 최상단 정보 박스 — 한눈에 읽히도록 '무엇을/무슨 모델로/어느 티어' 를
+    # 아이콘+라벨로 한 줄씩 분리해 블록쿼트로 감싼다. (역할이 헷갈리지 않게 명시)
+    ground_model = resolved_model or used_model
+    hdr: list[str] = []
     if final_used:
-        model_line += (
-            f"\n<sub>하이브리드 2패스 — 근거 수집(그라운딩): 위 체인 · "
-            f"최종 작성(그라운딩 없음): 🟣 <code>{final_used}</code></sub>"
+        # 하이브리드 2패스: 근거 수집(그라운딩) 모델과 최종 작성 모델을 역할별로 분리 표기.
+        hdr.append("🤖 **검토 모델** — 하이브리드 2패스")
+        hdr.append(f"&nbsp;&nbsp;🔎 근거 수집 (웹검색 그라운딩) &nbsp;`{ground_model}`")
+        hdr.append(f"&nbsp;&nbsp;✍️ 최종 작성 (그라운딩 없음) &nbsp;`{final_used}`")
+    else:
+        hdr.append(f"🤖 **검토 모델** &nbsp;`{ground_model}`")
+    # 요청 모델이 폴백된 경우에만 사유를 작게 한 줄(평소엔 노출 안 함).
+    if used_model != model and requested_fail_reason:
+        hdr.append(
+            f"<sub>⚠️ 요청 `{model}` → 폴백({requested_fail_reason}), 실제 사용 `{used_model}`</sub>"
         )
-    model_header = f"{model_line}\n**서비스 티어:** {service_tier}\n"
+    hdr.append(f"🏷️ **서비스 티어** &nbsp;`{service_tier}`")
+    # 블록쿼트로 상단 정보 박스처럼, 각 줄 끝 두 칸으로 줄바꿈(<br>) 처리.
+    model_header = "\n".join(f"> {ln}  " for ln in hdr) + "\n"
 
     # 최종 본문: 하이브리드가 성공했으면 그 결과를, 아니면 1차(그라운딩) 근거 초안을 쓴다.
     # (sources·grounded_draft 는 위 하이브리드 블록에서 이미 계산됨.)
