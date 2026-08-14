@@ -12,7 +12,7 @@
 # 사용 예:
 #   export GEMINI_API_KEY=xxxx && ./tools/gemini_api_key_test.sh
 #   ./tools/gemini_api_key_test.sh AIza...
-#   GEMINI_MODEL=gemini-2.5-flash ./tools/gemini_api_key_test.sh
+#   GEMINI_MODEL=gemini-3.7-flash ./tools/gemini_api_key_test.sh
 #
 set -euo pipefail
 
