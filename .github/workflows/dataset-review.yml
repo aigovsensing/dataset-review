@@ -67,6 +67,13 @@ jobs:
           # 저장소 변수 vars.GEMINI_MODEL 이 없으면 최신 Flash 별칭으로 대체한다.
           # (항상 최신 버전으로 검토 품질 확보. 특정 버전 고정은 vars.GEMINI_MODEL 로 지정.)
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-flash-latest' }}
+          # (선택) 하이브리드 2패스: vars.GEMINI_FINAL_MODEL 을 지정하면 1차로 그라운딩
+          # 가능한 모델(무료 티어는 2.5)로 웹검색 근거·출처를 수집한 뒤, 그 근거를 이 모델
+          # (예: gemini-3.7-flash)에 넘겨 그라운딩 없이 최종 검토문을 작성한다. 무료 티어에서
+          # 3.x 품질 + 출처 링크를 동시에 얻는다. 미설정 시 기존 단일 패스 동작 그대로.
+          # 팁: 하이브리드 사용 시 vars.GEMINI_MODEL 을 gemini-2.5-flash 로 두면 1차 그라운딩이
+          #     곧장 2.5 로 가 무의미한 3.x 그라운딩 429 캐스케이드가 사라진다.
+          GEMINI_FINAL_MODEL: ${{ vars.GEMINI_FINAL_MODEL || '' }}
           # 검토 결과 상단에 표시할 '서비스 티어' 라벨(선택). 미설정 시 Standard.
           GEMINI_SERVICE_TIER: ${{ vars.GEMINI_SERVICE_TIER || 'Standard' }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
