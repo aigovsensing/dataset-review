@@ -626,6 +626,19 @@ def opinion_conclusion(lead: str) -> str:
     return " ".join(lead[matches[-1].end():].split()).strip()
 
 
+# 접이식 상세 본문 안의 마크다운 헤딩(#..######)을 잡아 볼드 라벨로 낮춘다.
+# (details 의 summary 는 볼드라, 본문에 H3 등이 오면 자식이 부모보다 커 보이는 역전이 생김)
+_BODY_HEADING_RE = re.compile(r"^[ \t]*#{1,6}[ \t]+(.*?)[ \t]*#*[ \t]*$", re.MULTILINE)
+
+
+def demote_body_headings(body: str) -> str:
+    """상세 섹션 본문의 헤딩을 볼드 텍스트로 낮춰, summary 보다 커 보이지 않게 한다.
+
+    예) '### 라이선스' → '**라이선스**'. 목록·인용 등 다른 서식은 그대로 둔다.
+    """
+    return _BODY_HEADING_RE.sub(lambda m: f"**{m.group(1).strip()}**" if m.group(1).strip() else "", body)
+
+
 def restructure_review(text: str, name: str) -> str:
     """모델 출력을 스캔하기 쉬운 형태로 재구성.
 
@@ -682,9 +695,10 @@ def restructure_review(text: str, name: str) -> str:
             blocks.append(f"## {icon} 요약 결론\n\n{body}")  # 폴백(표 원천이 아닐 때만) — 안전
             continue
         # 상세/소송/근거: 앞 번호 없이 아이콘+제목만. 전부 기본 접힘(<details>) 상태로 둔다.
+        # 본문 헤딩은 볼드로 낮춰 summary(라이선스 등 하위 제목이 더 커 보이는 역전) 방지.
         blocks.append(
             f"<details>\n<summary><b>{icon} {sec_title}</b></summary>\n\n"
-            f"{body}\n\n</details>"
+            f"{demote_body_headings(body)}\n\n</details>"
         )
 
     pieces = [banner, "---"]
