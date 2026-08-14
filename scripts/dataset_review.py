@@ -9,8 +9,8 @@ Google 검색 그라운딩과 함께 호출하여 법적 리스크 검토 보고
 환경 변수
 ----------
 GEMINI_API_KEY        : (필수) Google AI Studio API 키
-GEMINI_MODEL          : (선택) 주 모델. 기본값 gemini-flash-latest(항상 최신 Flash=3.6)
-GEMINI_MODEL_FALLBACKS: (선택) 쉼표 구분 폴백 목록. 미설정 시 3.6→3.5→…→2.5 순 기본 체인
+GEMINI_MODEL          : (선택) 주 모델. 기본값 gemini-flash-latest(항상 최신 Flash 별칭)
+GEMINI_MODEL_FALLBACKS: (선택) 쉼표 구분 폴백 목록. 미설정 시 3.7→3.6→3.5→…→2.5 순 기본 체인
 ISSUE_TITLE    : (선택) 이슈 제목
 ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 """
@@ -666,14 +666,16 @@ def build_model_chain(primary: str) -> list[str]:
     으로 구성한다. 무료 티어에서는 최신 모델의 일일 쿼터가 작아 상시 소진되기 쉬우므로,
     끝을 무료 쿼터가 가장 큰 gemini-2.5-flash-lite 로 두어 어떤 경우에도 답변을 보장한다.
 
-    ⭐ 첫 폴백을 최신 stable 모델 gemini-3.6-flash 로 둔다. 주 모델 별칭
-    gemini-flash-latest 는 현재 gemini-3.6-flash 로 해석되지만, 별칭 호출이 일시적
-    오류·빈 응답을 반환하면 곧바로 구세대(2.5)로 떨어지는 문제가 있었다. 별칭이 실패해도
-    stable 엔드포인트로 3.6 을 한 번 더 명시적으로 시도해, 2.5 로 내려가기 전에 최신
-    세대를 최대한 유지한다. (별칭 라우팅과 stable 엔드포인트는 장애 지점이 달라 재시도
-    가치가 크다.) 이어서 3.5 → 3.x-lite 로 같은 세대를 소진한 뒤에야 2.5 로 하강한다.
-    stable 모델 ID 는 https://ai.google.dev/gemini-api/docs/models 기준이며,
-    3.1 은 풀 flash 가 없어 flash-lite 만 존재한다. (프리뷰/실험 모델은 불안정하여 제외)
+    ⭐ 첫 폴백을 최신 세대 gemini-3.7-flash 로 둔다. 주 모델 별칭 gemini-flash-latest
+    가 3.7 로 해석되기 전이거나 별칭 호출이 일시적 오류·빈 응답을 반환해도, 3.7 을 명시적
+    으로 한 번 시도한 뒤 곧바로 직전 stable 인 3.6 으로 이어가 구세대(2.5)로 급락하지
+    않게 한다. (별칭 라우팅과 명시 엔드포인트는 장애 지점이 달라 재시도 가치가 크다.)
+    3.7 Flash 는 도입가(유료) 기준으로 안내된 신규 모델이라, 무료 티어에 아직 개방되지
+    않은 키에서는 404/403/429 를 반환할 수 있는데, 이 경우 체인이 자동으로 3.6 으로
+    내려가므로 무료 키에서도 검토가 끊기지 않는다. 이어서 3.5 → 3.x-lite 로 같은 세대를
+    소진한 뒤에야 2.5 로 하강한다. stable 모델 ID 는
+    https://ai.google.dev/gemini-api/docs/models 기준이며, 3.1 은 풀 flash 가 없어
+    flash-lite 만 존재한다. (프리뷰/실험 모델은 불안정하여 제외)
     """
     chain = [primary]
     env_fb = (os.environ.get("GEMINI_MODEL_FALLBACKS") or "").strip()
@@ -681,7 +683,9 @@ def build_model_chain(primary: str) -> list[str]:
         [m.strip() for m in env_fb.split(",") if m.strip()]
         if env_fb
         else [
-            "gemini-3.6-flash",       # 최신 stable Flash (별칭 실패 시에도 3.6 을 한 번 더 명시 시도)
+            "gemini-3.7-flash",       # 최신 세대 Flash (코딩·에이전트 품질 향상). 무료 티어 미개방 시
+                                       #   404/403/429 로 즉시 다음 후보(3.6)로 폴백된다.
+            "gemini-3.6-flash",       # 직전 stable Flash (별칭 실패 시에도 3.6 을 한 번 더 명시 시도)
             "gemini-3.5-flash",       # 이전 세대 풀 Flash
             "gemini-3.5-flash-lite",  # 3.5 세대 경량
             "gemini-3.1-flash-lite",  # 3.x 세대 경량
