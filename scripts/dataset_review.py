@@ -11,6 +11,13 @@ Google 검색 그라운딩과 함께 호출하여 법적 리스크 검토 보고
 GEMINI_API_KEY        : (필수) Google AI Studio API 키
 GEMINI_MODEL          : (선택) 주 모델. 기본값 gemini-flash-latest(항상 최신 Flash 별칭)
 GEMINI_MODEL_FALLBACKS: (선택) 쉼표 구분 폴백 목록. 미설정 시 3.7→3.6→3.5→…→2.5 순 기본 체인
+GEMINI_FINAL_MODEL    : (선택) 하이브리드 2패스 활성화. 설정하면 1차로 그라운딩 가능 모델
+                        (무료 티어는 2.5 계열)로 웹검색 근거·출처를 수집한 뒤, 그 근거를
+                        이 모델(예: gemini-3.7-flash)에 넘겨 그라운딩 없이 최종 검토문을
+                        작성한다. 무료 티어에서 3.x 품질 + 출처 링크를 동시에 얻는다.
+                        (무료 티어는 3.x 에 검색 그라운딩 쿼터가 없어 직접 그라운딩 호출은
+                        429 가 나므로, 근거 수집만 2.5 에 위임하는 구조다.)
+GEMINI_FINAL_FALLBACKS: (선택) 최종 작성 모델의 쉼표 구분 폴백. 미설정 시 3.7→3.6→3.5→3.5-lite
 ISSUE_TITLE    : (선택) 이슈 제목
 ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 """
@@ -217,6 +224,29 @@ def linkify_citations(text: str, sources: list[tuple[str, str]]) -> str:
         return prefix + re.sub(r"\d+", _num_to_link, numbers)
 
     return _CITE_RE.sub(_repl, text)
+
+
+# 이미 링크가 아닌 맨 `[N]` 인용 표기(예: "[3]")를 잡되, `[3](...)` 처럼 이미 링크된 것은 제외.
+_BRACKET_CITE_RE = re.compile(r"\[(\d{1,3})\](?!\()")
+
+
+def linkify_bracket_citations(text: str, sources: list[tuple[str, str]]) -> str:
+    """본문의 맨 `[N]` 표기를 출처 URL 로 가는 마크다운 링크 `[N](url)` 로 변환.
+
+    하이브리드 2패스에서 최종 작성 모델(그라운딩 없음)은 그라운딩 메타데이터가 없으므로,
+    1차 패스에서 확정된 출처 번호를 본문에 `[N]` 으로 표기하게 하고 여기서 링크로 만든다.
+    N 이 출처 개수 범위를 벗어나면 원문(`[N]`)을 그대로 둔다. 이미 링크된 `[N](...)` 는 건드리지 않는다.
+    """
+    if not sources:
+        return text
+
+    def _repl(m: re.Match) -> str:
+        n = int(m.group(1))
+        if 1 <= n <= len(sources):
+            return f"[{n}]({sources[n - 1][1]})"
+        return m.group(0)
+
+    return _BRACKET_CITE_RE.sub(_repl, text)
 
 
 def render_sources(sources: list[tuple[str, str]]) -> str:
@@ -774,6 +804,90 @@ def generate_with_retry(client, model, contents, config, attempts: int = 4, base
     raise last_exc
 
 
+def build_final_model_chain() -> list[str]:
+    """하이브리드 2패스의 '최종 작성' 모델 체인(그라운딩 없이 호출).
+
+    GEMINI_FINAL_MODEL 을 최우선으로, GEMINI_FINAL_FALLBACKS(또는 기본 3.x 목록)를 잇는다.
+    무료 티어에서 3.x 는 그라운딩만 429 이고 본문 생성은 정상이므로, 여기서는 그라운딩을
+    붙이지 않고 1차에서 수집한 근거만으로 작성한다.
+    """
+    primary = (os.environ.get("GEMINI_FINAL_MODEL") or "").strip()
+    if not primary:
+        return []
+    env_fb = (os.environ.get("GEMINI_FINAL_FALLBACKS") or "").strip()
+    fallbacks = (
+        [m.strip() for m in env_fb.split(",") if m.strip()]
+        if env_fb
+        else ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+    )
+    chain: list[str] = []
+    for m in [primary, *fallbacks]:
+        if m and m not in chain:
+            chain.append(m)
+    return chain
+
+
+def run_final_pass(client, types, final_models, system_prompt, base_user_prompt,
+                   grounded_draft, sources):
+    """하이브리드 2패스: 그라운딩 없이 최종 검토문을 재작성한다.
+
+    1차(그라운딩) 패스가 만든 근거 초안(grounded_draft, `[N](url)` 인용 포함)과 확정된
+    출처 목록을 사실 근거로 넘겨, 최종 모델(3.x)이 [출력 형식]에 맞춰 최종 검토를 쓴다.
+    성공하면 (텍스트, 사용모델), 전 모델 실패하면 (None, "") 를 반환한다(→ 1차 결과로 폴백).
+    """
+    if not final_models:
+        return None, ""
+    src_list = render_sources(sources) if sources else "(수집된 출처 없음)"
+    instruction = (
+        base_user_prompt
+        + "\n\n[하이브리드 최종 작성 지침]\n"
+        "이번 호출에는 검색 도구가 없다. 아래 '1차 근거 초안'과 '확인된 출처'만을 사실 "
+        "근거로 삼아, 시스템 지침의 [출력 형식]에 정확히 맞춰 최종 검토를 작성하라.\n"
+        "- 초안 문장 끝의 인용 표기 `[N]`(및 `[N](URL)`) 을 보존하라. 출처 번호 N 과 URL 을 "
+        "바꾸거나 새로 지어내지 마라.\n"
+        "- 아래 목록에 없는 URL·사실을 추가하지 마라(환각 금지). 근거가 없으면 '확인 불가'로 남겨라.\n"
+        "- 초안의 사실관계를 검증·정리·보강하되, 형식(섹션 구성·표)은 시스템 지침을 따른다.\n\n"
+        "── 1차 근거 초안 ──\n" + grounded_draft + "\n\n"
+        "── 확인된 출처(번호=인용 N) ──\n" + src_list
+    )
+    base = dict(system_instruction=system_prompt, temperature=0.2, max_output_tokens=32768)
+    try:
+        cfg = types.GenerateContentConfig(
+            **base, thinking_config=types.ThinkingConfig(thinking_budget=8192))
+        cfg_min = types.GenerateContentConfig(
+            **base, thinking_config=types.ThinkingConfig(thinking_budget=512))
+    except Exception:  # noqa: BLE001 - 구버전 SDK 호환
+        cfg = types.GenerateContentConfig(**base)
+        cfg_min = cfg
+
+    for cand in final_models:
+        try:
+            for attempt in range(2):
+                c = cfg if attempt == 0 else cfg_min
+                resp = generate_with_retry(client, cand, instruction, c)
+                t = (resp.text or "").strip()
+                fr = ""
+                try:
+                    fr = str(resp.candidates[0].finish_reason or "")
+                except Exception:  # noqa: BLE001
+                    pass
+                print(
+                    f"[diag] final_pass model={cand} attempt={attempt + 1} "
+                    f"finish_reason={fr} text_chars={len(t)}",
+                    file=sys.stderr,
+                )
+                if t:  # 잘렸더라도(text 존재) 채택 — 1차 결과보다 신세대 품질 우선.
+                    return t, cand
+            # text 가 계속 비면 다음 모델로.
+        except Exception as exc:  # noqa: BLE001 - 실패 시 다음 최종 모델로 폴백
+            print(
+                f"[diag] final_pass model={cand} 실패({type(exc).__name__}: {str(exc)[:80]})",
+                file=sys.stderr,
+            )
+            continue
+    return None, ""
+
+
 def run_review(title: str, body: str) -> str:
     from google import genai
     from google.genai import types
@@ -955,6 +1069,27 @@ def run_review(title: str, body: str) -> str:
     service_tier = service_tier or "Standard"
     print(f"[diag] requested={model} used={used_model} resolved={resolved_model} tier={service_tier}", file=sys.stderr)
 
+    # 그라운딩 출처와, 근거 문장 끝에 [N] 을 삽입한 '근거 초안'을 만든다.
+    # (그라운딩 supports 의 바이트 오프셋은 원본 response.text 기준이므로 전처리 전에 적용.)
+    sources = get_grounding_sources(response)
+    grounded_draft = insert_grounding_citations(response.text or text, response)
+
+    # ── 하이브리드 2패스(선택) ─────────────────────────────────────────────
+    # GEMINI_FINAL_MODEL 이 설정되면, 위에서 수집한 그라운딩 근거를 3.x 모델에 넘겨
+    # 그라운딩 없이 최종 검토문을 재작성한다(무료 티어 3.x 품질 + 출처 링크 동시 확보).
+    # 최종 패스가 실패하면 hybrid_text=None → 아래에서 1차(그라운딩) 결과를 그대로 쓴다.
+    final_models = build_final_model_chain()
+    hybrid_text: str | None = None
+    final_used = ""
+    if final_models:
+        hybrid_text, final_used = run_final_pass(
+            client, types, final_models, system_prompt, user_prompt, grounded_draft, sources
+        )
+        if hybrid_text:
+            print(f"[diag] hybrid final pass used={final_used}", file=sys.stderr)
+        else:
+            print("[diag] hybrid final pass 전 모델 실패 → 1차(그라운딩) 결과 사용", file=sys.stderr)
+
     # 검토 결과 최상단에 표시할 모델/티어 정보 헤더.
     # 폴백 경로를 아이콘으로 시각화한다: ⛔ 실패/건너뜀 → 🟢 최종 사용 모델.
     if not attempts:
@@ -967,18 +1102,32 @@ def run_review(title: str, body: str) -> str:
     if used_model != model and requested_fail_reason:
         # 요청 모델이 왜 폴백됐는지 사유를 한 줄 덧붙임(429/404/503/빈 응답)
         model_line += f"\n<sub>요청 모델 `{model}` 폴백 사유: {requested_fail_reason}</sub>"
+    if final_used:
+        model_line += (
+            f"\n<sub>하이브리드 2패스 — 근거 수집(그라운딩): 위 체인 · "
+            f"최종 작성(그라운딩 없음): 🟣 <code>{final_used}</code></sub>"
+        )
     model_header = f"{model_line}\n**서비스 티어:** {service_tier}\n"
 
-    # 근거가 있는 문장 끝에 출처 링크([N])를 자동 삽입한다. 그라운딩 supports 의
-    # 바이트 오프셋은 원본 응답(response.text) 기준이므로, 전처리(strip/sanitize) 전에 적용.
-    text = insert_grounding_citations(response.text or text, response)
-    text = strip_preamble(text)
-    text = sanitize_markdown(text)
-    sources = get_grounding_sources(response)
-    text = linkify_citations(text, sources)  # 모델이 남긴 잔여 `cite: N` 도 링크로(있으면)
-    text = link_source_refs(text, sources)   # 본문 `[출처 N]` 을 실제 출처 URL 링크로 변환
-    text = number_source_list(text)          # '5. 근거 및 출처' 목록에 1) 2) 3) 번호 매김
-    text = restructure_review(text, name)
+    # 최종 본문: 하이브리드가 성공했으면 그 결과를, 아니면 1차(그라운딩) 근거 초안을 쓴다.
+    # (sources·grounded_draft 는 위 하이브리드 블록에서 이미 계산됨.)
+    if hybrid_text is not None:
+        # 최종 패스(그라운딩 없음)는 본문에 [N]/[출처 N] 만 남기므로, 확정 출처로 링크를 만든다.
+        text = strip_preamble(hybrid_text)
+        text = sanitize_markdown(text)
+        text = linkify_citations(text, sources)          # 잔여 `cite: N` 표기(있으면)
+        text = linkify_bracket_citations(text, sources)  # 맨 `[N]` → `[N](url)`
+        text = link_source_refs(text, sources)           # 본문 `[출처 N]` 을 실제 출처 URL 링크로
+        text = number_source_list(text)                  # '5. 근거 및 출처' 목록 번호 매김
+        text = restructure_review(text, name)
+    else:
+        # 근거가 있는 문장 끝에 출처 링크([N])를 자동 삽입한다(그라운딩 supports 오프셋 기준).
+        text = strip_preamble(grounded_draft)
+        text = sanitize_markdown(text)
+        text = linkify_citations(text, sources)  # 모델이 남긴 잔여 `cite: N` 도 링크로(있으면)
+        text = link_source_refs(text, sources)   # 본문 `[출처 N]` 을 실제 출처 URL 링크로 변환
+        text = number_source_list(text)          # '5. 근거 및 출처' 목록에 1) 2) 3) 번호 매김
+        text = restructure_review(text, name)
     parts = [model_header, text]
     if sources:
         # 그라운딩 출처 목록은 길고 리다이렉트 URL 이라 어수선하므로 접이식으로 감싼다.
@@ -993,9 +1142,16 @@ def run_review(title: str, body: str) -> str:
             "\n> ⚠️ 모델 출력이 토큰 한도로 중간에 잘렸을 수 있습니다. "
             "`rerun-review` 라벨로 재검토하거나 입력 범위를 좁혀 다시 시도하세요."
         )
+    if final_used:
+        gen_note = (
+            f"근거 수집: <code>{resolved_model}</code>+Google Search grounding → "
+            f"최종 작성: <code>{final_used}</code>(그라운딩 없음, 하이브리드 2패스)"
+        )
+    else:
+        gen_note = f"model: <code>{resolved_model}</code>, Google Search grounding"
     parts.append(
         "\n---\n"
-        f"<sub>🤖 자동 생성 (model: <code>{resolved_model}</code>, Google Search grounding) · "
+        f"<sub>🤖 자동 생성 ({gen_note}) · "
         "본 검토는 회사 내부 사전 리스크 검토용 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
     )
     return enforce_length_limit("\n".join(parts))
