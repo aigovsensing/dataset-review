@@ -52,7 +52,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}
-          GEMINI_SERVICE_TIER: ${{ vars.GEMINI_SERVICE_TIER || 'Standard' }}
+          # 표시용 '서비스 티어' 라벨(선택). 미설정('') 시 API 응답 자동 판별, 그래도 없으면 Free.
+          GEMINI_SERVICE_TIER: ${{ vars.GEMINI_SERVICE_TIER || '' }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           REVIEW_OUTPUT: review.md

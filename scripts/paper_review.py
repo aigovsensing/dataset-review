@@ -350,7 +350,16 @@ def run_paper_review(title: str, body: str) -> str:
         pass
     resolved_model = resolved_model or used_model
 
-    service_tier = (os.environ.get("GEMINI_SERVICE_TIER") or "").strip() or "Standard"
+    # 서비스 티어(표시용 라벨): 환경변수 우선 → 없으면 응답 메타데이터 자동 판별 → 기본값 "Free".
+    service_tier = (os.environ.get("GEMINI_SERVICE_TIER") or "").strip()
+    if not service_tier:
+        try:
+            tv = getattr(response.usage_metadata, "service_tier", None)
+            if tv and str(tv).lower() != "none":
+                service_tier = str(tv).capitalize()
+        except Exception:  # noqa: BLE001
+            pass
+    service_tier = service_tier or "Free"
 
     if used_model != model:
         model_line = f"**모델 정보:** `{resolved_model}` (요청 `{model}` 쿼터 소진/불가 → 폴백)"

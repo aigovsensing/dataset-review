@@ -1057,7 +1057,8 @@ def run_review(title: str, body: str) -> str:
     if not resolved_model:
         resolved_model = used_model
 
-    # 서비스 티어: 응답 메타데이터의 실제 값 우선, 없으면 환경변수/Standard
+    # 서비스 티어(표시용 라벨): 환경변수 GEMINI_SERVICE_TIER 우선 → 없으면 응답 메타데이터로
+    # 자동 판별 → 그래도 없으면 무료 티어 앱 기본값 "Free". (변수를 안 만들어도 라벨이 뜨도록.)
     service_tier = (os.environ.get("GEMINI_SERVICE_TIER") or "").strip()
     if not service_tier:
         try:
@@ -1066,7 +1067,7 @@ def run_review(title: str, body: str) -> str:
                 service_tier = str(tv).capitalize()
         except Exception:  # noqa: BLE001
             pass
-    service_tier = service_tier or "Standard"
+    service_tier = service_tier or "Free"
     print(f"[diag] requested={model} used={used_model} resolved={resolved_model} tier={service_tier}", file=sys.stderr)
 
     # 그라운딩 출처와, 근거 문장 끝에 [N] 을 삽입한 '근거 초안'을 만든다.
