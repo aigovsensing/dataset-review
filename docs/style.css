@@ -111,8 +111,9 @@ body {
 
 /* Tabs */
 /* 검토 유형(모드) 전환: 데이터셋 리뷰 / 논문 리뷰 */
-.mode-switch { display: flex; gap: 10px; justify-content: center; margin: 16px auto 0; }
+.mode-switch { display: flex; gap: 10px; justify-content: center; margin: 24px auto 0; }
 .mode-btn {
+  position: relative;
   padding: 10px 24px; border: 1px solid var(--border); border-radius: 999px;
   background: var(--surface); color: var(--text-dim);
   font-size: 1rem; font-weight: 700; cursor: pointer;
@@ -120,6 +121,14 @@ body {
 }
 .mode-btn:hover { color: var(--text); border-color: var(--primary); }
 .mode-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+/* '실험적 기능' 코너 배지 — 논문 리뷰가 아직 완성 전임을 표시 */
+.exp-badge {
+  position: absolute; top: -9px; right: -10px;
+  background: var(--warn); color: var(--bg);
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.02em;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.28); cursor: help;
+}
 :root[data-mode="dataset"] .mode-paper { display: none !important; }
 :root[data-mode="paper"] .mode-dataset { display: none !important; }
 
