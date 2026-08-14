@@ -303,6 +303,38 @@ def number_source_list(text: str) -> str:
     return text[:start] + seg + text[end:]
 
 
+# 모델이 직접 단 '[출처](url)' · '[출처 N](url)' · '[출처 1, 2](url)' 형태의 인라인 링크.
+_SRC_WORD_LINK_RE = re.compile(r"\[출처[^\]]*\]\((https?://[^)\s]+)\)")
+
+
+def unify_citations(text: str, sources: list[tuple[str, str]]) -> tuple[str, list[tuple[str, str]]]:
+    """인용 표기를 모두 번호 `[N]` 로 통일한다.
+
+    그라운딩 자동 각주는 이미 `[N]`(하단 목록의 N 번과 연결) 이지만, 모델이 종합한 판단
+    근거 문장에는 자동 각주가 안 붙어 모델이 직접 `[출처](URL)` 링크를 단다. 이 '출처'
+    단어 링크를 같은 번호 체계의 `[N]` 로 바꿔 표기를 일관되게 만든다.
+
+    모델이 인용한 URL 이 그라운딩 출처 목록에 이미 있으면 그 번호를, 없으면 목록 끝에
+    새 번호로 추가한다. 반환: (치환된 text, 통합 출처 목록[(제목, URL)…]).
+    """
+    order = list(sources)                       # 그라운딩 출처가 1..K 번을 차지
+    num: dict[str, int] = {}
+    for i, (_title, uri) in enumerate(order):
+        num.setdefault(uri, i + 1)
+
+    def repl(m: re.Match) -> str:
+        url = m.group(1).strip()
+        n = num.get(url)
+        if n is None:                           # 목록에 없는 URL → 끝에 새 번호로 등록
+            dom = re.match(r"https?://([^/]+)", url)
+            order.append((dom.group(1) if dom else url, url))  # 라벨은 도메인(가독성)
+            n = len(order)
+            num[url] = n
+        return f"[{n}]({url})"
+
+    return _SRC_WORD_LINK_RE.sub(repl, text), order
+
+
 def insert_grounding_citations(raw_text: str, response) -> str:
     """근거가 있는 문장 끝에 출처 링크 `[N]` 을 자동 삽입한다.
 
@@ -1141,6 +1173,7 @@ def run_review(title: str, body: str) -> str:
         text = linkify_citations(text, sources)          # 잔여 `cite: N` 표기(있으면)
         text = linkify_bracket_citations(text, sources)  # 맨 `[N]` → `[N](url)`
         text = link_source_refs(text, sources)           # 본문 `[출처 N]` 을 실제 출처 URL 링크로
+        text, sources = unify_citations(text, sources)   # '출처' 단어 링크 → 번호 [N] 로 통일
         text = number_source_list(text)                  # '5. 근거 및 출처' 목록 번호 매김
         text = restructure_review(text, name)
     else:
@@ -1149,14 +1182,16 @@ def run_review(title: str, body: str) -> str:
         text = sanitize_markdown(text)
         text = linkify_citations(text, sources)  # 모델이 남긴 잔여 `cite: N` 도 링크로(있으면)
         text = link_source_refs(text, sources)   # 본문 `[출처 N]` 을 실제 출처 URL 링크로 변환
+        text, sources = unify_citations(text, sources)  # '출처' 단어 링크 → 번호 [N] 로 통일
         text = number_source_list(text)          # '5. 근거 및 출처' 목록에 1) 2) 3) 번호 매김
         text = restructure_review(text, name)
     parts = [model_header, text]
     if sources:
         # 그라운딩 출처 목록은 길고 리다이렉트 URL 이라 어수선하므로 접이식으로 감싼다.
         parts.append(
-            f"\n<details>\n<summary><b>🔎 참고 출처 (Google 검색 그라운딩) — {len(sources)}건</b></summary>\n\n"
-            "본문 문장 끝의 `[N]` 링크는 아래 동일 번호 출처로 연결됩니다.\n\n"
+            f"\n<details>\n<summary><b>🔎 참고 출처 — {len(sources)}건</b></summary>\n\n"
+            "본문 문장 끝의 `[N]` 링크는 아래 동일 번호 출처로 연결됩니다. "
+            "(Google 검색 그라운딩 + 모델이 인용한 공식 자료)\n\n"
             + render_sources(sources)
             + "\n\n</details>"
         )
