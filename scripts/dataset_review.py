@@ -11,13 +11,13 @@ Google 검색 그라운딩과 함께 호출하여 법적 리스크 검토 보고
 GEMINI_API_KEY        : (필수) Google AI Studio API 키
 GEMINI_MODEL          : (선택) 주 모델. 기본값 gemini-flash-latest(항상 최신 Flash 별칭)
 GEMINI_MODEL_FALLBACKS: (선택) 쉼표 구분 폴백 목록. 미설정 시 3.7→3.6→3.5→…→2.5 순 기본 체인
-GEMINI_FINAL_MODEL    : (선택) 하이브리드 2패스 활성화. 설정하면 1차로 그라운딩 가능 모델
+GEMINI_WRITER_MODEL    : (선택) 하이브리드 2패스 활성화. 설정하면 1차로 그라운딩 가능 모델
                         (무료 티어는 2.5 계열)로 웹검색 근거·출처를 수집한 뒤, 그 근거를
                         이 모델(예: gemini-3.7-flash)에 넘겨 그라운딩 없이 최종 검토문을
                         작성한다. 무료 티어에서 3.x 품질 + 출처 링크를 동시에 얻는다.
                         (무료 티어는 3.x 에 검색 그라운딩 쿼터가 없어 직접 그라운딩 호출은
                         429 가 나므로, 근거 수집만 2.5 에 위임하는 구조다.)
-GEMINI_FINAL_FALLBACKS: (선택) 최종 작성 모델의 쉼표 구분 폴백. 미설정 시 3.7→3.6→3.5→3.5-lite
+GEMINI_WRITER_FALLBACKS: (선택) 최종 작성 모델의 쉼표 구분 폴백. 미설정 시 3.7→3.6→3.5→3.5-lite
 ISSUE_TITLE    : (선택) 이슈 제목
 ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 """
@@ -807,14 +807,14 @@ def generate_with_retry(client, model, contents, config, attempts: int = 4, base
 def build_final_model_chain() -> list[str]:
     """하이브리드 2패스의 '최종 작성' 모델 체인(그라운딩 없이 호출).
 
-    GEMINI_FINAL_MODEL 을 최우선으로, GEMINI_FINAL_FALLBACKS(또는 기본 3.x 목록)를 잇는다.
+    GEMINI_WRITER_MODEL 을 최우선으로, GEMINI_WRITER_FALLBACKS(또는 기본 3.x 목록)를 잇는다.
     무료 티어에서 3.x 는 그라운딩만 429 이고 본문 생성은 정상이므로, 여기서는 그라운딩을
     붙이지 않고 1차에서 수집한 근거만으로 작성한다.
     """
-    primary = (os.environ.get("GEMINI_FINAL_MODEL") or "").strip()
+    primary = (os.environ.get("GEMINI_WRITER_MODEL") or "").strip()
     if not primary:
         return []
-    env_fb = (os.environ.get("GEMINI_FINAL_FALLBACKS") or "").strip()
+    env_fb = (os.environ.get("GEMINI_WRITER_FALLBACKS") or "").strip()
     fallbacks = (
         [m.strip() for m in env_fb.split(",") if m.strip()]
         if env_fb
@@ -1075,7 +1075,7 @@ def run_review(title: str, body: str) -> str:
     grounded_draft = insert_grounding_citations(response.text or text, response)
 
     # ── 하이브리드 2패스(선택) ─────────────────────────────────────────────
-    # GEMINI_FINAL_MODEL 이 설정되면, 위에서 수집한 그라운딩 근거를 3.x 모델에 넘겨
+    # GEMINI_WRITER_MODEL 이 설정되면, 위에서 수집한 그라운딩 근거를 3.x 모델에 넘겨
     # 그라운딩 없이 최종 검토문을 재작성한다(무료 티어 3.x 품질 + 출처 링크 동시 확보).
     # 최종 패스가 실패하면 hybrid_text=None → 아래에서 1차(그라운딩) 결과를 그대로 쓴다.
     final_models = build_final_model_chain()
