@@ -4,30 +4,39 @@
 # ----------------------
 # GEMINI_API_KEY(Google AI Studio) 키를 curl 로 테스트한다.
 #
-# 두 가지 모드:
-#   1) 표 모드(기본)  : 폴백 체인의 모든 모델을 순회하며 HTTP 코드·status·쿼터값을
-#                       표로 출력한다. 어떤 모델이 무료 티어에서 실제로 붙는지, 3.x 가
-#                       404(미지원)인지 429(쿼터 0/소진)인지 한눈에 판별한다.
-#   2) 단일 모드      : GEMINI_MODEL 을 지정하면 그 모델 하나만 상세 검증한다.
+# 표 모드(기본): 폴백 체인의 모든 모델을 순회하며, 각 모델을
+#   (1) 그라운딩 없이(PLAIN)  (2) google_search 그라운딩 포함(GROUND)
+# 두 방식으로 호출해 HTTP 코드·status·쿼터값을 나란히 출력한다.
+# 무료 티어에서 3.x 가 왜 막히는지 — 모델 자체 쿼터(0)인지, 아니면
+# '그라운딩 도구'의 별도 쿼터 때문인지 — 를 한 번에 판별하기 위함이다.
+#
+#   PLAIN=200, GROUND=429  →  모델은 무료로 되는데 그라운딩만 막힘
+#                             ⇒ 3.x 를 '그라운딩 끄고' 쓰면 무료로 결과 획득 가능
+#   PLAIN=429, GROUND=429  →  모델 자체가 무료 티어 한도 0(유료 전용)
+#   PLAIN=404              →  그 모델 ID 자체가 없음
+#
+# 단일 모드: GEMINI_MODEL 을 지정하면 그 모델 하나만(양쪽 방식) 검증한다.
 #
 # 키 탐색 순서:
 #   1) 명령행 인자           : ./gemini_api_key_test.sh <API_KEY>
 #   2) 환경변수 GEMINI_API_KEY
 #   3) 프로젝트 루트의 .env  : GEMINI_API_KEY=...
 #
-# 테스트할 모델 목록 커스터마이즈(표 모드):
-#   GEMINI_MODELS="gemini-2.5-flash,gemini-3.7-flash" ./tools/gemini_api_key_test.sh
+# 옵션(환경변수):
+#   GEMINI_MODELS="a,b,c"  표 모드에서 테스트할 모델 목록 덮어쓰기
+#   NO_GROUNDING=1         GROUND 열(그라운딩 호출) 생략, PLAIN 만 테스트
 #
 # 사용 예:
-#   export GEMINI_API_KEY=xxxx && ./tools/gemini_api_key_test.sh      # 전체 체인 표
-#   ./tools/gemini_api_key_test.sh AIza...                            # 키를 인자로
-#   GEMINI_MODEL=gemini-3.7-flash ./tools/gemini_api_key_test.sh      # 단일 모델만
+#   export GEMINI_API_KEY=xxxx && ./tools/gemini_api_key_test.sh
+#   ./tools/gemini_api_key_test.sh AIza...
+#   GEMINI_MODEL=gemini-3.7-flash ./tools/gemini_api_key_test.sh
 #
 set -euo pipefail
 
 BASE="https://generativelanguage.googleapis.com/v1beta"
 
 # 폴백 체인 기본 모델 목록 (scripts/dataset_review.py 의 build_model_chain 과 동일 순서).
+# 끝에 gemini-3-flash-preview 를 덧붙여 프리뷰 변형이 무료로 열려 있는지도 함께 본다.
 # GEMINI_MODELS(쉼표/공백 구분)로 덮어쓸 수 있다.
 DEFAULT_MODELS=(
   gemini-flash-latest
@@ -36,6 +45,7 @@ DEFAULT_MODELS=(
   gemini-3.5-flash
   gemini-3.5-flash-lite
   gemini-3.1-flash-lite
+  gemini-3-flash-preview
   gemini-2.5-flash
   gemini-2.5-flash-lite
 )
@@ -78,50 +88,42 @@ fi
 MASKED="${API_KEY:0:6}…${API_KEY: -4}"
 
 # ---- 테스트할 모델 목록 결정 ----
-# GEMINI_MODEL(단일) 이 명시되면 단일 모드, 아니면 GEMINI_MODELS 또는 기본 체인으로 표 모드.
 SINGLE_MODE=0
 declare -a MODELS
 if [ -n "${GEMINI_MODEL:-}" ]; then
   SINGLE_MODE=1
   MODELS=("${GEMINI_MODEL}")
 elif [ -n "${GEMINI_MODELS:-}" ]; then
-  # 쉼표/공백 구분 → 배열
   IFS=', ' read -r -a MODELS <<< "${GEMINI_MODELS}"
 else
   MODELS=("${DEFAULT_MODELS[@]}")
 fi
 
-# 검증 요청 본문(모든 모델 공통, 최소 토큰).
-REQ_BODY='{"contents":[{"parts":[{"text":"Reply with the single word: OK"}]}],"generationConfig":{"maxOutputTokens":8}}'
+DO_GROUND=1
+[ "${NO_GROUNDING:-0}" = "1" ] && DO_GROUND=0
+
+# 검증 요청 본문(최소 토큰). PLAIN 은 도구 없음, GROUND 는 google_search 그라운딩 부착.
+REQ_PLAIN='{"contents":[{"parts":[{"text":"Reply with the single word: OK"}]}],"generationConfig":{"maxOutputTokens":8}}'
+REQ_GROUND='{"contents":[{"parts":[{"text":"Reply with the single word: OK"}]}],"tools":[{"google_search":{}}],"generationConfig":{"maxOutputTokens":16}}'
 
 # ------------------------------------------------------------------------------
-# probe_model <model>
-#   한 모델을 호출하고 전역 변수(P_CODE/P_STATUS/P_QUOTA/P_NOTE/P_TIME/P_CLASS)를 채운다.
+# probe <model> <body>
+#   호출 후 전역 P_CODE/P_STATUS/P_QUOTA/P_NOTE/P_TIME/P_CLASS 를 채운다.
 #   P_CLASS: ok | quota | notfound | auth | badreq | blocked | neterr | other
 # ------------------------------------------------------------------------------
-probe_model() {
-  local model="$1"
-  local resp code time_total
+probe() {
+  local model="$1" body="$2"
+  local resp code time_total metrics
   resp="$(mktemp)"
-
-  # http_code 와 time_total 을 마지막 줄에 함께 받는다.
-  local metrics
   metrics="$(curl -sS -w '%{http_code} %{time_total}' -o "${resp}" \
     -X POST \
     -H 'Content-Type: application/json' \
     -H "x-goog-api-key: ${API_KEY}" \
     "${BASE}/models/${model}:generateContent" \
-    -d "${REQ_BODY}" 2>/dev/null || echo "000 0")"
-  code="${metrics%% *}"
-  time_total="${metrics##* }"
+    -d "${body}" 2>/dev/null || echo "000 0")"
+  code="${metrics%% *}"; time_total="${metrics##* }"
+  P_CODE="${code}"; P_TIME="${time_total}s"; P_STATUS=""; P_QUOTA=""; P_NOTE=""
 
-  P_CODE="${code}"
-  P_TIME="${time_total}s"
-  P_STATUS=""
-  P_QUOTA=""
-  P_NOTE=""
-
-  # 응답이 JSON 인지 확인(프록시/방화벽은 HTML 반환).
   local is_json=0
   if [ -s "${resp}" ] && [ "$(tr -d '[:space:]' < "${resp}" | head -c1)" = "{" ]; then
     is_json=1
@@ -133,34 +135,24 @@ probe_model() {
       local txt fr
       txt="$(jq -r '.candidates[0].content.parts[0].text // empty' "${resp}" 2>/dev/null | tr -d '\n' || true)"
       fr="$(jq -r '.candidates[0].finishReason // empty' "${resp}" 2>/dev/null || true)"
-      if [ -n "${txt}" ]; then
-        P_NOTE="응답=\"${txt}\""
-      else
-        # 200 이지만 본문 없음(예: thinking 예산 소진으로 빈 STOP).
-        P_NOTE="빈 응답(finishReason=${fr:-?})"
-      fi
+      if [ -n "${txt}" ]; then P_NOTE="응답=\"${txt}\""; else P_NOTE="빈 응답(finishReason=${fr:-?})"; fi
     fi
     rm -f "${resp}"; return 0
   fi
 
-  # ---- 비200: 오류 분류 ----
   if [ "${is_json}" -eq 0 ] && grep -qi '<html' "${resp}" 2>/dev/null; then
-    P_CLASS="blocked"; P_STATUS="BLOCKED(HTML)"
-    P_NOTE="프록시/방화벽 차단(비-Google 응답)"
+    P_CLASS="blocked"; P_STATUS="BLOCKED(HTML)"; P_NOTE="프록시/방화벽 차단"
     rm -f "${resp}"; return 0
   fi
   if [ "${code}" = "000" ]; then
-    P_CLASS="neterr"; P_STATUS="NETWORK"
-    P_NOTE="연결 실패(프록시/방화벽)"
+    P_CLASS="neterr"; P_STATUS="NETWORK"; P_NOTE="연결 실패"
     rm -f "${resp}"; return 0
   fi
 
   if [ "${HAS_JQ}" -eq 1 ] && [ "${is_json}" -eq 1 ]; then
     P_STATUS="$(jq -r '.error.status // empty' "${resp}" 2>/dev/null || true)"
-    local msg
+    local msg qv retry
     msg="$(jq -r '.error.message // empty' "${resp}" 2>/dev/null || true)"
-    # QuotaFailure 상세에서 쿼터 한도(quotaValue)와 metric/id 추출 → "0" 이면 무료 티어 미개방.
-    local qv retry
     qv="$(jq -r '
       [ .error.details[]?
         | select((.["@type"] // "") | test("QuotaFailure"))
@@ -168,20 +160,16 @@ probe_model() {
         | ((.quotaId // .quotaMetric // "quota") + "=" + (.quotaValue // "?"))
       ] | unique | join(", ")' "${resp}" 2>/dev/null || true)"
     retry="$(jq -r '
-      [ .error.details[]?
-        | select((.["@type"] // "") | test("RetryInfo"))
-        | .retryDelay ] | join("")' "${resp}" 2>/dev/null || true)"
+      [ .error.details[]? | select((.["@type"] // "") | test("RetryInfo")) | .retryDelay ] | join("")' "${resp}" 2>/dev/null || true)"
     if [ -n "${qv}" ]; then
-      P_QUOTA="${qv}"
-      [ -n "${retry}" ] && P_QUOTA="${P_QUOTA} (retry ${retry})"
+      P_QUOTA="${qv}"; [ -n "${retry}" ] && P_QUOTA="${P_QUOTA} (retry ${retry})"
     elif [ -n "${retry}" ]; then
       P_QUOTA="retry ${retry}"
     fi
     [ -z "${P_QUOTA}" ] && [ -n "${msg}" ] && P_NOTE="${msg:0:70}"
   else
-    P_STATUS="HTTP ${code}"
-    P_NOTE="$(tr -d '\n' < "${resp}" | head -c 70)"
-    [ "${HAS_JQ}" -eq 0 ] && P_NOTE="${P_NOTE}  (jq 설치 시 쿼터 상세 표시)"
+    P_STATUS="HTTP ${code}"; P_NOTE="$(tr -d '\n' < "${resp}" | head -c 70)"
+    [ "${HAS_JQ}" -eq 0 ] && P_NOTE="${P_NOTE}  (jq 설치 시 쿼터 상세)"
   fi
 
   case "${code}" in
@@ -195,16 +183,14 @@ probe_model() {
   rm -f "${resp}"; return 0
 }
 
-# 클래스 → 색상/아이콘
-class_deco() {
+# 코드 → 색상 조각(표 셀용)
+code_col() {
   case "$1" in
-    ok)       ICON="${GREEN}✓${RESET}"; COL="${GREEN}" ;;
-    quota)    ICON="${RED}✗${RESET}";   COL="${RED}" ;;
-    notfound) ICON="${YELLOW}?${RESET}"; COL="${YELLOW}" ;;
-    auth)     ICON="${RED}✗${RESET}";   COL="${RED}" ;;
-    badreq)   ICON="${YELLOW}!${RESET}"; COL="${YELLOW}" ;;
-    blocked|neterr) ICON="${YELLOW}!${RESET}"; COL="${YELLOW}" ;;
-    *)        ICON="${RED}✗${RESET}";   COL="${RED}" ;;
+    200) printf "%b%-4s%b" "${GREEN}" "$1" "${RESET}" ;;
+    429) printf "%b%-4s%b" "${RED}" "$1" "${RESET}" ;;
+    404|400) printf "%b%-4s%b" "${YELLOW}" "$1" "${RESET}" ;;
+    -)   printf "%-4s" "-" ;;
+    *)   printf "%b%-4s%b" "${RED}" "$1" "${RESET}" ;;
   esac
 }
 
@@ -213,50 +199,72 @@ echo "  키    : ${MASKED} (길이 ${#API_KEY})"
 if [ "${SINGLE_MODE}" -eq 1 ]; then
   echo "  모드  : 단일 모델(${MODELS[0]})"
 else
-  echo "  모드  : 표(모델 ${#MODELS[@]}개)"
+  echo "  모드  : 표(모델 ${#MODELS[@]}개)${DO_GROUND:+, PLAIN+GROUND 비교}"
 fi
 echo
 
 # ---- 표 헤더 ----
-HDR_FMT="%b%-24s %-5s %-18s %-9s %-40s%b\n"
-ROW_FMT="%b%-24s %-5s %-18s %-9s %-40s%b\n"
-printf "${HDR_FMT}" "${BOLD}" "MODEL" "HTTP" "STATUS" "TIME" "QUOTA / NOTE" "${RESET}"
-printf "%s\n" "$(printf '─%.0s' $(seq 1 100))"
+printf "%b%-24s %-4s %-4s  %-18s %-34s%b\n" "${BOLD}" "MODEL" "PLN" "GRD" "STATUS(대표)" "QUOTA / NOTE" "${RESET}"
+printf "%s\n" "$(printf '─%.0s' $(seq 1 92))"
 
-# ---- 순회 ----
-N_OK=0; N_QUOTA=0; N_NOTFOUND=0; N_OTHER=0
-FIRST_OK=""
+N_PLAIN_OK=0; N_GROUND_OK=0; N_GROUND_ONLY_FAIL=0
+FIRST_PLAIN_OK=""; FIRST_GROUND_OK=""
 for m in "${MODELS[@]}"; do
   [ -z "${m}" ] && continue
-  probe_model "${m}"
-  class_deco "${P_CLASS}"
-  DETAIL="${P_QUOTA}"
-  [ -z "${DETAIL}" ] && DETAIL="${P_NOTE}"
-  [ -z "${DETAIL}" ] && DETAIL="-"
-  printf "${ROW_FMT}" "${COL}" "${m}" "${P_CODE}" "${P_STATUS}" "${P_TIME}" "${DETAIL:0:40}" "${RESET}"
-  case "${P_CLASS}" in
-    ok)       N_OK=$((N_OK+1)); [ -z "${FIRST_OK}" ] && FIRST_OK="${m}" ;;
-    quota)    N_QUOTA=$((N_QUOTA+1)) ;;
-    notfound) N_NOTFOUND=$((N_NOTFOUND+1)) ;;
-    *)        N_OTHER=$((N_OTHER+1)) ;;
-  esac
+
+  probe "${m}" "${REQ_PLAIN}"
+  local_plain_code="${P_CODE}"; local_plain_class="${P_CLASS}"
+  plain_status="${P_STATUS}"; plain_quota="${P_QUOTA}"; plain_note="${P_NOTE}"
+
+  ground_code="-"; ground_class="skip"; ground_status=""; ground_quota=""; ground_note=""
+  if [ "${DO_GROUND}" -eq 1 ]; then
+    probe "${m}" "${REQ_GROUND}"
+    ground_code="${P_CODE}"; ground_class="${P_CLASS}"
+    ground_status="${P_STATUS}"; ground_quota="${P_QUOTA}"; ground_note="${P_NOTE}"
+  fi
+
+  # 대표 STATUS/QUOTA: 실패한 쪽(특히 그라운딩)이 흥미로우므로 우선 노출.
+  rep_status="${plain_status}"; rep_detail="${plain_quota:-${plain_note}}"
+  if [ "${DO_GROUND}" -eq 1 ] && [ "${ground_code}" != "200" ]; then
+    rep_status="${ground_status}"; rep_detail="${ground_quota:-${ground_note}}"
+  elif [ "${local_plain_code}" = "200" ] && { [ "${DO_GROUND}" -eq 0 ] || [ "${ground_code}" = "200" ]; }; then
+    rep_status="OK"; rep_detail="${plain_note}"
+  fi
+  [ -z "${rep_detail}" ] && rep_detail="-"
+
+  printf "%-24s " "${m}"
+  code_col "${local_plain_code}"; printf " "
+  code_col "${ground_code}"; printf "  "
+  printf "%-18s %-34s\n" "${rep_status:0:18}" "${rep_detail:0:34}"
+
+  [ "${local_plain_code}" = "200" ] && { N_PLAIN_OK=$((N_PLAIN_OK+1)); [ -z "${FIRST_PLAIN_OK}" ] && FIRST_PLAIN_OK="${m}"; }
+  if [ "${DO_GROUND}" -eq 1 ]; then
+    [ "${ground_code}" = "200" ] && { N_GROUND_OK=$((N_GROUND_OK+1)); [ -z "${FIRST_GROUND_OK}" ] && FIRST_GROUND_OK="${m}"; }
+    # 모델은 되는데(PLAIN 200) 그라운딩만 막힌(GROUND 429/403) 경우 집계
+    if [ "${local_plain_code}" = "200" ] && [ "${ground_code}" != "200" ] && [ "${ground_code}" != "-" ]; then
+      N_GROUND_ONLY_FAIL=$((N_GROUND_ONLY_FAIL+1))
+    fi
+  fi
 done
 
 echo
-echo "${BOLD}요약${RESET}: ${GREEN}OK ${N_OK}${RESET} · ${RED}429/쿼터 ${N_QUOTA}${RESET} · ${YELLOW}404/미지원 ${N_NOTFOUND}${RESET} · 기타 ${N_OTHER}"
-if [ -n "${FIRST_OK}" ]; then
-  ok "이 키로 실제 붙는 첫 모델: ${BOLD}${FIRST_OK}${RESET}"
-fi
-echo "${DIM}해설: QUOTA 열의 '...=0' 은 무료 티어 미개방(한도 0), 429 는 쿼터 소진/레이트리밋,${RESET}"
-echo "${DIM}      404(STATUS=NOT_FOUND) 는 그 모델 ID 자체가 없음을 의미합니다.${RESET}"
+echo "${BOLD}요약${RESET}  PLAIN(도구없음) OK ${GREEN}${N_PLAIN_OK}${RESET}   |   GROUND(그라운딩) OK ${GREEN}${N_GROUND_OK}${RESET}"
+[ -n "${FIRST_PLAIN_OK}" ]  && ok "도구 없이 붙는 첫 모델      : ${BOLD}${FIRST_PLAIN_OK}${RESET}"
+[ "${DO_GROUND}" -eq 1 ] && [ -n "${FIRST_GROUND_OK}" ] && ok "그라운딩까지 되는 첫 모델   : ${BOLD}${FIRST_GROUND_OK}${RESET}"
+echo
+echo "${DIM}판독:${RESET}"
+echo "${DIM}  PLN=200, GRD=429  → 모델은 무료 OK, '그라운딩'만 막힘 ⇒ 3.x 를 그라운딩 끄고 쓰면 무료로 결과 획득${RESET}"
+echo "${DIM}  PLN=429, GRD=429  → 모델 자체가 무료 한도 0(유료 전용)${RESET}"
+echo "${DIM}  PLN=404           → 그 모델 ID 자체가 없음${RESET}"
+echo "${DIM}  QUOTA '…=0' 은 무료 티어 미개방(한도 0) 을 뜻함${RESET}"
 
-# 종료 코드: OK 가 하나도 없으면 1, 있으면 0.
-if [ "${N_OK}" -eq 0 ]; then
+if [ "${DO_GROUND}" -eq 1 ] && [ "${N_GROUND_ONLY_FAIL}" -gt 0 ]; then
+  warn "모델은 무료로 되는데 그라운딩만 막힌 케이스 ${N_GROUND_ONLY_FAIL}건 → 그라운딩 조건부 비활성화로 무료 3.x 사용 가능성 있음."
+fi
+
+# 종료 코드: PLAIN 이든 GROUND 든 하나도 200 이 없으면 1.
+if [ "${N_PLAIN_OK}" -eq 0 ] && [ "${N_GROUND_OK}" -eq 0 ]; then
   err "정상 동작하는 모델이 없습니다."
-  # 흔한 원인 힌트
-  if [ "${N_QUOTA}" -gt 0 ] && [ "${N_OK}" -eq 0 ]; then
-    warn "모든 모델이 429 입니다: 무료 일일 쿼터 소진이거나 키에 결제(빌링)가 없어 3.x 한도가 0일 수 있습니다."
-  fi
   exit 1
 fi
 exit 0
