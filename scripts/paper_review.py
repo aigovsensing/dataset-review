@@ -368,6 +368,7 @@ def run_paper_review(title: str, body: str) -> str:
     text = R.sanitize_markdown(text)
     sources = R.get_grounding_sources(response)
     text = R.linkify_citations(text, sources)
+    text = R.link_source_refs(text, sources)  # 본문 `[출처 N]` 을 실제 출처 URL 링크로 변환
 
     parts = [header, text]
     if sources:

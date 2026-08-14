@@ -226,6 +226,53 @@ def render_sources(sources: list[tuple[str, str]]) -> str:
     )
 
 
+# 본문의 `[출처 N]` / `[출처 N, M]` 참조(예: "([출처 1])", "높음 [출처 19]").
+# 뒤에 '(' 가 오면(이미 마크다운 링크 `[출처 1](url)`) 건드리지 않는다.
+_SRC_REF_RE = re.compile(r"\[출처\s*(\d+(?:\s*,\s*\d+)*)\](?!\()")
+
+
+def link_source_refs(text: str, sources: list[tuple[str, str]]) -> str:
+    """본문의 `[출처 N]` 을 실제 출처 URL 로 가는 클릭 가능한 링크로 변환한다.
+
+    N 은 그라운딩 출처(=아래 '참고 출처' 목록·본문 `[N]` 각주)의 번호와 같은 체계다.
+    범위를 벗어나는 N 은 링크로 만들지 않고 원문(`[출처 N]`)을 그대로 둔다.
+    """
+    if not sources:
+        return text
+
+    def repl(m: re.Match) -> str:
+        out = []
+        for p in re.split(r"\s*,\s*", m.group(1)):
+            idx = int(p)
+            if 1 <= idx <= len(sources):
+                out.append(f"[출처 {idx}]({sources[idx - 1][1]})")
+            else:
+                out.append(f"[출처 {idx}]")
+        return ", ".join(out)
+
+    return _SRC_REF_RE.sub(repl, text)
+
+
+def number_source_list(text: str) -> str:
+    """'## 5. 근거 및 출처' 섹션의 불릿 목록에 `1) 2) 3)` 번호를 매긴다."""
+    m = re.search(r"^##\s+5\.\s*근거\s*및\s*출처\s*$", text, re.MULTILINE)
+    if not m:
+        return text
+    start = m.end()
+    nxt = re.search(r"^##\s+", text[start:], re.MULTILINE)
+    end = start + nxt.start() if nxt else len(text)
+    seg = text[start:end]
+
+    counter = {"n": 0}
+
+    def repl_bullet(bm: re.Match) -> str:
+        counter["n"] += 1
+        return f"{bm.group(1)}{counter['n']}) {bm.group(2)}"
+
+    seg = re.sub(r"^([ \t]*)[*\-]\s+(.*)$", repl_bullet, seg, flags=re.MULTILINE)
+    return text[:start] + seg + text[end:]
+
+
 def insert_grounding_citations(raw_text: str, response) -> str:
     """근거가 있는 문장 끝에 출처 링크 `[N]` 을 자동 삽입한다.
 
@@ -925,6 +972,8 @@ def run_review(title: str, body: str) -> str:
     text = sanitize_markdown(text)
     sources = get_grounding_sources(response)
     text = linkify_citations(text, sources)  # 모델이 남긴 잔여 `cite: N` 도 링크로(있으면)
+    text = link_source_refs(text, sources)   # 본문 `[출처 N]` 을 실제 출처 URL 링크로 변환
+    text = number_source_list(text)          # '5. 근거 및 출처' 목록에 1) 2) 3) 번호 매김
     text = restructure_review(text, name)
     parts = [model_header, text]
     if sources:
