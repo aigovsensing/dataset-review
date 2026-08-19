@@ -29,7 +29,7 @@ flowchart LR
 | [`docs/`](../docs/) | 🖥️ 입력·열람 | 검토 요청 폼 + 결과 게시판(검색·페이지네이션·낮밤 테마·접근 암호 게이트) |
 | [`.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/dataset-review.yml) | 📨 접수 | 홈페이지가 prefill 하는 검토 요청 이슈 폼 |
 | [`.github/workflows/`](../.github/workflows/dataset-review.yml) | ⚙️ 자동화 | 이슈 감지 → 검토 실행 → 결과 댓글·라벨 처리(무료 쿼터 보호 포함) |
-| [`scripts/dataset_review.py`](../scripts/dataset_review.py) + [`system_prompt_dataset_review.md`](../scripts/system_prompt_dataset_review.md) | 🤖 검토 엔진 | Gemini(구글 검색 그라운딩) **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석 |
+| [`scripts/dataset_review.py`](../scripts/dataset_review.py) + [`system_prompt_dataset_review.md`](../prompt-book/system_prompt_dataset_review.md) | 🤖 검토 엔진 | Gemini(구글 검색 그라운딩) **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석 |
 
 ## 🔄 데이터 흐름 (Data Flow)
 
@@ -112,8 +112,8 @@ flowchart TD
 ### ⛔ 자의적 해석 금지 · 문장별 출처 링크 (검토 신뢰성 핵심)
 
 법적 리스크 판단이므로 **출처 없는 자의적 해석·추리 문구를 사실처럼 서술하는 것을 금지**합니다.
-이 원칙은 **데이터셋 검토([`system_prompt_dataset_review.md`](../scripts/system_prompt_dataset_review.md))와
-논문 검토([`system_prompt_paper_review.md`](../scripts/system_prompt_paper_review.md)) 프롬프트에 동일하게**
+이 원칙은 **데이터셋 검토([`system_prompt_dataset_review.md`](../prompt-book/system_prompt_dataset_review.md))와
+논문 검토([`system_prompt_paper_review.md`](../prompt-book/system_prompt_paper_review.md)) 프롬프트에 동일하게**
 반영되어 있습니다.
 
 - **인용 ≠ 해석**: 큰따옴표(`"..."`) 원문 인용은 **출처(데이터셋 카드·문서·논문 원문)에 그 문장이
@@ -141,5 +141,5 @@ flowchart TD
 | `.github/workflows/export-reviews.yml` | 검토 결과를 CSV/JSON 으로 집계·커밋하는 워크플로(매일/수동) |
 | `scripts/dataset_review.py` | Gemini 호출 + 검토 보고서 생성 스크립트 |
 | `scripts/export_dataset_reviews.py` | 검토 결과 이슈를 파싱해 `docs/data/reviews.csv`·`reviews.json` 생성 |
-| `scripts/system_prompt_dataset_review.md` | 법적 리스크 검토 에이전트 시스템 프롬프트(검토 지침) |
+| `prompt-book/system_prompt_dataset_review.md` | 법적 리스크 검토 에이전트 시스템 프롬프트(검토 지침) |
 | `tools/gemini_api_key_test.sh` | Gemini API 키 동작을 curl 로 확인하는 진단 스크립트 |

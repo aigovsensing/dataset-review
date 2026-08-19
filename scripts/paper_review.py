@@ -29,7 +29,9 @@ from pathlib import Path
 import dataset_review as R  # 공용 헬퍼 재사용 (scripts/ 가 sys.path[0] 이므로 import 가능)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PAPER_PROMPT_PATH = SCRIPT_DIR / "system_prompt_paper_review.md"
+REPO_ROOT = SCRIPT_DIR.parent
+# 시스템 프롬프트(검토 지침)는 prompt-book/ 폴더에서 일관되게 관리한다.
+PAPER_PROMPT_PATH = REPO_ROOT / "prompt-book" / "system_prompt_paper_review.md"
 
 # 이슈 폼(paper-review.yml) 필드 라벨 → 내부 키
 PAPER_FIELD_LABELS = {

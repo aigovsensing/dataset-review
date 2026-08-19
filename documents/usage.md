@@ -67,7 +67,7 @@ URL 이 구체적일수록 검토 품질이 올라갑니다. 여러 개는 줄�
    ```
    arXiv 전용 처리(PDF 변환·다운로드)는 없습니다. URL 을 텍스트로 넣고, "Google 검색 도구로 논문 등
    공식 자료를 직접 확인 · 이 URL 을 우선 근거로 활용 · 인용 시 출처 URL 함께 제시"라고 지시합니다.
-3. **시스템 지침이 논문 활용 방식을 규정** — [`system_prompt_dataset_review.md`](../scripts/system_prompt_dataset_review.md#L27):
+3. **시스템 지침이 논문 활용 방식을 규정** — [`system_prompt_dataset_review.md`](../prompt-book/system_prompt_dataset_review.md#L27):
    *"논문·공식 홈페이지·LICENSE… URL 이 제공되면 Google 검색 도구로 해당 자료를 우선적으로 찾아,
    라이선스 조항·데이터 수집 방법(크롤링·출처·필터링)·개인정보 서술을 원문에서 확인하고 그 문장을
    그대로 인용한다."* → 논문에서 **라이선스 / 데이터 수집 방식 / 개인정보** 3대 항목의 근거를 찾습니다.
@@ -78,7 +78,7 @@ URL 이 구체적일수록 검토 품질이 올라갑니다. 여러 개는 줄�
    Gemini 가 이 도구로 arXiv 논문(및 관련 공식 자료)을 **실제 검색·열람해 분석**합니다. 논문 내용을
    이해하는 "분석"은 여기서 일어납니다.
 5. **후처리로 인용을 링크화 (코드, AI 아님)** — Gemini 가 근거 문장 끝에 `[cite: N]` 을 붙이면
-   ([`system_prompt_dataset_review.md`](../scripts/system_prompt_dataset_review.md#L54)), `linkify_citations()` 가 그 번호를 실제
+   ([`system_prompt_dataset_review.md`](../prompt-book/system_prompt_dataset_review.md#L54)), `linkify_citations()` 가 그 번호를 실제
    출처 URL 링크로 변환하고 그라운딩 출처 목록을 결과 하단에 첨부합니다.
 
 **참고 (이력):** 과거 두 방식을 시도했다가 무료 티어 안정성 문제로 되돌렸습니다.
