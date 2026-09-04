@@ -1295,6 +1295,17 @@ def main() -> int:
     title = os.environ.get("ISSUE_TITLE", "")
     body = os.environ.get("ISSUE_BODY", "")
 
+    # GitHub Actions 의 secrets 컨텍스트를 받아와 GEMINI_API_KEY*** 자동 병합
+    secrets_json = os.environ.get("SECRETS_CONTEXT", "")
+    if secrets_json:
+        import json
+        try:
+            for k, v in json.loads(secrets_json).items():
+                if k.startswith("GEMINI_API_KEY") and v:
+                    os.environ[k] = v.strip()
+        except Exception as e:
+            print(f"[diag] SECRETS_CONTEXT 파싱 실패: {e}", file=sys.stderr)
+
     # 환경 변수에서 GEMINI_API_KEY 로 시작하는 모든 키 수집 및 중복 제거
     env_keys = sorted(
         [k for k in os.environ.keys() if k.startswith("GEMINI_API_KEY")],
