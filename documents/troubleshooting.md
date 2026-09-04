@@ -27,6 +27,7 @@ Actions 탭에서 워크플로가 `Skipped` 라면 실행 조건 미충족입니
 | 오류 메시지 | 원인 | 조치 |
 | --- | --- | --- |
 | `GEMINI_API_KEY 환경 변수가 설정되어 있지 않습니다` | Secret 미등록 | 설정 1번 수행 |
+| `429` / `prepayment credits are depleted` | 유료/선불 계정의 크레딧(잔고) 소진 | AI Studio 결제 관리에서 크레딧 충전 후 `rerun-review` |
 | `429` / `RESOURCE_EXHAUSTED` | **폴백 체인의 모든 모델**까지 일일 한도 소진 | 다음 날 `rerun-review` (또는 `GEMINI_DEFAULT_FALLBACKS` 확장) |
 | `503` / `high demand` (재시도·폴백 후에도 실패) | Google 서버 일시 혼잡 (키·쿼터 무관) | 잠시 후 `rerun-review` — [503 자동 복구](models-and-quota.md#503일시-과부하-대응--3단계-자동-복구) 참고 |
 | `검토할 데이터셋 정보가 없습니다` | 이슈 폼이 비어 있음 | 이슈 본문 수정 후 `rerun-review` |

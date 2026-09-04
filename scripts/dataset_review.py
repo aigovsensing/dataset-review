@@ -803,6 +803,8 @@ def fallback_reason_tag(exc: Exception) -> str:
     code = getattr(exc, "code", None)
     msg = str(exc).lower()
     if code == 429 or any(m in msg for m in ("resource_exhausted", "quota", "rate limit")):
+        if "prepayment credits" in msg:
+            return "429 선불 크레딧 소진"
         return "429 무료 쿼터 소진"
     if code == 404 or any(m in msg for m in ("not_found", "not found", "not supported")):
         return "404 모델 미지원/불가"
