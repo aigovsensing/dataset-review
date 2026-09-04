@@ -63,8 +63,13 @@ jobs:
       - name: 법적 리스크 검토 실행
         id: run_review
         env:
-          # 모든 Secret을 넘겨 스크립트가 GEMINI_API_KEY*** 를 자동 검색·순회하도록 함
-          SECRETS_CONTEXT: ${{ toJson(secrets) }}
+          # secrets 컨텍스트 전체를 toJson()으로 넘기면 GitHub가 워크플로를 실행 전에
+          # action_required로 거부한다. 지원하는 키를 명시적으로 매핑해야 labeled 이벤트가
+          # 실제 job을 만들고 rerun-review 결과를 이슈에 게시할 수 있다.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_AIGOVSENSING: ${{ secrets.GEMINI_API_KEY_AIGOVSENSING }}
+          GEMINI_API_KEY_GEUNSIKLIM: ${{ secrets.GEMINI_API_KEY_GEUNSIKLIM }}
+          GEMINI_API_KEY_LEEMGS: ${{ secrets.GEMINI_API_KEY_LEEMGS }}
           # 기본(1차) 검토 모델. 저장소 변수 vars.GEMINI_DEFAULT_MODEL 이 없으면 최신 Flash 별칭.
           # (특정 버전 고정은 이 변수로 지정.)
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}

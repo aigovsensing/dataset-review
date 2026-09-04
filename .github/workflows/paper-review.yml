@@ -50,8 +50,12 @@ jobs:
       - name: 논문 법무 검토 실행
         id: run_review
         env:
-          # 모든 Secret을 넘겨 스크립트가 GEMINI_API_KEY*** 를 자동 검색·순회하도록 함
-          SECRETS_CONTEXT: ${{ toJson(secrets) }}
+          # GitHub Actions는 secrets 컨텍스트 전체 직렬화를 허용하지 않으므로 각 키를
+          # 명시적으로 매핑한다. 이름 패턴은 공용 키 수집 함수가 그대로 순회한다.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_AIGOVSENSING: ${{ secrets.GEMINI_API_KEY_AIGOVSENSING }}
+          GEMINI_API_KEY_GEUNSIKLIM: ${{ secrets.GEMINI_API_KEY_GEUNSIKLIM }}
+          GEMINI_API_KEY_LEEMGS: ${{ secrets.GEMINI_API_KEY_LEEMGS }}
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}
           # 표시용 '서비스 티어' 라벨(선택). 미설정('') 시 API 응답 자동 판별, 그래도 없으면 Free.
           GEMINI_SERVICE_TIER: ${{ vars.GEMINI_SERVICE_TIER || '' }}
