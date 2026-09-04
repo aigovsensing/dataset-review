@@ -66,12 +66,14 @@ jobs:
           # secrets 컨텍스트 전체를 toJson()으로 넘기면 GitHub가 워크플로를 실행 전에
           # action_required로 거부한다. 지원하는 키를 명시적으로 매핑해야 labeled 이벤트가
           # 실제 job을 만들고 rerun-review 결과를 이슈에 게시할 수 있다.
+          #  ⚠️ 새 키 추가 시: 여기에 `<변수명>: ${{ secrets.<변수명> }}` 한 줄을 추가하고,
+          #     prompt-book/gemini-api-keys.json 의 'order' 에도 그 이름을 넣어야 한다.
+          #     (시도 '순서'는 그 JSON 파일이 단일 출처. 파일이 없으면 이름 알파벳순으로 폴백.)
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_AIGOVSENSING: ${{ secrets.GEMINI_API_KEY_AIGOVSENSING }}
           GEMINI_API_KEY_AITSEC2025: ${{ secrets.GEMINI_API_KEY_AITSEC2025 }}
           GEMINI_API_KEY_GEUNSIKLIM: ${{ secrets.GEMINI_API_KEY_GEUNSIKLIM }}
           GEMINI_API_KEY_LEEMGS: ${{ secrets.GEMINI_API_KEY_LEEMGS }}
-          GEMINI_API_KEY_ORDER: GEMINI_API_KEY,GEMINI_API_KEY_LEEMGS,GEMINI_API_KEY_GEUNSIKLIM,GEMINI_API_KEY_AIGOVSENSING,GEMINI_API_KEY_AITSEC2025
           # 기본(1차) 검토 모델. 저장소 변수 vars.GEMINI_DEFAULT_MODEL 이 없으면 최신 Flash 별칭.
           # (특정 버전 고정은 이 변수로 지정.)
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}

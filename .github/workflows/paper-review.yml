@@ -52,12 +52,14 @@ jobs:
         env:
           # GitHub Actions는 secrets 컨텍스트 전체 직렬화를 허용하지 않으므로 각 키를
           # 명시적으로 매핑한다. 이름 패턴은 공용 키 수집 함수가 그대로 순회한다.
+          #  ⚠️ 새 키 추가 시: 여기에 `<변수명>: ${{ secrets.<변수명> }}` 한 줄을 추가하고,
+          #     prompt-book/gemini-api-keys.json 의 'order' 에도 그 이름을 넣어야 한다.
+          #     (시도 '순서'는 그 JSON 파일이 단일 출처. 파일이 없으면 이름 알파벳순으로 폴백.)
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_AIGOVSENSING: ${{ secrets.GEMINI_API_KEY_AIGOVSENSING }}
           GEMINI_API_KEY_AITSEC2025: ${{ secrets.GEMINI_API_KEY_AITSEC2025 }}
           GEMINI_API_KEY_GEUNSIKLIM: ${{ secrets.GEMINI_API_KEY_GEUNSIKLIM }}
           GEMINI_API_KEY_LEEMGS: ${{ secrets.GEMINI_API_KEY_LEEMGS }}
-          GEMINI_API_KEY_ORDER: GEMINI_API_KEY,GEMINI_API_KEY_LEEMGS,GEMINI_API_KEY_GEUNSIKLIM,GEMINI_API_KEY_AIGOVSENSING,GEMINI_API_KEY_AITSEC2025
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}
           # 표시용 '서비스 티어' 라벨(선택). 미설정('') 시 API 응답 자동 판별, 그래도 없으면 Free.
           GEMINI_SERVICE_TIER: ${{ vars.GEMINI_SERVICE_TIER || '' }}

@@ -17,10 +17,15 @@
    - Value: 발급받은 키
 3. (권장) 여러 계정의 무료 키를 쓰려면 `GEMINI_API_KEY_<이름>` 형식으로 추가합니다.
    예: `GEMINI_API_KEY_AIGOVSENSING`, `GEMINI_API_KEY_GEUNSIKLIM`, `GEMINI_API_KEY_LEEMGS`.
-   - Actions에서는 `GEMINI_API_KEY` → `GEMINI_API_KEY_LEEMGS` →
-     `GEMINI_API_KEY_GEUNSIKLIM` → `GEMINI_API_KEY_AIGOVSENSING` →
-     `GEMINI_API_KEY_AITSEC2025` 순으로 시도합니다. 로컬 실행은
-     `GEMINI_API_KEY_ORDER`가 없으면 변수명 영문 오름차순을 사용합니다.
+   - **시도 순서의 단일 출처는 [`prompt-book/gemini-api-keys.json`](../prompt-book/gemini-api-keys.json)의
+     `order` 목록**입니다. 현재 기본값은 `GEMINI_API_KEY` → `GEMINI_API_KEY_LEEMGS` →
+     `GEMINI_API_KEY_GEUNSIKLIM` → `GEMINI_API_KEY_AIGOVSENSING` → `GEMINI_API_KEY_AITSEC2025`.
+     이 파일이 없거나 손상되면 `GEMINI_API_KEY_ORDER` 환경변수 → 변수명 영문 오름차순으로 안전하게 폴백합니다.
+   - **키를 새로 추가할 때는 세 곳을 함께 갱신해야 정상 동작합니다:**
+     ① 이 Secret 등록 → ② `prompt-book/gemini-api-keys.json` 의 `order` 에 이름 추가 →
+     ③ `.github/workflows/dataset-review.yml` 와 `paper-review.yml` 의 `env:` 에
+     `<이름>: ${{ secrets.<이름> }}` 한 줄 추가. GitHub 는 secret 값을 동적 이름으로 주입하지
+     못하므로 ③의 yml 매핑이 없으면 그 키는 값이 없어 시도 목록에서 빠집니다.
    - 같은 키 값이 여러 Secret 이름에 등록되어 있어도, 설정된 슬롯의 점검 내역이 누락되지
      않도록 각 Secret 이름을 순서대로 시도합니다.
    - 한 키의 모델 폴백 체인까지 **쿼터(429) 또는 인증(401/403) 오류**로 실패하면 다음 키로 전환합니다. 5xx·잘못된 입력 등 키와 무관한 오류는 추가 키를 소진하지 않도록 순회하지 않습니다.

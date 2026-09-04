@@ -1,0 +1,16 @@
+{
+  "_comment": "Gemini API 키 Secret 변수명의 '시도 순서' 단일 출처(single source of truth). 위에서부터 순서대로 시도하고, 한 키의 쿼터가 소진되면(429 등) 다음 키로 폴백합니다. 여기에는 변수'이름'만 적습니다 — 실제 키 값(secret)은 절대 넣지 마세요.",
+  "_how_to_add_a_key": [
+    "1) GitHub 저장소 Settings → Secrets and variables → Actions → Secrets 에 새 키를 GEMINI_API_KEY_<이름> 형식으로 등록",
+    "2) 아래 'order' 목록에 그 변수명을 추가(원하는 우선순위 위치에)",
+    "3) .github/workflows/dataset-review.yml 와 paper-review.yml 의 env: 에 `<변수명>: ${{ secrets.<변수명> }}` 한 줄씩 추가 (GitHub 는 secret 값을 동적 이름으로 주입하지 못하므로 이 매핑이 반드시 필요)"
+  ],
+  "_note": "이 파일은 '순서'만 정합니다. 파일이 없거나 손상돼도 코드는 GEMINI_API_KEY_ORDER 환경변수 → 이름 정규식 알파벳 스캔 순으로 안전하게 폴백합니다.",
+  "order": [
+    "GEMINI_API_KEY",
+    "GEMINI_API_KEY_LEEMGS",
+    "GEMINI_API_KEY_GEUNSIKLIM",
+    "GEMINI_API_KEY_AIGOVSENSING",
+    "GEMINI_API_KEY_AITSEC2025"
+  ]
+}

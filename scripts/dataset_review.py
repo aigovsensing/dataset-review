@@ -60,9 +60,52 @@ NO_RESPONSE_MARKERS = {"_No response_", "_없음_", "N/A", "없음", ""}
 
 API_KEY_NAME_RE = re.compile(r"^GEMINI_API_KEY(?:_[A-Z0-9_]+)?$")
 
+# Gemini API 키 Secret '변수명의 시도 순서'를 담는 단일 출처(single source of truth).
+# 값(secret)은 넣지 않고 '이름'만 나열한다. 새 키 추가 시 이 파일에 이름을 등록하면
+# collect_api_keys() 가 이 순서를 최우선으로 사용한다.
+#  ⚠️ 이 파일은 '순서'만 정한다. GitHub Actions 는 secret 값을 동적 이름으로 주입하지
+#     못하므로, 각 워크플로 yml 의 env: 에 `NAME: ${{ secrets.NAME }}` 매핑도 반드시
+#     함께 추가해야 값이 실제 실행 환경(os.environ)에 들어온다.
+API_KEY_ORDER_FILE = REPO_ROOT / "prompt-book" / "gemini-api-keys.json"
 
-def collect_api_keys(environ: dict[str, str] | None = None) -> list[tuple[str, str]]:
+
+def load_api_key_order(path: Path | None = None) -> list[str]:
+    """`prompt-book/gemini-api-keys.json` 의 'order' 목록을 이름 리스트로 반환한다.
+
+    파일이 없거나 형식이 잘못됐거나 파싱에 실패해도 예외 없이 빈 리스트를 돌려주어
+    (안전), 파일이 없던 기존 동작을 그대로 보존한다. 이름 패턴(API_KEY_NAME_RE)에
+    맞지 않는 항목은 무시한다. 값(secret)은 이 파일에 담지 않으므로 읽지 않는다.
+    """
+    order_path = API_KEY_ORDER_FILE if path is None else path
+    try:
+        raw = order_path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        print(f"[diag] {order_path.name} 파싱 실패: {exc}", file=sys.stderr)
+        return []
+    names = data.get("order") if isinstance(data, dict) else data
+    if not isinstance(names, list):
+        return []
+    ordered: list[str] = []
+    for name in names:
+        if isinstance(name, str) and API_KEY_NAME_RE.fullmatch(name.strip()):
+            ordered.append(name.strip())
+    return ordered
+
+
+def collect_api_keys(
+    environ: dict[str, str] | None = None,
+    order_file: Path | None = None,
+) -> list[tuple[str, str]]:
     """Return Gemini secrets in configured, then ascending, name order.
+
+    시도 순서 결정 우선순위:
+      1) ``prompt-book/gemini-api-keys.json`` 의 'order' 목록(단일 출처)
+      2) ``GEMINI_API_KEY_ORDER`` 환경변수(하위호환; 미설정이면 무시)
+      3) 이름 정규식에 맞는 나머지를 알파벳순으로 자동 추가
 
     GitHub's ``secrets`` context is supplied through ``SECRETS_CONTEXT`` because
     Actions cannot dynamically expand secret names into individual environment
@@ -81,17 +124,21 @@ def collect_api_keys(environ: dict[str, str] | None = None) -> list[tuple[str, s
         except (json.JSONDecodeError, TypeError) as exc:
             print(f"[diag] SECRETS_CONTEXT 파싱 실패: {exc}", file=sys.stderr)
 
-    configured_order = [
+    # 1) 파일이 정한 순서(단일 출처)를 최우선으로.
+    file_order = load_api_key_order(order_file)
+    # 2) 하위호환: 환경변수 GEMINI_API_KEY_ORDER 도 계속 인정(파일에서 빠진 이름 보완).
+    env_order = [
         name.strip()
         for name in env.get("GEMINI_API_KEY_ORDER", "").split(",")
         if name.strip() != "GEMINI_API_KEY_ORDER" and API_KEY_NAME_RE.fullmatch(name.strip())
     ]
+    # 3) 위 두 목록에 없는 나머지 매핑 키를 알파벳순으로 자동 편입.
     available_names = sorted(
         name
         for name in env
         if name != "GEMINI_API_KEY_ORDER" and API_KEY_NAME_RE.fullmatch(name)
     )
-    ordered_names = list(dict.fromkeys(configured_order + available_names))
+    ordered_names = list(dict.fromkeys(file_order + env_order + available_names))
 
     keys: list[tuple[str, str]] = []
     for name in ordered_names:
