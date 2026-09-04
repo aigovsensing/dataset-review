@@ -44,6 +44,20 @@ GitHub 이슈로 요청하면 **Gemini(구글 검색 그라운딩)** 가 자동 
 > [모델·쿼터 가이드](documents/models-and-quota.md). 무료 티어에서 3.x 결과를 받는
 > [하이브리드 2패스](documents/models-and-quota.md#무료로-3x-결과-받기--하이브리드-2패스-gemini_writer_model)도 여기 있습니다.
 
+#### Gemini 검색 그라운딩을 쓸 수 없을 때 (선택)
+
+모든 Gemini 검색 그라운딩 호출이 쿼터·모델 가용성 문제로 실패해도 검토를 중단하지 않습니다.
+기존 Google Programmable Search 사용자는 Actions에 `GOOGLE_SEARCH_API_KEY` Secret과
+`GOOGLE_SEARCH_ENGINE_ID` Variable을 등록해 두면, 프로그램이 **Google Custom Search JSON API로
+라이선스·개인정보·최신 소송/논란을 별도 검색**하고 그 결과의 제목·요약·URL만 PLAIN Gemini 모델에
+근거로 제공합니다. `GOOGLE_SEARCH_MAX_QUERIES`(기본 `3`, 범위 `1`~`3`)로 검토당 검색량도 제한할 수
+있습니다.
+
+> 이 경로는 검색 결과 요약을 이용하는 최후 폴백이며 원문 전체 검증을 대체하지 않습니다. 결과에도
+> `PLAIN + 외부 Google 검색` 경고와 실제 출처 링크가 표시됩니다. Google의 신규 사용자 제한·종료
+> 일정과 설정 절차는 [외부 Google 검색 보강 설정](documents/setup.md#1-1-외부-google-검색-보강-설정-선택기존-사용자-전용)을
+> 반드시 확인하세요.
+
 ### 2. 라벨 생성 (필수 ⚠️)
 이슈 폼은 **이미 존재하는 라벨만** 자동 적용합니다. `dataset-review` 라벨이 없으면 워크플로가 `Skipped` 됩니다.
 `gh` CLI로 한 번에 생성:
