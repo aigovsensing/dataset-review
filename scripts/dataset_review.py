@@ -62,12 +62,12 @@ API_KEY_NAME_RE = re.compile(r"^GEMINI_API_KEY(?:_[A-Z0-9_]+)?$")
 
 
 def collect_api_keys(environ: dict[str, str] | None = None) -> list[tuple[str, str]]:
-    """Return unique Gemini secrets in configured, then ascending, name order.
+    """Return Gemini secrets in configured, then ascending, name order.
 
     GitHub's ``secrets`` context is supplied through ``SECRETS_CONTEXT`` because
     Actions cannot dynamically expand secret names into individual environment
-    variables.  Only the documented key-name pattern is accepted; values are
-    deduplicated without ever logging or returning a masked value for display.
+    variables.  Only the documented key-name pattern is accepted.  Every named
+    slot is retained for an auditable attempt, even when values happen to match.
     """
     env = os.environ if environ is None else environ
     raw_secrets = env.get("SECRETS_CONTEXT", "")
