@@ -23,6 +23,7 @@ ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -56,6 +57,50 @@ FIELD_LABELS = {
 }
 
 NO_RESPONSE_MARKERS = {"_No response_", "_없음_", "N/A", "없음", ""}
+
+API_KEY_NAME_RE = re.compile(r"^GEMINI_API_KEY(?:_[A-Z0-9_]+)?$")
+
+
+def collect_api_keys(environ: dict[str, str] | None = None) -> list[tuple[str, str]]:
+    """Return unique Gemini secrets in ascending environment-variable order.
+
+    GitHub's ``secrets`` context is supplied through ``SECRETS_CONTEXT`` because
+    Actions cannot dynamically expand secret names into individual environment
+    variables.  Only the documented key-name pattern is accepted; values are
+    deduplicated without ever logging or returning a masked value for display.
+    """
+    env = os.environ if environ is None else environ
+    raw_secrets = env.get("SECRETS_CONTEXT", "")
+    if raw_secrets:
+        try:
+            secrets = json.loads(raw_secrets)
+            if isinstance(secrets, dict):
+                for name, value in secrets.items():
+                    if API_KEY_NAME_RE.fullmatch(name) and isinstance(value, str) and value.strip():
+                        env[name] = value.strip()
+        except (json.JSONDecodeError, TypeError) as exc:
+            print(f"[diag] SECRETS_CONTEXT 파싱 실패: {exc}", file=sys.stderr)
+
+    keys: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for name in sorted(n for n in env if API_KEY_NAME_RE.fullmatch(n)):
+        value = env[name].strip()
+        if value and value not in seen:
+            keys.append((name, value))
+            seen.add(value)
+    return keys
+
+
+def key_rotation_note(failed_names: list[str], active_name: str = "") -> str:
+    """Build a GitHub-comment-safe key rotation audit using names only."""
+    if not failed_names:
+        return ""
+    failed = ", ".join(f"`{name}`" for name in failed_names)
+    outcome = f" 후 `{active_name}`로 전환해 성공했습니다." if active_name else "의 시도가 모두 실패했습니다."
+    return (
+        "\n\n> 🔑 **Gemini API 키 전환 내역:** " + failed + outcome
+        + " 비밀값은 보안을 위해 표시하지 않습니다."
+    )
 
 
 def parse_issue_body(body: str) -> dict[str, str]:
@@ -1247,9 +1292,12 @@ def classify_failure(exc: Exception, api_key: str = "", var_name: str = "") -> s
     code = getattr(exc, "code", None)
     msg = str(exc).lower()
 
-    masked_key = f"{api_key[:6]}****{api_key[-4:]}" if api_key and len(api_key) > 10 else "(미설정)"
-    var_display = f"`{var_name}` 의 " if var_name else ""
-    key_note = f"\n\n> 🔑 **사용된 {var_display}API 키 (Masked):** `{masked_key}` <br><sub>(여러 개의 `GEMINI_API_KEY_***` Secret 중 어느 것이 사용/소진되었는지 식별하는 데 참고하세요)</sub>"
+    del api_key  # 하위 호출자 호환용. Secret 값은 일부라도 노출하지 않는다.
+    key_name = f"`{var_name}`" if var_name else "(알 수 없음)"
+    key_note = (
+        f"\n\n> 🔑 **실패한 API 키 Secret 변수:** {key_name} "
+        "<br><sub>Secret 값은 보안을 위해 표시하지 않습니다.</sub>"
+    )
 
     if is_transient(exc):
         base_msg = (
@@ -1295,29 +1343,7 @@ def main() -> int:
     title = os.environ.get("ISSUE_TITLE", "")
     body = os.environ.get("ISSUE_BODY", "")
 
-    # GitHub Actions 의 secrets 컨텍스트를 받아와 GEMINI_API_KEY*** 자동 병합
-    secrets_json = os.environ.get("SECRETS_CONTEXT", "")
-    if secrets_json:
-        import json
-        try:
-            for k, v in json.loads(secrets_json).items():
-                if k.startswith("GEMINI_API_KEY") and v:
-                    os.environ[k] = v.strip()
-        except Exception as e:
-            print(f"[diag] SECRETS_CONTEXT 파싱 실패: {e}", file=sys.stderr)
-
-    # 환경 변수에서 GEMINI_API_KEY 로 시작하는 모든 키 수집 및 중복 제거
-    env_keys = sorted(
-        [k for k in os.environ.keys() if k.startswith("GEMINI_API_KEY")],
-        key=lambda x: (0 if x == "GEMINI_API_KEY" else 1, x)  # 기본 키를 최우선으로 시도
-    )
-    api_keys = []
-    seen_vals = set()
-    for k in env_keys:
-        val = os.environ[k].strip()
-        if val and val not in seen_vals:
-            api_keys.append((k, val))
-            seen_vals.add(val)
+    api_keys = collect_api_keys()
 
     if not api_keys:
         result = (
@@ -1333,17 +1359,20 @@ def main() -> int:
     used_key = ""
     used_var = ""
     result = ""
+    failed_vars: list[str] = []
+    active_var = ""
 
     for i, (var_name, key) in enumerate(api_keys):
         try:
             result = run_review(title, body, key)
+            active_var = var_name
             break  # 성공 시 다중 키 루프 즉시 탈출
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             used_key = key
             used_var = var_name
-            masked = f"{key[:6]}****{key[-4:]}" if len(key) > 10 else "(미설정)"
-            print(f"[diag] API Key {var_name} ({masked}) 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
+            failed_vars.append(var_name)
+            print(f"[diag] API Key {var_name} 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
             if i < len(api_keys) - 1:
                 print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
                 continue
@@ -1354,11 +1383,13 @@ def main() -> int:
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{type(last_exc).__name__}: {last_exc}\n```\n\n"
             + classify_failure(last_exc, used_key, used_var)
+            + key_rotation_note(failed_vars)
         )
         output_path.write_text(result, encoding="utf-8")
         print(result, file=sys.stderr)
         return 1
 
+    result += key_rotation_note(failed_vars, active_var)
     output_path.write_text(result, encoding="utf-8")
     print(f"검토 결과를 {output_path} 에 저장했습니다 ({len(result)} chars).")
     return 0

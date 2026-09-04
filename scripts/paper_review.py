@@ -404,28 +404,7 @@ def main() -> int:
     title = os.environ.get("ISSUE_TITLE", "")
     body = os.environ.get("ISSUE_BODY", "")
 
-    # GitHub Actions 의 secrets 컨텍스트를 받아와 GEMINI_API_KEY*** 자동 병합
-    secrets_json = os.environ.get("SECRETS_CONTEXT", "")
-    if secrets_json:
-        import json
-        try:
-            for k, v in json.loads(secrets_json).items():
-                if k.startswith("GEMINI_API_KEY") and v:
-                    os.environ[k] = v.strip()
-        except Exception as e:
-            print(f"[diag] SECRETS_CONTEXT 파싱 실패: {e}", file=sys.stderr)
-
-    env_keys = sorted(
-        [k for k in os.environ.keys() if k.startswith("GEMINI_API_KEY")],
-        key=lambda x: (0 if x == "GEMINI_API_KEY" else 1, x)
-    )
-    api_keys = []
-    seen_vals = set()
-    for k in env_keys:
-        val = os.environ[k].strip()
-        if val and val not in seen_vals:
-            api_keys.append((k, val))
-            seen_vals.add(val)
+    api_keys = R.collect_api_keys()
 
     if not api_keys:
         result = (
@@ -441,17 +420,20 @@ def main() -> int:
     used_key = ""
     used_var = ""
     result = ""
+    failed_vars: list[str] = []
+    active_var = ""
 
     for i, (var_name, key) in enumerate(api_keys):
         try:
             result = run_paper_review(title, body, key)
+            active_var = var_name
             break
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             used_key = key
             used_var = var_name
-            masked = f"{key[:6]}****{key[-4:]}" if len(key) > 10 else "(미설정)"
-            print(f"[diag] API Key {var_name} ({masked}) 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
+            failed_vars.append(var_name)
+            print(f"[diag] API Key {var_name} 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
             if i < len(api_keys) - 1:
                 print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
                 continue
@@ -462,11 +444,13 @@ def main() -> int:
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{type(last_exc).__name__}: {last_exc}\n```\n\n"
             + R.classify_failure(last_exc, used_key, used_var)
+            + R.key_rotation_note(failed_vars)
         )
         output_path.write_text(result, encoding="utf-8")
         print(result, file=sys.stderr)
         return 1
 
+    result += R.key_rotation_note(failed_vars, active_var)
     output_path.write_text(result, encoding="utf-8")
     print(f"논문 검토 결과를 {output_path} 에 저장했습니다 ({len(result)} chars).")
     return 0

@@ -15,7 +15,13 @@
 2. 저장소 **Settings → Secrets and variables → Actions → New repository secret**
    - Name: `GEMINI_API_KEY`
    - Value: 발급받은 키
-3. (선택) 모델은 기본값 `gemini-flash-latest`(최신 Flash 자동)로 동작합니다. 버전 고정·변경은
+3. (권장) 여러 계정의 무료 키를 쓰려면 `GEMINI_API_KEY_<이름>` 형식으로 추가합니다.
+   예: `GEMINI_API_KEY_AIGOVSENSING`, `GEMINI_API_KEY_GEUNSIKLIM`, `GEMINI_API_KEY_LEEMGS`.
+   - 변수명 영문 오름차순으로 시도합니다(`GEMINI_API_KEY`가 가장 먼저).
+   - 중복된 키 값은 한 번만 시도합니다.
+   - 한 키의 모델 폴백 체인까지 실패하면 다음 키로 전환합니다.
+   - 이슈 댓글에는 실패한 Secret **변수명만** 출력하고 키 값은 출력하지 않습니다.
+4. (선택) 모델은 기본값 `gemini-flash-latest`(최신 Flash 자동)로 동작합니다. 버전 고정·변경은
    **Variables** 탭에 `GEMINI_DEFAULT_MODEL` 을 추가하세요. → [모델 선택과 무료 한도](models-and-quota.md#모델-선택과-무료-한도-gemini_default_model) 참고.
 
 ✅ 확인: `./tools/gemini_api_key_test.sh <API_KEY>` 실행 → 초록색 ✓ 가 나오면 키 정상.

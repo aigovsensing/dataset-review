@@ -27,6 +27,11 @@ GitHub 이슈로 요청하면 **Gemini(구글 검색 그라운딩)** 가 자동 
 저장소 **Settings → Secrets and variables → Actions → Secrets** 에 등록합니다.
 - Name: `GEMINI_API_KEY` / Value: 발급받은 키
 
+무료 쿼터 자동 전환을 위해 추가 키를 `GEMINI_API_KEY_<이름>` 형식(예:
+`GEMINI_API_KEY_AIGOVSENSING`, `GEMINI_API_KEY_LEEMGS`)으로 등록할 수 있습니다. Actions는 변수명을
+영문 오름차순으로 시도하고, 한 키의 쿼터가 소진되면 다음 키로 자동 전환합니다.
+실패 댓글에는 **Secret 변수명만** 남기며 API 키 값은 노출하지 않습니다.
+
 > 모델은 기본값 `gemini-flash-latest`(최신 Flash)로 자동 동작합니다. 그 외 변수는 전부 **선택**입니다 →
 > [모델·쿼터 가이드](documents/models-and-quota.md). 무료 티어에서 3.x 결과를 받는
 > [하이브리드 2패스](documents/models-and-quota.md#무료로-3x-결과-받기--하이브리드-2패스-gemini_writer_model)도 여기 있습니다.
