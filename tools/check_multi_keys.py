@@ -16,6 +16,16 @@ except ImportError:
 
 
 def main() -> None:
+    secrets_json = os.environ.get("SECRETS_CONTEXT", "")
+    if secrets_json:
+        import json
+        try:
+            for k, v in json.loads(secrets_json).items():
+                if k.startswith("GEMINI_API_KEY") and v:
+                    os.environ[k] = v.strip()
+        except Exception:
+            pass
+
     env_keys = sorted(
         [k for k in os.environ.keys() if k.startswith("GEMINI_API_KEY")],
         key=lambda x: (0 if x == "GEMINI_API_KEY" else 1, x)
