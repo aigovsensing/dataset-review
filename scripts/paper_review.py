@@ -410,6 +410,7 @@ def main() -> int:
     output_path = Path(os.environ.get("REVIEW_OUTPUT", "review.md"))
     title = os.environ.get("ISSUE_TITLE", "")
     body = os.environ.get("ISSUE_BODY", "")
+    api_key = os.environ.get("GEMINI_API_KEY", "")
 
     try:
         result = run_paper_review(title, body)
@@ -418,7 +419,7 @@ def main() -> int:
             "## ⚠️ 자동 논문 법무 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{type(exc).__name__}: {exc}\n```\n\n"
-            + R.classify_failure(exc)
+            + R.classify_failure(exc, api_key)
         )
         output_path.write_text(result, encoding="utf-8")
         print(result, file=sys.stderr)
