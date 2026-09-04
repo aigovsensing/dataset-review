@@ -244,16 +244,9 @@ def _generate(client, model: str, contents, config, config_min):
     return response, text, used_model, finish_reason
 
 
-def run_paper_review(title: str, body: str) -> str:
+def run_paper_review(title: str, body: str, api_key: str) -> str:
     from google import genai
     from google.genai import types
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "GEMINI_API_KEY 환경 변수가 설정되어 있지 않습니다. "
-            "저장소 Settings → Secrets → Actions 에 GEMINI_API_KEY 를 등록하세요."
-        )
 
     model = os.environ.get("GEMINI_DEFAULT_MODEL") or "gemini-flash-latest"
     system_prompt = PAPER_PROMPT_PATH.read_text(encoding="utf-8")
@@ -410,16 +403,50 @@ def main() -> int:
     output_path = Path(os.environ.get("REVIEW_OUTPUT", "review.md"))
     title = os.environ.get("ISSUE_TITLE", "")
     body = os.environ.get("ISSUE_BODY", "")
-    api_key = os.environ.get("GEMINI_API_KEY", "")
 
-    try:
-        result = run_paper_review(title, body)
-    except Exception as exc:  # noqa: BLE001 - 실패 사유를 이슈 댓글로 남기기 위해 포착
+    env_keys = sorted(
+        [k for k in os.environ.keys() if k.startswith("GEMINI_API_KEY")],
+        key=lambda x: (0 if x == "GEMINI_API_KEY" else 1, x)
+    )
+    api_keys = []
+    for k in env_keys:
+        val = os.environ[k].strip()
+        if val and val not in api_keys:
+            api_keys.append(val)
+
+    if not api_keys:
+        result = (
+            "## ⚠️ 자동 논문 법무 검토 실패\n\n"
+            "GEMINI_API_KEY 환경 변수가 설정되어 있지 않습니다. "
+            "저장소 Settings → Secrets → Actions 에 키를 등록하고 워크플로 env 에 매핑하세요."
+        )
+        output_path.write_text(result, encoding="utf-8")
+        print(result, file=sys.stderr)
+        return 1
+
+    last_exc = None
+    used_key = ""
+    result = ""
+
+    for i, key in enumerate(api_keys):
+        try:
+            result = run_paper_review(title, body, key)
+            break
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            used_key = key
+            masked = f"{key[:6]}****{key[-4:]}" if len(key) > 10 else "(미설정)"
+            print(f"[diag] API Key ({masked}) 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
+            if i < len(api_keys) - 1:
+                print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
+                continue
+
+    if not result and last_exc:
         result = (
             "## ⚠️ 자동 논문 법무 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
-            f"```\n{type(exc).__name__}: {exc}\n```\n\n"
-            + R.classify_failure(exc, api_key)
+            f"```\n{type(last_exc).__name__}: {last_exc}\n```\n\n"
+            + R.classify_failure(last_exc, used_key)
         )
         output_path.write_text(result, encoding="utf-8")
         print(result, file=sys.stderr)

@@ -968,16 +968,9 @@ def run_final_pass(client, types, final_models, system_prompt, base_user_prompt,
     return None, ""
 
 
-def run_review(title: str, body: str) -> str:
+def run_review(title: str, body: str, api_key: str) -> str:
     from google import genai
     from google.genai import types
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "GEMINI_API_KEY 환경 변수가 설정되어 있지 않습니다. "
-            "저장소 Settings → Secrets → Actions 에 GEMINI_API_KEY 를 등록하세요."
-        )
 
     # 기본값은 'gemini-flash-latest' 별칭 — 항상 최신 Flash 버전으로 검토 품질을 확보한다.
     # (별칭이 실제로 어떤 버전으로 해석됐는지는 응답의 model_version 으로 확인해 출력한다.)
