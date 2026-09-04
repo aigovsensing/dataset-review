@@ -1238,7 +1238,7 @@ def run_review(title: str, body: str, api_key: str) -> str:
     return enforce_length_limit("\n".join(parts))
 
 
-def classify_failure(exc: Exception) -> str:
+def classify_failure(exc: Exception, api_key: str = "") -> str:
     """실패 오류를 원인 카테고리별로 분류해 정확한 조치 안내 문구를 반환.
 
     503(일시 과부하)에 '키/쿼터를 확인하라'고 안내하던 기존 catch-all 오진을 없앤다.
@@ -1247,32 +1247,46 @@ def classify_failure(exc: Exception) -> str:
     code = getattr(exc, "code", None)
     msg = str(exc).lower()
 
+    masked_key = f"{api_key[:6]}****{api_key[-4:]}" if api_key and len(api_key) > 10 else "(미설정)"
+    key_note = f"\n\n> 🔑 **사용된 API 키 (Masked):** `{masked_key}` <br><sub>(여러 개의 `GEMINI_API_KEY_***` Secret 중 어느 것이 사용/소진되었는지 식별하는 데 참고하세요)</sub>"
+
     if is_transient(exc):
-        return (
+        base_msg = (
             "**원인: Gemini 서버의 일시적 과부하(503/500).** API 키·쿼터 문제가 아니라 "
             "구글 측 일시 장애로, 자동 재시도와 폴백 모델까지 모두 소진된 상태입니다. "
             "보통 몇 분 뒤 회복되므로 잠시 후 `rerun-review` 라벨로 재시도하세요. "
             "지속되면 [Google Cloud/AI 상태 페이지](https://status.cloud.google.com/)를 확인하거나, "
             "저장소 변수 `GEMINI_DEFAULT_MODEL`/`GEMINI_DEFAULT_FALLBACKS` 를 안정 버전(GA) 모델로 바꿔 보세요."
         )
+        return base_msg + key_note
     if code in (401, 403) or any(
         m in msg for m in ("unauthenticated", "permission_denied", "api key", "api_key_invalid")
     ):
-        return (
+        base_msg = (
             "**원인: 인증/권한 오류(401/403).** `GEMINI_API_KEY` Secret 이 없거나 잘못됐거나 "
             "권한이 없습니다. 저장소 Settings → Secrets → Actions 에서 키를 재확인·재발급한 뒤 "
             "`rerun-review` 라벨로 재시도하세요."
         )
+        return base_msg + key_note
     if code == 429 or any(m in msg for m in ("resource_exhausted", "quota", "rate limit")):
-        return (
+        if "prepayment credits" in msg:
+            base_msg = (
+                "**원인: 선불 크레딧 소진(429).** 연결된 프로젝트의 선불 크레딧(Prepayment credits)이 "
+                "모두 소진되었습니다. AI Studio(https://ai.studio/projects)에서 결제 상태를 확인하고 "
+                "크레딧을 충전한 뒤 `rerun-review` 라벨로 재시도하세요."
+            )
+            return base_msg + key_note
+        base_msg = (
             "**원인: 쿼터/레이트리밋 초과(429).** 폴백 모델들의 무료 일일 쿼터까지 모두 "
             "소진됐을 수 있습니다. 쿼터가 회복되는 다음 날 재시도하거나, 유료 티어/다른 키로 "
             "전환한 뒤 `rerun-review` 라벨로 재시도하세요."
         )
-    return (
+        return base_msg + key_note
+    base_msg = (
         "관리자에게 문의하거나, 저장소 설정(GEMINI_API_KEY Secret, API 쿼터)을 확인 후 "
         "`rerun-review` 라벨을 추가해 재시도하세요."
     )
+    return base_msg + key_note
 
 
 def main() -> int:
@@ -1280,14 +1294,50 @@ def main() -> int:
     title = os.environ.get("ISSUE_TITLE", "")
     body = os.environ.get("ISSUE_BODY", "")
 
-    try:
-        result = run_review(title, body)
-    except Exception as exc:  # noqa: BLE001 - 실패 사유를 이슈 댓글로 남기기 위해 포착
+    # 환경 변수에서 GEMINI_API_KEY 로 시작하는 모든 키 수집 및 중복 제거
+    env_keys = sorted(
+        [k for k in os.environ.keys() if k.startswith("GEMINI_API_KEY")],
+        key=lambda x: (0 if x == "GEMINI_API_KEY" else 1, x)  # 기본 키를 최우선으로 시도
+    )
+    api_keys = []
+    for k in env_keys:
+        val = os.environ[k].strip()
+        if val and val not in api_keys:
+            api_keys.append(val)
+
+    if not api_keys:
+        result = (
+            "## ⚠️ 자동 법적 리스크 검토 실패\n\n"
+            "GEMINI_API_KEY 환경 변수가 설정되어 있지 않습니다. "
+            "저장소 Settings → Secrets → Actions 에 키를 등록하고 워크플로 env 에 매핑하세요."
+        )
+        output_path.write_text(result, encoding="utf-8")
+        print(result, file=sys.stderr)
+        return 1
+
+    last_exc = None
+    used_key = ""
+    result = ""
+
+    for i, key in enumerate(api_keys):
+        try:
+            result = run_review(title, body, key)
+            break  # 성공 시 다중 키 루프 즉시 탈출
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            used_key = key
+            masked = f"{key[:6]}****{key[-4:]}" if len(key) > 10 else "(미설정)"
+            print(f"[diag] API Key ({masked}) 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
+            if i < len(api_keys) - 1:
+                print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
+                continue
+
+    if not result and last_exc:
         result = (
             "## ⚠️ 자동 법적 리스크 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
-            f"```\n{type(exc).__name__}: {exc}\n```\n\n"
-            + classify_failure(exc)
+            f"```\n{type(last_exc).__name__}: {last_exc}\n```\n\n"
+            + classify_failure(last_exc, used_key)
         )
         output_path.write_text(result, encoding="utf-8")
         print(result, file=sys.stderr)
