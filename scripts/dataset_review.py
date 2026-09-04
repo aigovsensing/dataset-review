@@ -19,6 +19,8 @@ GEMINI_WRITER_MODEL    : (선택) 하이브리드 2패스 활성화. 설정하�
                         429 가 나므로, 근거 수집만 2.5 에 위임하는 구조다.)
 GEMINI_WRITER_FALLBACKS: (선택) 최종 작성 모델의 쉼표 구분 폴백. 미설정 시 3.7→3.6→3.5→3.5-lite
 GEMINI_UNGROUNDED_MODELS: (선택) 모든 그라운딩 시도 실패 후 PLAIN 최후 폴백 모델 목록
+GOOGLE_SEARCH_API_KEY: (선택) PLAIN 폴백을 보강할 Programmable Search JSON API 키
+GOOGLE_SEARCH_ENGINE_ID: (선택) Programmable Search Engine ID(cx). 위 키와 함께 설정
 ISSUE_TITLE    : (선택) 이슈 제목
 ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 """
@@ -29,6 +31,8 @@ import os
 import re
 import sys
 import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -1407,6 +1411,68 @@ def should_try_ungrounded_fallback(exc: Exception) -> bool:
     return code in (404, 429, 500, 502, 503, 504) or is_fallbackable(exc)
 
 
+def build_external_search_query(title: str, fields: dict[str, str]) -> str:
+    """Build one quota-conscious Google query for the dataset review."""
+    name = derive_dataset_name(title, fields).strip()
+    urls = " ".join(
+        fields.get(key, "")
+        for key in ("homepage_url", "dataset_repo_url", "code_repo_url", "paper_urls", "litigation_url")
+        if fields.get(key)
+    )
+    subject = name or urls or title
+    return f'"{subject[:300]}" license copyright privacy lawsuit terms dataset'
+
+
+def google_custom_search(query: str, api_key: str, engine_id: str,
+                         num: int = 10) -> list[tuple[str, str, str]]:
+    """Search the public web through Google's supported Custom Search JSON API.
+
+    Returns ``(title, URL, snippet)`` entries. Secrets are sent only as HTTPS query parameters and
+    are never included in diagnostics or raised error messages.
+    """
+    params = urllib.parse.urlencode({
+        "key": api_key,
+        "cx": engine_id,
+        "q": query,
+        "num": max(1, min(num, 10)),
+    })
+    request = urllib.request.Request(
+        f"https://customsearch.googleapis.com/customsearch/v1?{params}",
+        headers={"User-Agent": "dataset-review/1.0", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:  # noqa: S310 - fixed HTTPS host
+            payload = json.load(response)
+    except Exception as exc:  # noqa: BLE001 - normalize without leaking the key-bearing URL
+        raise RuntimeError(f"Google Custom Search 호출 실패: {type(exc).__name__}") from exc
+
+    results: list[tuple[str, str, str]] = []
+    for item in payload.get("items", []) if isinstance(payload, dict) else []:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("link") or "").strip()
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            continue
+        title = re.sub(r"\s+", " ", str(item.get("title") or parsed.netloc)).strip()
+        snippet = re.sub(r"\s+", " ", str(item.get("snippet") or "")).strip()
+        if url not in {existing[1] for existing in results}:
+            results.append((title[:300], url, snippet[:1000]))
+    return results
+
+
+def collect_external_search_evidence(title: str, fields: dict[str, str]) -> list[tuple[str, str, str]]:
+    """Use external Google search when both required credentials are configured."""
+    api_key = (os.environ.get("GOOGLE_SEARCH_API_KEY") or "").strip()
+    engine_id = (os.environ.get("GOOGLE_SEARCH_ENGINE_ID") or "").strip()
+    if not api_key or not engine_id:
+        return []
+    query = build_external_search_query(title, fields)
+    results = google_custom_search(query, api_key, engine_id)
+    print(f"[diag] external_google_search results={len(results)}", file=sys.stderr)
+    return results
+
+
 def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
     """Google Search 없이 참고용 검토를 생성하는 명시적 최후 폴백.
 
@@ -1420,11 +1486,28 @@ def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
     system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_issue_body(body)
     name = derive_dataset_name(title, fields)
-    user_prompt = build_user_prompt(title, fields) + (
+    evidence: list[tuple[str, str, str]] = []
+    try:
+        evidence = collect_external_search_evidence(title, fields)
+    except Exception as exc:  # noqa: BLE001 - 검색 보강 실패 시 기존 PLAIN 경로 유지
+        print(f"[diag] external_google_search unavailable({safe_exception_text(exc)})", file=sys.stderr)
+
+    evidence_prompt = ""
+    if evidence:
+        rows = [f"[{i}] {item_title}\nURL: {url}\n검색 요약: {snippet or '(요약 없음)'}"
+                for i, (item_title, url, snippet) in enumerate(evidence, 1)]
+        evidence_prompt = (
+            "\n\n[외부 Google 검색 결과]\n" + "\n\n".join(rows) +
+            "\n\n위 검색 결과만 외부 근거로 사용할 수 있다. 근거 문장 끝에 반드시 [N]을 붙이고, "
+            "검색 요약이 뒷받침하지 않는 내용은 확인 불가로 표시하라. URL을 새로 만들지 마라."
+        )
+
+    user_prompt = build_user_prompt(title, fields) + evidence_prompt + (
         "\n\n[중요: 무그라운딩 최후 폴백]\n"
-        "이번 호출에는 웹 검색 도구가 없다. 제공된 이슈 내용과 일반 지식만 사용하라. "
-        "URL, 출처, 인용 번호, 최신 사실을 추측하거나 만들어 내지 마라. 확인하지 못한 사실은 "
-        "반드시 '확인 불가(웹검색 미사용)'라고 표시하고, 결론은 참고용 잠정 판단으로 한정하라."
+        "Gemini 내장 검색 도구는 없지만, 위에 외부 Google 검색 결과가 있으면 그 결과는 사용할 수 있다. "
+        "제공된 이슈 내용·검색 결과 이외의 URL, 출처, 인용 번호, 최신 사실을 추측하거나 만들지 마라. "
+        "확인하지 못한 사실은 반드시 '확인 불가(제공된 검색 결과로 검증 안 됨)'라고 표시하고, "
+        "결론은 참고용 잠정 판단으로 한정하라."
     )
     base = dict(system_instruction=system_prompt, temperature=0.2, max_output_tokens=32768)
     try:
@@ -1449,20 +1532,39 @@ def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
             resolved = (getattr(response, "model_version", None) or model).strip()
             print(f"[diag] ungrounded_fallback model={model} resolved={resolved} text_chars={len(text)}",
                   file=sys.stderr)
-            text = restructure_review(sanitize_markdown(strip_preamble(text)), name)
-            warning = (
-                "> ⚠️ **웹검색 그라운딩 없이 생성된 참고용 결과입니다.**  \n"
-                "> 모든 API 키에서 Google Search 그라운딩을 사용할 수 없어 PLAIN 생성으로 "
-                "전환했습니다. 아래 내용에는 검증된 출처와 최신성 보장이 없으며, 사실 확인이나 "
-                "법률 자문을 대체할 수 없습니다."
-            )
-            header = f"> 🤖 **검토 모델 (PLAIN · 그라운딩 없음)** &nbsp;`{resolved}`"
+            sources = [(item_title, url) for item_title, url, _ in evidence]
+            text = sanitize_markdown(strip_preamble(text))
+            text = linkify_bracket_citations(text, sources)
+            text = restructure_review(text, name)
+            if evidence:
+                warning = (
+                    "> ⚠️ **Gemini 내장 그라운딩 대신 외부 Google 검색으로 보강한 결과입니다.**  \n"
+                    "> 검색 결과의 제목·요약만 모델에 제공했으며 원문 전체를 검증한 것은 아닙니다. "
+                    "인용되지 않은 판단과 최신성은 별도 사실 확인이 필요하고 법률 자문을 대체하지 않습니다."
+                )
+                mode = "PLAIN + 외부 Google 검색"
+            else:
+                warning = (
+                    "> ⚠️ **웹검색 그라운딩 없이 생성된 참고용 결과입니다.**  \n"
+                    "> 모든 API 키에서 Google Search 그라운딩을 사용할 수 없어 PLAIN 생성으로 "
+                    "전환했습니다. 아래 내용에는 검증된 출처와 최신성 보장이 없으며, 사실 확인이나 "
+                    "법률 자문을 대체할 수 없습니다."
+                )
+                mode = "PLAIN · 검색 없음"
+            header = f"> 🤖 **검토 모델 ({mode})** &nbsp;`{resolved}`"
+            source_details = ""
+            if sources:
+                source_details = (
+                    f"\n\n<details>\n<summary><b>📚 외부 Google 검색 결과 — {len(sources)}건</b></summary>\n\n"
+                    "Google Programmable Search가 반환한 제목·요약·링크입니다. 원문 확인이 필요합니다.\n\n"
+                    + render_sources(sources) + "\n\n</details>"
+                )
             footer = (
                 "\n---\n"
-                f"<sub>⚠️ 자동 생성 (model: <code>{resolved}</code>, 웹검색·출처 없음) · "
+                f"<sub>⚠️ 자동 생성 (model: <code>{resolved}</code>, {mode}) · "
                 "미검증 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
             )
-            return enforce_length_limit("\n\n".join((warning, header, text, footer)))
+            return enforce_length_limit("\n\n".join((warning, header, text + source_details, footer)))
         except Exception as exc:  # noqa: BLE001 - 다음 PLAIN 모델로 폴백
             last_exc = exc
             print(f"[diag] ungrounded_fallback model={model} 실패({type(exc).__name__}: "

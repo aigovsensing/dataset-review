@@ -74,6 +74,11 @@ jobs:
           GEMINI_API_KEY_AITSEC2025: ${{ secrets.GEMINI_API_KEY_AITSEC2025 }}
           GEMINI_API_KEY_GEUNSIKLIM: ${{ secrets.GEMINI_API_KEY_GEUNSIKLIM }}
           GEMINI_API_KEY_LEEMGS: ${{ secrets.GEMINI_API_KEY_LEEMGS }}
+          # (선택) Gemini 내장 그라운딩 전부 실패 시 Google Programmable Search JSON API로
+          # 검색 결과를 수집해 PLAIN 최후 폴백을 보강한다. 둘 중 하나라도 없으면 검색 없는
+          # 기존 PLAIN 폴백으로 동작한다.
+          GOOGLE_SEARCH_API_KEY: ${{ secrets.GOOGLE_SEARCH_API_KEY }}
+          GOOGLE_SEARCH_ENGINE_ID: ${{ vars.GOOGLE_SEARCH_ENGINE_ID || '' }}
           # 기본(1차) 검토 모델. 저장소 변수 vars.GEMINI_DEFAULT_MODEL 이 없으면 최신 Flash 별칭.
           # (특정 버전 고정은 이 변수로 지정.)
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}

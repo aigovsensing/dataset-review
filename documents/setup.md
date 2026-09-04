@@ -35,6 +35,19 @@
 
 ✅ 확인: `./tools/gemini_api_key_test.sh <API_KEY>` 실행 → 초록색 ✓ 가 나오면 키 정상.
 
+### 1-1. 외부 Google 검색 보강 설정 (선택·기존 사용자 전용)
+
+Gemini 내장 그라운딩이 모든 키에서 실패했을 때 PLAIN 결과에 실제 검색 결과를 제공하려면 Actions에
+다음을 등록합니다.
+
+- **Secret** `GOOGLE_SEARCH_API_KEY`: 기존 Custom Search JSON API 키
+- **Variable** `GOOGLE_SEARCH_ENGINE_ID`: Programmable Search Engine ID(`cx`)
+
+두 값이 모두 있을 때만 외부 검색을 실행하며, 검색 호출이 실패해도 비밀값을 로그에 출력하지 않고
+검색 없는 PLAIN 모드로 안전하게 계속합니다. Google은 이 API를 신규 고객에게 닫았고 2027-01-01에
+종료할 예정이므로 기존 API 사용자용 임시 보강책입니다. 자세한 제약과 대안은
+[모델·무료 쿼터 문서](models-and-quota.md#모든-그라운딩이-실패할-때--plain-최후-폴백)를 참고하세요.
+
 ### 2. GitHub Pages 활성화
 - **Settings → Pages → Source: Deploy from a branch**
 - Branch: `main` / 폴더: `/docs` 선택 후 저장
