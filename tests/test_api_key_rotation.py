@@ -10,7 +10,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from dataset_review import collect_api_keys, key_rotation_note  # noqa: E402
+from dataset_review import (  # noqa: E402
+    collect_api_keys,
+    key_rotation_note,
+    safe_exception_text,
+    should_rotate_api_key,
+)
+
+
+class ApiError(Exception):
+    def __init__(self, code: int, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class ApiKeyRotationTest(unittest.TestCase):
@@ -41,6 +52,18 @@ class ApiKeyRotationTest(unittest.TestCase):
         self.assertIn("`GEMINI_API_KEY_AIGOVSENSING`", note)
         self.assertIn("`GEMINI_API_KEY_LEEMGS`", note)
         self.assertNotIn("AIza", note)
+
+    def test_rotates_only_for_key_specific_failures(self) -> None:
+        self.assertTrue(should_rotate_api_key(ApiError(429, "RESOURCE_EXHAUSTED")))
+        self.assertTrue(should_rotate_api_key(ApiError(401, "invalid credential")))
+        self.assertFalse(should_rotate_api_key(ApiError(503, "high demand")))
+        self.assertFalse(should_rotate_api_key(ValueError("invalid issue input")))
+
+    def test_exception_text_redacts_active_key(self) -> None:
+        key = "AIzaSy-secret-value"
+        rendered = safe_exception_text(RuntimeError(f"request with {key} failed"), key)
+        self.assertNotIn(key, rendered)
+        self.assertIn("[REDACTED]", rendered)
 
 
 if __name__ == "__main__":

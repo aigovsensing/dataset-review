@@ -103,6 +103,37 @@ def key_rotation_note(failed_names: list[str], active_name: str = "") -> str:
     )
 
 
+def should_rotate_api_key(exc: Exception) -> bool:
+    """Return whether another key can plausibly recover from *exc*.
+
+    Quota/rate-limit and authentication failures belong to a specific API key.
+    Invalid input, unavailable models, empty responses, and Google-side 5xx errors
+    do not; retrying those with every account only wastes all free-tier quotas.
+    """
+    code = getattr(exc, "code", None)
+    message = str(exc).lower()
+    return code in (401, 403, 429) or any(
+        marker in message
+        for marker in (
+            "resource_exhausted",
+            "quota",
+            "rate limit",
+            "unauthenticated",
+            "permission_denied",
+            "api_key_invalid",
+            "api key not valid",
+        )
+    )
+
+
+def safe_exception_text(exc: Exception, api_key: str = "") -> str:
+    """Render an API exception after redacting the complete active secret."""
+    message = str(exc)
+    if api_key:
+        message = message.replace(api_key, "[REDACTED]")
+    return f"{type(exc).__name__}: {message}"
+
+
 def parse_issue_body(body: str) -> dict[str, str]:
     """GitHub 이슈 폼이 렌더링한 본문(`### 라벨\n\n값`)을 필드 dict로 파싱."""
     fields: dict[str, str] = {}
@@ -1372,16 +1403,17 @@ def main() -> int:
             used_key = key
             used_var = var_name
             failed_vars.append(var_name)
-            print(f"[diag] API Key {var_name} 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
-            if i < len(api_keys) - 1:
+            print(f"[diag] API Key {var_name} 시도 실패: {safe_exception_text(exc, key)}", file=sys.stderr)
+            if should_rotate_api_key(exc) and i < len(api_keys) - 1:
                 print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
                 continue
+            break
 
     if not result and last_exc:
         result = (
             "## ⚠️ 자동 법적 리스크 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
-            f"```\n{type(last_exc).__name__}: {last_exc}\n```\n\n"
+            f"```\n{safe_exception_text(last_exc, used_key)}\n```\n\n"
             + classify_failure(last_exc, used_key, used_var)
             + key_rotation_note(failed_vars)
         )

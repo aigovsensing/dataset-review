@@ -433,16 +433,17 @@ def main() -> int:
             used_key = key
             used_var = var_name
             failed_vars.append(var_name)
-            print(f"[diag] API Key {var_name} 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
-            if i < len(api_keys) - 1:
+            print(f"[diag] API Key {var_name} 시도 실패: {R.safe_exception_text(exc, key)}", file=sys.stderr)
+            if R.should_rotate_api_key(exc) and i < len(api_keys) - 1:
                 print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
                 continue
+            break
 
     if not result and last_exc:
         result = (
             "## ⚠️ 자동 논문 법무 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
-            f"```\n{type(last_exc).__name__}: {last_exc}\n```\n\n"
+            f"```\n{R.safe_exception_text(last_exc, used_key)}\n```\n\n"
             + R.classify_failure(last_exc, used_key, used_var)
             + R.key_rotation_note(failed_vars)
         )
