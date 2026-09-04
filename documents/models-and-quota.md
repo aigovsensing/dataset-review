@@ -76,7 +76,6 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 | `gemini-3.5-flash-lite` | 3.5 | ✅ | 중간 | 3.5 세대 경량 — 품질·한도 균형 |
 | `gemini-3.1-flash-lite` | 3.1 | ✅ | 중간 | 3.x 세대 경량 — 품질·한도 균형 |
 | `gemini-2.5-flash` | 2.5 | ✅ | 중간 (~250) | 안정적 · 무료 한도 넉넉 |
-| `gemini-2.5-flash-lite` | 2.5 | ✅ | 큼 (~1,000) | **최대 무료 한도** · 최저 비용(품질 다소 낮음) |
 | `gemini-2.5-pro` | 2.5 | ✅ | 작음 (~100) | 가장 정밀 · 한도 작음 |
 | `gemini-3-flash-preview` 등 preview/experimental | — | ⚠️ 제한적 | 매우 작음 | **불안정 — 이 앱에서는 미사용** |
 
@@ -93,9 +92,9 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 > ✅ **모델 자동 폴백**: 무료 티어 일일 쿼터는 **모델별로 분리**됩니다. 그래서 기본 모델이
 > `429`(쿼터 소진)이거나 사용 불가하면 **다음 모델로 자동 폴백**해 검토를 계속합니다 —
 > 기본 체인은 **품질 우선(최신 3.x) → 안정성(무료 쿼터가 큰 2.5)** 순으로 내려간다:
-> **`gemini-flash-latest` → `gemini-3.7-flash` → `gemini-3.6-flash` → `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash` → `gemini-2.5-flash-lite`**.
+> **`gemini-flash-latest` → `gemini-3.7-flash` → `gemini-3.6-flash` → `gemini-3.5-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-2.5-flash`**.
 > 무료 티어에서는 최신 3.x 쿼터가 작아 상시 소진되기 쉬우므로, 끝을 무료 쿼터가 가장 큰
-> `gemini-2.5-flash-lite` 로 두어 **어떤 경우에도 답변을 보장**한다. 폴백이 일어나면 결과 상단
+> `gemini-2.5-flash` 로 두어 **어떤 경우에도 답변을 보장**한다. 폴백이 일어나면 결과 상단
 > `모델 정보` 에 실제 사용된 모델이 표시됩니다.
 > (체인은 `GEMINI_DEFAULT_FALLBACKS` 변수로 커스터마이즈 가능. stable 모델 ID 는
 > [공식 목록](https://ai.google.dev/gemini-api/docs/models) 참고 — 3.1 은 풀 flash 없이 `flash-lite` 만 존재.)
@@ -125,7 +124,6 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
   하루 검토 가능량이 늘어납니다.
 - **3.6 으로 고정** — 항상 최신 stable 3.6 을 쓰려면 `GEMINI_DEFAULT_MODEL=gemini-3.6-flash`.
 - **처음부터 2.5 로 고정** — 3.x 쿼터 시도 자체를 건너뛰려면 `GEMINI_DEFAULT_MODEL=gemini-2.5-flash`.
-- **최대 검토량** — 무료 한도가 가장 큰 `gemini-2.5-flash-lite`(품질은 다소 낮음).
 - **최고 정밀도** — `gemini-2.5-pro`(한도가 작아 소량 검토에 적합).
 
 > 각 모델의 무료 한도·품질은 위 [무료 티어 사용 가능 모델](#무료-티어-사용-가능-모델) 표를 참고하세요.
@@ -191,10 +189,9 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 | `gemini-3.6-flash` (현재 최신) | 3.x Flash 단가 | 3.x Flash 단가 | **≈ $0.08** (3.5 Flash 기준 추정) | +$0.014/건 (월 5,000건 무료 후) |
 | `gemini-3.5-flash` | $1.50 / 1M | $9.00 / 1M | **≈ $0.08** | +$0.014/건 (월 5,000건 무료 후) |
 | `gemini-2.5-flash` | $0.30 / 1M | $2.50 / 1M | **≈ $0.02** | +$0.035/건 (일 1,500건 무료 후) |
-| `gemini-2.5-flash-lite` (최저가) | $0.10 / 1M | $0.40 / 1M | **≈ $0.004** | +$0.035/건 (2.x 공유) |
 
 \* 입력 5K + 출력 8K tokens 가정, 그라운딩 무료 구간 기준. 기본값(→ 3.6 Flash, 3.x 세대)은 검토 1건 ≈ $0.08,
-`gemini-2.5-flash` 로 고정하면 약 1/4, `gemini-2.5-flash-lite` 는 약 1/20 수준입니다
+`gemini-2.5-flash` 로 고정하면 약 1/4 수준입니다
 (모델 선택은 [위 섹션](#모델-선택과-무료-한도-gemini_default_model) 참고).
 
 #### ② 검토 요청 횟수별 예상 비용 (기본값 `gemini-flash-latest` → 현재 `gemini-3.6-flash` 기준)

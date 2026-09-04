@@ -846,7 +846,6 @@ def build_model_chain(primary: str) -> list[str]:
             "gemini-3.5-flash-lite",  # 3.5 세대 경량
             "gemini-3.1-flash-lite",  # 3.x 세대 경량
             "gemini-2.5-flash",       # 안정성 축 (무료 쿼터 넉넉)
-            "gemini-2.5-flash-lite",  # 최종 안전망 (무료 쿼터 최대)
         ]
     )
     for m in fallbacks:
