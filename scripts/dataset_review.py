@@ -94,12 +94,14 @@ def collect_api_keys(environ: dict[str, str] | None = None) -> list[tuple[str, s
     ordered_names = list(dict.fromkeys(configured_order + available_names))
 
     keys: list[tuple[str, str]] = []
-    seen: set[str] = set()
     for name in ordered_names:
         value = env.get(name, "").strip()
-        if value and value not in seen:
+        # Keep every configured Secret name, even when two names currently have
+        # the same value.  The issue audit must show that every requested slot
+        # was considered in GEMINI_API_KEY_ORDER; silently deduplicating values
+        # made LEEMGS/AIGOVSENSING appear missing from rerun reports.
+        if value:
             keys.append((name, value))
-            seen.add(value)
     return keys
 
 

@@ -25,7 +25,7 @@ class ApiError(Exception):
 
 
 class ApiKeyRotationTest(unittest.TestCase):
-    def test_collects_secrets_in_ascending_name_order_and_deduplicates(self) -> None:
+    def test_collects_secrets_in_ascending_name_order(self) -> None:
         env = {
             "SECRETS_CONTEXT": json.dumps({
                 "GEMINI_API_KEY_LEEMGS": "key-c",
@@ -40,7 +40,27 @@ class ApiKeyRotationTest(unittest.TestCase):
             [
                 ("GEMINI_API_KEY", "key-base"),
                 ("GEMINI_API_KEY_AIGOVSENSING", "key-a"),
+                ("GEMINI_API_KEY_DUPLICATE", "key-a"),
                 ("GEMINI_API_KEY_LEEMGS", "key-c"),
+            ],
+        )
+
+    def test_configured_aliases_are_all_attempted_even_when_values_match(self) -> None:
+        env = {
+            "GEMINI_API_KEY_ORDER": (
+                "GEMINI_API_KEY,GEMINI_API_KEY_LEEMGS,"
+                "GEMINI_API_KEY_AIGOVSENSING"
+            ),
+            "GEMINI_API_KEY": "same-key",
+            "GEMINI_API_KEY_LEEMGS": "same-key",
+            "GEMINI_API_KEY_AIGOVSENSING": "same-key",
+        }
+        self.assertEqual(
+            [name for name, _ in collect_api_keys(env)],
+            [
+                "GEMINI_API_KEY",
+                "GEMINI_API_KEY_LEEMGS",
+                "GEMINI_API_KEY_AIGOVSENSING",
             ],
         )
 

@@ -31,6 +31,8 @@ GitHub 이슈로 요청하면 **Gemini(구글 검색 그라운딩)** 가 자동 
 `GEMINI_API_KEY_AIGOVSENSING`, `GEMINI_API_KEY_LEEMGS`)으로 등록할 수 있습니다. Actions는
 `GEMINI_API_KEY_ORDER`에 지정된 순서로 시도하고, 한 키의 쿼터가 소진되면 다음 키로 자동 전환합니다.
 실패 댓글에는 **Secret 변수명만** 남기며 API 키 값은 노출하지 않습니다.
+같은 키 값이 여러 Secret 이름에 등록되어 있어도 설정된 슬롯을 빠짐없이 점검할 수 있도록
+각 이름을 순서대로 시도합니다.
 
 > 모델은 기본값 `gemini-flash-latest`(최신 Flash)로 자동 동작합니다. 그 외 변수는 전부 **선택**입니다 →
 > [모델·쿼터 가이드](documents/models-and-quota.md). 무료 티어에서 3.x 결과를 받는
