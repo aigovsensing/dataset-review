@@ -1238,7 +1238,7 @@ def run_review(title: str, body: str, api_key: str) -> str:
     return enforce_length_limit("\n".join(parts))
 
 
-def classify_failure(exc: Exception, api_key: str = "") -> str:
+def classify_failure(exc: Exception, api_key: str = "", var_name: str = "") -> str:
     """실패 오류를 원인 카테고리별로 분류해 정확한 조치 안내 문구를 반환.
 
     503(일시 과부하)에 '키/쿼터를 확인하라'고 안내하던 기존 catch-all 오진을 없앤다.
@@ -1248,7 +1248,8 @@ def classify_failure(exc: Exception, api_key: str = "") -> str:
     msg = str(exc).lower()
 
     masked_key = f"{api_key[:6]}****{api_key[-4:]}" if api_key and len(api_key) > 10 else "(미설정)"
-    key_note = f"\n\n> 🔑 **사용된 API 키 (Masked):** `{masked_key}` <br><sub>(여러 개의 `GEMINI_API_KEY_***` Secret 중 어느 것이 사용/소진되었는지 식별하는 데 참고하세요)</sub>"
+    var_display = f"`{var_name}` 의 " if var_name else ""
+    key_note = f"\n\n> 🔑 **사용된 {var_display}API 키 (Masked):** `{masked_key}` <br><sub>(여러 개의 `GEMINI_API_KEY_***` Secret 중 어느 것이 사용/소진되었는지 식별하는 데 참고하세요)</sub>"
 
     if is_transient(exc):
         base_msg = (
@@ -1300,10 +1301,12 @@ def main() -> int:
         key=lambda x: (0 if x == "GEMINI_API_KEY" else 1, x)  # 기본 키를 최우선으로 시도
     )
     api_keys = []
+    seen_vals = set()
     for k in env_keys:
         val = os.environ[k].strip()
-        if val and val not in api_keys:
-            api_keys.append(val)
+        if val and val not in seen_vals:
+            api_keys.append((k, val))
+            seen_vals.add(val)
 
     if not api_keys:
         result = (
@@ -1317,17 +1320,19 @@ def main() -> int:
 
     last_exc = None
     used_key = ""
+    used_var = ""
     result = ""
 
-    for i, key in enumerate(api_keys):
+    for i, (var_name, key) in enumerate(api_keys):
         try:
             result = run_review(title, body, key)
             break  # 성공 시 다중 키 루프 즉시 탈출
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             used_key = key
+            used_var = var_name
             masked = f"{key[:6]}****{key[-4:]}" if len(key) > 10 else "(미설정)"
-            print(f"[diag] API Key ({masked}) 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
+            print(f"[diag] API Key {var_name} ({masked}) 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
             if i < len(api_keys) - 1:
                 print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
                 continue
@@ -1337,7 +1342,7 @@ def main() -> int:
             "## ⚠️ 자동 법적 리스크 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{type(last_exc).__name__}: {last_exc}\n```\n\n"
-            + classify_failure(last_exc, used_key)
+            + classify_failure(last_exc, used_key, used_var)
         )
         output_path.write_text(result, encoding="utf-8")
         print(result, file=sys.stderr)

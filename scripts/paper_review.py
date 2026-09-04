@@ -409,10 +409,12 @@ def main() -> int:
         key=lambda x: (0 if x == "GEMINI_API_KEY" else 1, x)
     )
     api_keys = []
+    seen_vals = set()
     for k in env_keys:
         val = os.environ[k].strip()
-        if val and val not in api_keys:
-            api_keys.append(val)
+        if val and val not in seen_vals:
+            api_keys.append((k, val))
+            seen_vals.add(val)
 
     if not api_keys:
         result = (
@@ -426,17 +428,19 @@ def main() -> int:
 
     last_exc = None
     used_key = ""
+    used_var = ""
     result = ""
 
-    for i, key in enumerate(api_keys):
+    for i, (var_name, key) in enumerate(api_keys):
         try:
             result = run_paper_review(title, body, key)
             break
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             used_key = key
+            used_var = var_name
             masked = f"{key[:6]}****{key[-4:]}" if len(key) > 10 else "(미설정)"
-            print(f"[diag] API Key ({masked}) 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
+            print(f"[diag] API Key {var_name} ({masked}) 시도 실패 ({type(exc).__name__}): {exc}", file=sys.stderr)
             if i < len(api_keys) - 1:
                 print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
                 continue
@@ -446,7 +450,7 @@ def main() -> int:
             "## ⚠️ 자동 논문 법무 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{type(last_exc).__name__}: {last_exc}\n```\n\n"
-            + R.classify_failure(last_exc, used_key)
+            + R.classify_failure(last_exc, used_key, used_var)
         )
         output_path.write_text(result, encoding="utf-8")
         print(result, file=sys.stderr)
