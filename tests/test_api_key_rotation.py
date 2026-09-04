@@ -44,6 +44,30 @@ class ApiKeyRotationTest(unittest.TestCase):
             ],
         )
 
+    def test_collects_secrets_in_explicit_rotation_order(self) -> None:
+        env = {
+            "GEMINI_API_KEY_ORDER": (
+                "GEMINI_API_KEY,GEMINI_API_KEY_LEEMGS,"
+                "GEMINI_API_KEY_GEUNSIKLIM,GEMINI_API_KEY_AIGOVSENSING,"
+                "GEMINI_API_KEY_AITSEC2025"
+            ),
+            "GEMINI_API_KEY": "base",
+            "GEMINI_API_KEY_AIGOVSENSING": "aigov",
+            "GEMINI_API_KEY_AITSEC2025": "aitsec",
+            "GEMINI_API_KEY_GEUNSIKLIM": "geunsik",
+            "GEMINI_API_KEY_LEEMGS": "leemgs",
+        }
+        self.assertEqual(
+            [name for name, _ in collect_api_keys(env)],
+            [
+                "GEMINI_API_KEY",
+                "GEMINI_API_KEY_LEEMGS",
+                "GEMINI_API_KEY_GEUNSIKLIM",
+                "GEMINI_API_KEY_AIGOVSENSING",
+                "GEMINI_API_KEY_AITSEC2025",
+            ],
+        )
+
     def test_rotation_note_contains_names_but_not_values(self) -> None:
         note = key_rotation_note(
             ["GEMINI_API_KEY", "GEMINI_API_KEY_AIGOVSENSING"],

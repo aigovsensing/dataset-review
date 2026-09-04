@@ -40,7 +40,14 @@ class ReviewWorkflowTest(unittest.TestCase):
                 )
                 self.assertIn("GEMINI_API_KEY", mapped)
                 self.assertIn("GEMINI_API_KEY_AIGOVSENSING", mapped)
+                self.assertIn("GEMINI_API_KEY_AITSEC2025", mapped)
                 self.assertIn("GEMINI_API_KEY_LEEMGS", mapped)
+                self.assertIn(
+                    "GEMINI_API_KEY_ORDER: GEMINI_API_KEY,GEMINI_API_KEY_LEEMGS,"
+                    "GEMINI_API_KEY_GEUNSIKLIM,GEMINI_API_KEY_AIGOVSENSING,"
+                    "GEMINI_API_KEY_AITSEC2025",
+                    text,
+                )
 
 
 if __name__ == "__main__":

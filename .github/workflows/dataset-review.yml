@@ -68,8 +68,10 @@ jobs:
           # 실제 job을 만들고 rerun-review 결과를 이슈에 게시할 수 있다.
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY_AIGOVSENSING: ${{ secrets.GEMINI_API_KEY_AIGOVSENSING }}
+          GEMINI_API_KEY_AITSEC2025: ${{ secrets.GEMINI_API_KEY_AITSEC2025 }}
           GEMINI_API_KEY_GEUNSIKLIM: ${{ secrets.GEMINI_API_KEY_GEUNSIKLIM }}
           GEMINI_API_KEY_LEEMGS: ${{ secrets.GEMINI_API_KEY_LEEMGS }}
+          GEMINI_API_KEY_ORDER: GEMINI_API_KEY,GEMINI_API_KEY_LEEMGS,GEMINI_API_KEY_GEUNSIKLIM,GEMINI_API_KEY_AIGOVSENSING,GEMINI_API_KEY_AITSEC2025
           # 기본(1차) 검토 모델. 저장소 변수 vars.GEMINI_DEFAULT_MODEL 이 없으면 최신 Flash 별칭.
           # (특정 버전 고정은 이 변수로 지정.)
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}

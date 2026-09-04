@@ -17,7 +17,10 @@
    - Value: 발급받은 키
 3. (권장) 여러 계정의 무료 키를 쓰려면 `GEMINI_API_KEY_<이름>` 형식으로 추가합니다.
    예: `GEMINI_API_KEY_AIGOVSENSING`, `GEMINI_API_KEY_GEUNSIKLIM`, `GEMINI_API_KEY_LEEMGS`.
-   - 변수명 영문 오름차순으로 시도합니다(`GEMINI_API_KEY`가 가장 먼저).
+   - Actions에서는 `GEMINI_API_KEY` → `GEMINI_API_KEY_LEEMGS` →
+     `GEMINI_API_KEY_GEUNSIKLIM` → `GEMINI_API_KEY_AIGOVSENSING` →
+     `GEMINI_API_KEY_AITSEC2025` 순으로 시도합니다. 로컬 실행은
+     `GEMINI_API_KEY_ORDER`가 없으면 변수명 영문 오름차순을 사용합니다.
    - 중복된 키 값은 한 번만 시도합니다.
    - 한 키의 모델 폴백 체인까지 **쿼터(429) 또는 인증(401/403) 오류**로 실패하면 다음 키로 전환합니다. 5xx·잘못된 입력 등 키와 무관한 오류는 추가 키를 소진하지 않도록 순회하지 않습니다.
    - 이슈 댓글에는 실패한 Secret **변수명만** 출력하고 키 값은 출력하지 않습니다.

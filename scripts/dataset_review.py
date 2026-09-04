@@ -62,7 +62,7 @@ API_KEY_NAME_RE = re.compile(r"^GEMINI_API_KEY(?:_[A-Z0-9_]+)?$")
 
 
 def collect_api_keys(environ: dict[str, str] | None = None) -> list[tuple[str, str]]:
-    """Return unique Gemini secrets in ascending environment-variable order.
+    """Return unique Gemini secrets in configured, then ascending, name order.
 
     GitHub's ``secrets`` context is supplied through ``SECRETS_CONTEXT`` because
     Actions cannot dynamically expand secret names into individual environment
@@ -81,10 +81,22 @@ def collect_api_keys(environ: dict[str, str] | None = None) -> list[tuple[str, s
         except (json.JSONDecodeError, TypeError) as exc:
             print(f"[diag] SECRETS_CONTEXT 파싱 실패: {exc}", file=sys.stderr)
 
+    configured_order = [
+        name.strip()
+        for name in env.get("GEMINI_API_KEY_ORDER", "").split(",")
+        if name.strip() != "GEMINI_API_KEY_ORDER" and API_KEY_NAME_RE.fullmatch(name.strip())
+    ]
+    available_names = sorted(
+        name
+        for name in env
+        if name != "GEMINI_API_KEY_ORDER" and API_KEY_NAME_RE.fullmatch(name)
+    )
+    ordered_names = list(dict.fromkeys(configured_order + available_names))
+
     keys: list[tuple[str, str]] = []
     seen: set[str] = set()
-    for name in sorted(n for n in env if API_KEY_NAME_RE.fullmatch(n)):
-        value = env[name].strip()
+    for name in ordered_names:
+        value = env.get(name, "").strip()
         if value and value not in seen:
             keys.append((name, value))
             seen.add(value)
