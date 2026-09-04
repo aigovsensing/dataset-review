@@ -18,6 +18,7 @@ GEMINI_WRITER_MODEL    : (선택) 하이브리드 2패스 활성화. 설정하�
                         (무료 티어는 3.x 에 검색 그라운딩 쿼터가 없어 직접 그라운딩 호출은
                         429 가 나므로, 근거 수집만 2.5 에 위임하는 구조다.)
 GEMINI_WRITER_FALLBACKS: (선택) 최종 작성 모델의 쉼표 구분 폴백. 미설정 시 3.7→3.6→3.5→3.5-lite
+GEMINI_UNGROUNDED_MODELS: (선택) 모든 그라운딩 시도 실패 후 PLAIN 최후 폴백 모델 목록
 ISSUE_TITLE    : (선택) 이슈 제목
 ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 """
@@ -1375,6 +1376,101 @@ def run_review(title: str, body: str, api_key: str) -> str:
     return enforce_length_limit("\n".join(parts))
 
 
+def build_ungrounded_model_chain() -> list[str]:
+    """검색 그라운딩이 전부 막혔을 때 사용할 PLAIN 생성 모델 체인.
+
+    그라운딩과 PLAIN 생성의 쿼터가 서로 다를 수 있으므로, 운영에서 실제로 PLAIN 호출이
+    가능한 3.x 모델을 별도 체인으로 관리한다. 환경변수로 모델 목록을 교체할 수 있으며,
+    중복과 빈 항목은 제거한다.
+    """
+    configured = os.environ.get(
+        "GEMINI_UNGROUNDED_MODELS",
+        "gemini-3-flash-preview,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite",
+    )
+    chain: list[str] = []
+    for model in configured.split(","):
+        model = model.strip()
+        if model and model not in chain:
+            chain.append(model)
+    return chain
+
+
+def should_try_ungrounded_fallback(exc: Exception) -> bool:
+    """그라운딩/모델 가용성 실패에만 PLAIN 최후 폴백을 허용한다.
+
+    잘못된 입력이나 프로그램 오류를 그럴듯한 무근거 결과로 덮어서는 안 된다. 따라서
+    현재 관측된 그라운딩 쿼터(429), 모델 미개방(404), 지속적 서버 장애(5xx)에 한한다.
+    인증 오류는 다른 키에서도 PLAIN 호출이 가능할 수 있으므로 키 회전 단계에서 다루며,
+    모든 키가 인증에 실패한 경우에는 이 폴백을 실행하지 않는다.
+    """
+    code = getattr(exc, "code", None)
+    return code in (404, 429, 500, 502, 503, 504) or is_fallbackable(exc)
+
+
+def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
+    """Google Search 없이 참고용 검토를 생성하는 명시적 최후 폴백.
+
+    결과가 검색 근거·출처·최신성을 갖춘 정상 검토로 오인되지 않도록 상단 경고와 생성
+    각주에 PLAIN 상태를 반복 표시한다. 모델이 URL이나 인용을 만들어 내지 않도록 프롬프트로
+    금지하고, 코드 역시 출처 목록을 붙이지 않는다.
+    """
+    from google import genai
+    from google.genai import types
+
+    system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
+    fields = parse_issue_body(body)
+    name = derive_dataset_name(title, fields)
+    user_prompt = build_user_prompt(title, fields) + (
+        "\n\n[중요: 무그라운딩 최후 폴백]\n"
+        "이번 호출에는 웹 검색 도구가 없다. 제공된 이슈 내용과 일반 지식만 사용하라. "
+        "URL, 출처, 인용 번호, 최신 사실을 추측하거나 만들어 내지 마라. 확인하지 못한 사실은 "
+        "반드시 '확인 불가(웹검색 미사용)'라고 표시하고, 결론은 참고용 잠정 판단으로 한정하라."
+    )
+    base = dict(system_instruction=system_prompt, temperature=0.2, max_output_tokens=32768)
+    try:
+        config = types.GenerateContentConfig(
+            **base, thinking_config=types.ThinkingConfig(thinking_budget=512)
+        )
+    except Exception:  # noqa: BLE001 - 구버전 SDK 호환
+        config = types.GenerateContentConfig(**base)
+
+    models = build_ungrounded_model_chain()
+    if not models:
+        raise RuntimeError("GEMINI_UNGROUNDED_MODELS에 사용할 모델이 없습니다.")
+
+    client = genai.Client(api_key=api_key)
+    last_exc: Exception | None = None
+    for model in models:
+        try:
+            response = generate_with_retry(client=client, model=model, contents=user_prompt, config=config)
+            text = (response.text or "").strip()
+            if not text:
+                raise RuntimeError(f"PLAIN 모델 `{model}` 응답이 비어 있습니다.")
+            resolved = (getattr(response, "model_version", None) or model).strip()
+            print(f"[diag] ungrounded_fallback model={model} resolved={resolved} text_chars={len(text)}",
+                  file=sys.stderr)
+            text = restructure_review(sanitize_markdown(strip_preamble(text)), name)
+            warning = (
+                "> ⚠️ **웹검색 그라운딩 없이 생성된 참고용 결과입니다.**  \n"
+                "> 모든 API 키에서 Google Search 그라운딩을 사용할 수 없어 PLAIN 생성으로 "
+                "전환했습니다. 아래 내용에는 검증된 출처와 최신성 보장이 없으며, 사실 확인이나 "
+                "법률 자문을 대체할 수 없습니다."
+            )
+            header = f"> 🤖 **검토 모델 (PLAIN · 그라운딩 없음)** &nbsp;`{resolved}`"
+            footer = (
+                "\n---\n"
+                f"<sub>⚠️ 자동 생성 (model: <code>{resolved}</code>, 웹검색·출처 없음) · "
+                "미검증 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
+            )
+            return enforce_length_limit("\n\n".join((warning, header, text, footer)))
+        except Exception as exc:  # noqa: BLE001 - 다음 PLAIN 모델로 폴백
+            last_exc = exc
+            print(f"[diag] ungrounded_fallback model={model} 실패({type(exc).__name__}: "
+                  f"{str(exc)[:80]})", file=sys.stderr)
+    assert last_exc is not None
+    raise last_exc
+
+
 def classify_failure(exc: Exception, api_key: str = "", var_name: str = "") -> str:
     """실패 오류를 원인 카테고리별로 분류해 정확한 조치 안내 문구를 반환.
 
@@ -1469,6 +1565,24 @@ def main() -> int:
                 print(f"-> 다른 API 키로 폴백하여 전체 모델 체인을 재시도합니다... ({i+1}/{len(api_keys)})", file=sys.stderr)
                 continue
             break
+
+    # 모든 키의 그라운딩 호출이 실패한 경우에만, 같은 키들을 다시 순회하며 검색 도구 없는
+    # PLAIN 생성을 최후 수단으로 시도한다. 인증·입력·코드 오류는 무근거 결과로 덮지 않는다.
+    if not result and last_exc and should_try_ungrounded_fallback(last_exc):
+        print("[diag] 모든 그라운딩 시도 실패 → 무그라운딩 PLAIN 최후 폴백을 시작합니다.", file=sys.stderr)
+        for var_name, key in api_keys:
+            try:
+                result = run_ungrounded_review(title, body, key)
+                active_var = var_name
+                break
+            except Exception as exc:  # noqa: BLE001 - 다음 API 키로 PLAIN 재시도
+                last_exc = exc
+                used_key = key
+                used_var = var_name
+                if var_name not in failed_vars:
+                    failed_vars.append(var_name)
+                print(f"[diag] API Key {var_name} PLAIN 시도 실패: "
+                      f"{safe_exception_text(exc, key)}", file=sys.stderr)
 
     if not result and last_exc:
         result = (

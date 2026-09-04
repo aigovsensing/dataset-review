@@ -6,17 +6,21 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from dataset_review import (  # noqa: E402
+    build_ungrounded_model_chain,
     collect_api_keys,
     key_rotation_note,
     load_api_key_order,
+    main,
     safe_exception_text,
     should_rotate_api_key,
+    should_try_ungrounded_fallback,
 )
 
 # Isolate order-independent tests from the repo's real prompt-book order file.
@@ -158,6 +162,31 @@ class ApiKeyRotationTest(unittest.TestCase):
         rendered = safe_exception_text(RuntimeError(f"request with {key} failed"), key)
         self.assertNotIn(key, rendered)
         self.assertIn("[REDACTED]", rendered)
+
+    def test_ungrounded_model_chain_is_configurable_and_deduplicated(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {"GEMINI_UNGROUNDED_MODELS": " gemini-3-a,gemini-3-b,gemini-3-a,,"},
+        ):
+            self.assertEqual(build_ungrounded_model_chain(), ["gemini-3-a", "gemini-3-b"])
+
+    def test_ungrounded_fallback_only_covers_service_availability(self) -> None:
+        self.assertTrue(should_try_ungrounded_fallback(ApiError(429, "grounding quota")))
+        self.assertTrue(should_try_ungrounded_fallback(ApiError(404, "model unavailable")))
+        self.assertTrue(should_try_ungrounded_fallback(ApiError(503, "high demand")))
+        self.assertFalse(should_try_ungrounded_fallback(ApiError(401, "invalid credential")))
+        self.assertFalse(should_try_ungrounded_fallback(ValueError("bad issue input")))
+
+    def test_main_uses_plain_fallback_after_all_grounded_keys_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ", {"REVIEW_OUTPUT": str(Path(tmp) / "review.md")}, clear=True
+        ), patch("dataset_review.collect_api_keys", return_value=[("KEY_A", "a"), ("KEY_B", "b")]), \
+                patch("dataset_review.run_review", side_effect=ApiError(429, "grounding quota")) as grounded, \
+                patch("dataset_review.run_ungrounded_review", return_value="PLAIN WARNING") as plain:
+            self.assertEqual(main(), 0)
+            self.assertEqual(grounded.call_count, 2)
+            plain.assert_called_once_with("", "", "a")
+            self.assertIn("PLAIN WARNING", (Path(tmp) / "review.md").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
