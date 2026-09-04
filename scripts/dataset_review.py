@@ -21,6 +21,7 @@ GEMINI_WRITER_FALLBACKS: (선택) 최종 작성 모델의 쉼표 구분 폴백. 
 GEMINI_UNGROUNDED_MODELS: (선택) 모든 그라운딩 시도 실패 후 PLAIN 최후 폴백 모델 목록
 GOOGLE_SEARCH_API_KEY: (선택) PLAIN 폴백을 보강할 Programmable Search JSON API 키
 GOOGLE_SEARCH_ENGINE_ID: (선택) Programmable Search Engine ID(cx). 위 키와 함께 설정
+GOOGLE_SEARCH_MAX_QUERIES: (선택) 검토 1건당 검색 쿼리 수(1~3, 기본 3)
 ISSUE_TITLE    : (선택) 이슈 제목
 ISSUE_BODY     : (선택) 이슈 본문(이슈 폼 렌더링 결과)
 """
@@ -1412,7 +1413,7 @@ def should_try_ungrounded_fallback(exc: Exception) -> bool:
 
 
 def build_external_search_query(title: str, fields: dict[str, str]) -> str:
-    """Build one quota-conscious Google query for the dataset review."""
+    """Build the broad, backwards-compatible Google query for a dataset review."""
     name = derive_dataset_name(title, fields).strip()
     urls = " ".join(
         fields.get(key, "")
@@ -1421,6 +1422,31 @@ def build_external_search_query(title: str, fields: dict[str, str]) -> str:
     )
     subject = name or urls or title
     return f'"{subject[:300]}" license copyright privacy lawsuit terms dataset'
+
+
+def build_external_search_queries(title: str, fields: dict[str, str]) -> list[str]:
+    """Build focused queries covering provenance, privacy, and recent legal events.
+
+    One broad query frequently buries an official licence page or recent controversy. Three small
+    queries give the PLAIN writer evidence for the distinct review axes while keeping Custom Search
+    quota use bounded and predictable.
+    """
+    name = derive_dataset_name(title, fields).strip()
+    supplied_url = next((fields.get(key, "").strip() for key in
+                         ("homepage_url", "dataset_repo_url", "code_repo_url", "paper_urls")
+                         if fields.get(key, "").strip()), "")
+    subject = name or supplied_url or title
+    quoted = f'"{subject[:300]}"'
+    queries = [
+        f"{quoted} official license terms of use copyright dataset",
+        f"{quoted} privacy personal data consent biometric dataset",
+        f"{quoted} lawsuit complaint controversy takedown latest dataset",
+    ]
+    try:
+        limit = int(os.environ.get("GOOGLE_SEARCH_MAX_QUERIES", "3"))
+    except ValueError:
+        limit = 3
+    return queries[:max(1, min(limit, 3))]
 
 
 def google_custom_search(query: str, api_key: str, engine_id: str,
@@ -1467,9 +1493,26 @@ def collect_external_search_evidence(title: str, fields: dict[str, str]) -> list
     engine_id = (os.environ.get("GOOGLE_SEARCH_ENGINE_ID") or "").strip()
     if not api_key or not engine_id:
         return []
-    query = build_external_search_query(title, fields)
-    results = google_custom_search(query, api_key, engine_id)
-    print(f"[diag] external_google_search results={len(results)}", file=sys.stderr)
+    queries = build_external_search_queries(title, fields)
+    results: list[tuple[str, str, str]] = []
+    seen_urls: set[str] = set()
+    for query in queries:
+        try:
+            query_results = google_custom_search(query, api_key, engine_id, num=5)
+        except Exception:
+            if results:
+                print("[diag] external_google_search partial_results=true", file=sys.stderr)
+                break
+            raise
+        for item in query_results:
+            if item[1] not in seen_urls:
+                results.append(item)
+                seen_urls.add(item[1])
+    print(
+        f"[diag] external_google_search queries={len(queries)} "
+        f"results={len(results)}",
+        file=sys.stderr,
+    )
     return results
 
 

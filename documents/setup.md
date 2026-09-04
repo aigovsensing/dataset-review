@@ -42,6 +42,7 @@ Gemini 내장 그라운딩이 모든 키에서 실패했을 때 PLAIN 결과에 
 
 - **Secret** `GOOGLE_SEARCH_API_KEY`: 기존 Custom Search JSON API 키
 - **Variable** `GOOGLE_SEARCH_ENGINE_ID`: Programmable Search Engine ID(`cx`)
+- **Variable** `GOOGLE_SEARCH_MAX_QUERIES`: 검토당 검색 수(`1`~`3`, 기본 `3`; 쿼터 절약 시 `1`)
 
 두 값이 모두 있을 때만 외부 검색을 실행하며, 검색 호출이 실패해도 비밀값을 로그에 출력하지 않고
 검색 없는 PLAIN 모드로 안전하게 계속합니다. Google은 이 API를 신규 고객에게 닫았고 2027-01-01에

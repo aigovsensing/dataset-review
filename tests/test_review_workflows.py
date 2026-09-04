@@ -58,6 +58,7 @@ class ReviewWorkflowTest(unittest.TestCase):
         text = WORKFLOWS[0].read_text(encoding="utf-8")
         self.assertIn("GOOGLE_SEARCH_API_KEY: ${{ secrets.GOOGLE_SEARCH_API_KEY }}", text)
         self.assertIn("GOOGLE_SEARCH_ENGINE_ID: ${{ vars.GOOGLE_SEARCH_ENGINE_ID", text)
+        self.assertIn("GOOGLE_SEARCH_MAX_QUERIES: ${{ vars.GOOGLE_SEARCH_MAX_QUERIES", text)
 
     def test_order_file_covers_every_mapped_slot(self) -> None:
         """시도 순서의 단일 출처(JSON 파일)와 yml 이 매핑한 secret 슬롯이 일치해야 한다.

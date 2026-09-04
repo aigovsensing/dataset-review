@@ -79,6 +79,7 @@ jobs:
           # 기존 PLAIN 폴백으로 동작한다.
           GOOGLE_SEARCH_API_KEY: ${{ secrets.GOOGLE_SEARCH_API_KEY }}
           GOOGLE_SEARCH_ENGINE_ID: ${{ vars.GOOGLE_SEARCH_ENGINE_ID || '' }}
+          GOOGLE_SEARCH_MAX_QUERIES: ${{ vars.GOOGLE_SEARCH_MAX_QUERIES || '3' }}
           # 기본(1차) 검토 모델. 저장소 변수 vars.GEMINI_DEFAULT_MODEL 이 없으면 최신 Flash 별칭.
           # (특정 버전 고정은 이 변수로 지정.)
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}

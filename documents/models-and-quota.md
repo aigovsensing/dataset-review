@@ -175,6 +175,8 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 모든 키의 그라운딩 모델 체인이 `429`/`404`/지속적 `5xx`로 끝나면, 프로그램은 같은 키들을
 다시 순회하며 PLAIN 생성을 시도합니다. 이때 별도의 Google Programmable Search 설정이 있으면
 먼저 **Custom Search JSON API**로 검색한 제목·요약·URL을 번호가 붙은 외부 근거로 모델에 전달합니다.
+라이선스·개인정보·최신 소송/논란을 각각 검색하는 최대 3개의 쿼리를 사용하며,
+`GOOGLE_SEARCH_MAX_QUERIES`를 `1`~`3`으로 설정해 검토당 검색 쿼터 사용량을 제한할 수 있습니다.
 기본 PLAIN 모델 체인은
 `gemini-3-flash-preview → gemini-3.5-flash → gemini-3.5-flash-lite → gemini-3.1-flash-lite`이며,
 `GEMINI_UNGROUNDED_MODELS`에 쉼표 구분 목록을 지정해 바꿀 수 있습니다.

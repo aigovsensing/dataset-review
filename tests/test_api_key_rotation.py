@@ -16,6 +16,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from dataset_review import (  # noqa: E402
     build_ungrounded_model_chain,
     build_external_search_query,
+    build_external_search_queries,
+    collect_external_search_evidence,
     collect_api_keys,
     key_rotation_note,
     load_api_key_order,
@@ -178,6 +180,30 @@ class ApiKeyRotationTest(unittest.TestCase):
         self.assertIn('"Example Data"', query)
         self.assertIn("license", query)
         self.assertIn("privacy", query)
+
+    def test_external_search_queries_cover_review_axes_and_respect_limit(self) -> None:
+        with patch.dict("os.environ", {"GOOGLE_SEARCH_MAX_QUERIES": "2"}):
+            queries = build_external_search_queries(
+                "[Dataset Review] Example", {"dataset_name": "Example Data"}
+            )
+        self.assertEqual(len(queries), 2)
+        self.assertIn("license", queries[0])
+        self.assertIn("privacy", queries[1])
+
+    def test_external_search_queries_use_submitted_url_when_name_is_missing(self) -> None:
+        queries = build_external_search_queries("", {"homepage_url": "https://example.org/data"})
+        self.assertIn("https://example.org/data", queries[0])
+
+    def test_external_search_keeps_results_if_a_later_query_fails(self) -> None:
+        with patch.dict("os.environ", {
+            "GOOGLE_SEARCH_API_KEY": "secret", "GOOGLE_SEARCH_ENGINE_ID": "engine"
+        }), patch("dataset_review.google_custom_search", side_effect=[
+            [("Official", "https://example.org", "Licence")], OSError("temporary")
+        ]):
+            results = collect_external_search_evidence(
+                "[Dataset Review] Example", {"dataset_name": "Example"}
+            )
+        self.assertEqual(results, [("Official", "https://example.org", "Licence")])
 
     def test_google_custom_search_parses_and_deduplicates_safe_results(self) -> None:
         payload = io.BytesIO(json.dumps({"items": [
