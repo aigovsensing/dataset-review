@@ -173,13 +173,30 @@ Flash 계열 모델입니다. **무료 일일 한도(RPD)는 모델별로 분리
 #### 모든 그라운딩이 실패할 때 — PLAIN 최후 폴백
 
 모든 키의 그라운딩 모델 체인이 `429`/`404`/지속적 `5xx`로 끝나면, 프로그램은 같은 키들을
-다시 순회하며 Google Search 도구가 없는 PLAIN 생성을 시도합니다. 기본 체인은
+다시 순회하며 PLAIN 생성을 시도합니다. 이때 별도의 Google Programmable Search 설정이 있으면
+먼저 **Custom Search JSON API**로 검색한 제목·요약·URL을 번호가 붙은 외부 근거로 모델에 전달합니다.
+기본 PLAIN 모델 체인은
 `gemini-3-flash-preview → gemini-3.5-flash → gemini-3.5-flash-lite → gemini-3.1-flash-lite`이며,
 `GEMINI_UNGROUNDED_MODELS`에 쉼표 구분 목록을 지정해 바꿀 수 있습니다.
 
-> ⚠️ 이 경로는 가용성을 위한 **최후 수단**입니다. 결과에는 검증된 출처와 최신성 보장이 없고,
-> 모델에게 URL·인용·확인되지 않은 최신 사실을 만들지 말라고 별도로 지시합니다. 출력 상단에도
-> `PLAIN · 그라운딩 없음` 경고가 표시되므로 정상적인 근거 기반 검토와 구분할 수 있습니다.
+**외부 Google 검색 설정(기존 API 사용자만):**
+
+> Google 공식 문서 기준 Custom Search JSON API는 **신규 고객에게 닫혀 있으며 2027-01-01 종료
+> 예정**입니다. 기존 사용자는 하루 100회 무료 쿼터 범위에서 이 연동을 임시 브리지로 사용할 수
+> 있지만, 새 프로젝트의 장기 해법으로 간주해서는 안 됩니다. 신규 사용자는 Google이 안내하는
+> Vertex AI Search(최대 50개 도메인) 또는 별도 검색 공급자를 검토해야 합니다.
+
+1. 기존 [Programmable Search Engine](https://programmablesearchengine.google.com/)의 검색 엔진 ID를
+   확인합니다.
+2. 기존 Google Cloud 프로젝트의 [Custom Search JSON API](https://developers.google.com/custom-search/v1/overview)
+   API 키를 확인합니다.
+3. 저장소 Actions **Secret** `GOOGLE_SEARCH_API_KEY`에 API 키를, Actions **Variable**
+   `GOOGLE_SEARCH_ENGINE_ID`에 검색 엔진 ID(`cx`)를 등록합니다. 둘 다 설정되어야 외부 검색이 실행됩니다.
+
+> ⚠️ 이 경로는 가용성을 위한 **최후 수단**입니다. Custom Search가 제공하는 검색 요약은 원문 전체를
+> 검증한 자료가 아니므로, 결과 상단과 출처 목록에 이 한계를 표시합니다. 모델에는 제공된 검색 결과
+> 밖의 URL·인용·최신 사실을 만들지 말라고 지시합니다. 외부 검색 설정이 없거나 호출에 실패하면 기존
+> `PLAIN · 검색 없음` 모드로 계속 진행하며, 이 경우 출처와 최신성 보장이 없습니다.
 
 > ⚠️ 저장소 설정의 **"Allow GitHub Actions to create and approve pull requests"** 옵션은
 > `GITHUB_TOKEN` 의 PR 권한만 제어하며 **워크플로 실행 횟수·Gemini 호출과 무관**합니다(쿼터 보호 효과 없음).

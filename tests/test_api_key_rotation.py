@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import io
 import sys
 import tempfile
 import unittest
@@ -14,9 +15,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from dataset_review import (  # noqa: E402
     build_ungrounded_model_chain,
+    build_external_search_query,
     collect_api_keys,
     key_rotation_note,
     load_api_key_order,
+    google_custom_search,
     main,
     safe_exception_text,
     should_rotate_api_key,
@@ -169,6 +172,30 @@ class ApiKeyRotationTest(unittest.TestCase):
             {"GEMINI_UNGROUNDED_MODELS": " gemini-3-a,gemini-3-b,gemini-3-a,,"},
         ):
             self.assertEqual(build_ungrounded_model_chain(), ["gemini-3-a", "gemini-3-b"])
+
+    def test_external_search_query_includes_dataset_and_legal_topics(self) -> None:
+        query = build_external_search_query("[Dataset Review] Example", {"dataset_name": "Example Data"})
+        self.assertIn('"Example Data"', query)
+        self.assertIn("license", query)
+        self.assertIn("privacy", query)
+
+    def test_google_custom_search_parses_and_deduplicates_safe_results(self) -> None:
+        payload = io.BytesIO(json.dumps({"items": [
+            {"title": " Official  page ", "link": "https://example.org/data", "snippet": " Terms  here "},
+            {"title": "duplicate", "link": "https://example.org/data", "snippet": "ignored"},
+            {"title": "unsafe", "link": "javascript:alert(1)", "snippet": "ignored"},
+        ]}).encode())
+        with patch("dataset_review.urllib.request.urlopen", return_value=payload):
+            self.assertEqual(
+                google_custom_search("example", "secret", "engine"),
+                [("Official page", "https://example.org/data", "Terms here")],
+            )
+
+    def test_google_custom_search_error_does_not_expose_secret(self) -> None:
+        with patch("dataset_review.urllib.request.urlopen", side_effect=OSError("offline")):
+            with self.assertRaisesRegex(RuntimeError, "Google Custom Search 호출 실패") as raised:
+                google_custom_search("example", "do-not-leak", "engine")
+        self.assertNotIn("do-not-leak", str(raised.exception))
 
     def test_ungrounded_fallback_only_covers_service_availability(self) -> None:
         self.assertTrue(should_try_ungrounded_fallback(ApiError(429, "grounding quota")))
