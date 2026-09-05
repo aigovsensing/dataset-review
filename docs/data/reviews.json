@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-09-04T21:55:04.924010Z",
+  "exported_at": "2026-09-05T04:33:37.257377Z",
   "rows": [
     {
       "issue": 137,
@@ -160,15 +160,15 @@
       "model": "",
       "status": "reviewed",
       "review_confidence": "",
-      "license_check": "CC BY-SA 4.0",
-      "license_judgment": "잠재적 리스크 (SA 조항)",
-      "license_basis": "공식 GitHub 및 논문에서 데이터셋에 대해 CC BY-SA 4.0 적용을 명시함 ([출처](https://github.com/facebookresearch/flores))",
-      "collection_check": "위키피디아 기반 번역 데이터",
-      "collection_judgment": "사용 가능",
-      "collection_basis": "위키피디아의 CC BY-SA 콘텐츠를 기반으로 전문 번역을 통해 구축됨 ([출처](https://arxiv.org/abs/2106.03193))",
+      "license_check": "`CC BY-SA 4.0`",
+      "license_judgment": "리스크 있음",
+      "license_basis": "동일 라이선스 배포 의무(SA) 조항으로 인해 모델 배포 시 제약 발생 가능 ([출처 1](https://github.com/facebookresearch/flores/blob/main/flores101/README.md))",
+      "collection_check": "위키피디아 기반 전문 번역",
+      "collection_judgment": "리스크 낮음",
+      "collection_basis": "원본(Wikipedia)의 라이선스를 준수하며 전문 번역가를 통해 구축됨 ([출처 3](https://arxiv.org/abs/2106.03193))",
       "privacy_check": "미포함",
       "privacy_judgment": "리스크 없음",
-      "privacy_basis": "위키피디아 기반의 일반 지식 텍스트이며 수집 과정에서 필터링 수행 ([출처](https://arxiv.org/abs/2106.03193))",
+      "privacy_basis": "위키피디아 기사 기반이며 개인정보 노출 위험이 낮음 ([출처 3](https://arxiv.org/abs/2106.03193))",
       "litigation": "해당 없음",
       "litigation_case": "",
       "litigation_court": "",
@@ -186,10 +186,10 @@
       "litigation_basis": "",
       "author": "hooky119",
       "created_at": "2026-09-04T00:17:17Z",
-      "updated_at": "2026-09-04T21:54:00Z",
+      "updated_at": "2026-09-04T21:56:51Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/124",
       "state": "open",
-      "comments": 30
+      "comments": 26
     },
     {
       "issue": 123,
