@@ -58,9 +58,28 @@ FIELD_LABELS = {
     "공식 홈페이지 / 저장소 URL": "homepage_url",
     "관련 소송 (CourtListener URL)": "litigation_url",
     "추가 참고 사항": "extra_notes",
+    "시스템 프롬프트 선택": "system_prompt",
 }
 
 NO_RESPONSE_MARKERS = {"_No response_", "_없음_", "N/A", "없음", ""}
+
+def get_system_prompt_path(fields: dict[str, str]) -> Path:
+    """선택된 시스템 프롬프트 파일 경로를 반환합니다."""
+    choice = fields.get("system_prompt", "").strip()
+    
+    if choice and choice != "None" and "기본" not in choice and "Base" not in choice:
+        m = re.search(r'[a-zA-Z0-9_]+', choice)
+        if m:
+            suffix = m.group(0).lower()
+            path = REPO_ROOT / "prompt-book" / f"system_prompt_dataset_review_{suffix}.md"
+            if path.exists():
+                return path
+
+    base_path = REPO_ROOT / "prompt-book" / "system_prompt_dataset_review_base.md"
+    if base_path.exists():
+        return base_path
+        
+    return REPO_ROOT / "prompt-book" / "system_prompt_dataset_review.md"
 
 API_KEY_NAME_RE = re.compile(r"^GEMINI_API_KEY(?:_[A-Z0-9_]+)?$")
 
