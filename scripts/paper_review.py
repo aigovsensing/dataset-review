@@ -249,8 +249,9 @@ def run_paper_review(title: str, body: str, api_key: str) -> str:
     from google.genai import types
 
     model = os.environ.get("GEMINI_DEFAULT_MODEL") or "gemini-flash-latest"
-    system_prompt = PAPER_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_paper_body(body)
+    system_prompt_path = get_paper_prompt_path(fields)
+    system_prompt = system_prompt_path.read_text(encoding="utf-8")
     name = derive_paper_title(title, fields)
     raw_url = fields.get("paper_url") or ""
     url = normalize_pdf_url(first_url(raw_url))
