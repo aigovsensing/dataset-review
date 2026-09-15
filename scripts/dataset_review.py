@@ -38,8 +38,6 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-# 시스템 프롬프트(검토 지침)는 prompt-book/ 폴더에서 일관되게 관리한다.
-SYSTEM_PROMPT_PATH = REPO_ROOT / "prompt-book" / "system_prompt_dataset_review.md"
 
 # 비글 마스코트 이미지(이슈 댓글용). GitHub 댓글은 camo 프록시가 SVG 를 잘 렌더링하지
 # 못하므로 PNG(raw URL)를 사용한다. 저장소/브랜치는 GITHUB_REPOSITORY 로부터 유도.
@@ -1119,8 +1117,9 @@ def run_review(title: str, body: str, api_key: str) -> str:
     # (별칭이 실제로 어떤 버전으로 해석됐는지는 응답의 model_version 으로 확인해 출력한다.)
     # 빈 문자열(예: 미설정 GitHub 변수 vars.GEMINI_DEFAULT_MODEL)도 기본값으로 대체되도록 `or` 사용.
     model = os.environ.get("GEMINI_DEFAULT_MODEL") or "gemini-flash-latest"
-    system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_issue_body(body)
+    system_prompt_path = get_system_prompt_path(fields)
+    system_prompt = system_prompt_path.read_text(encoding="utf-8")
     name = derive_dataset_name(title, fields)
 
     # ── 입력 사전 검증 (Gemini 무료 쿼터 절약) ─────────────────────────────
@@ -1526,8 +1525,9 @@ def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
     from google import genai
     from google.genai import types
 
-    system_prompt = SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     fields = parse_issue_body(body)
+    system_prompt_path = get_system_prompt_path(fields)
+    system_prompt = system_prompt_path.read_text(encoding="utf-8")
     name = derive_dataset_name(title, fields)
     evidence: list[tuple[str, str, str]] = []
     try:
