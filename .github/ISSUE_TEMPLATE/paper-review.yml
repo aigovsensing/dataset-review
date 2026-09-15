@@ -1,4 +1,4 @@
-name: 법적 리스크 검토 요청: 연구 논문
+name: 연구논문 법무 검토 요청
 description: 연구논문(PDF 또는 웹페이지)의 개인정보·저작권·데이터셋 법무 리스크 자동 검토를 요청합니다.
 title: "[논문검토] "
 labels: ["paper-review"]
