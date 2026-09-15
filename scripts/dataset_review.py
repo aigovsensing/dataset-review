@@ -67,7 +67,7 @@ def get_system_prompt_path(fields: dict[str, str]) -> Path:
     """선택된 시스템 프롬프트 파일 경로를 반환합니다."""
     choice = fields.get("system_prompt", "").strip()
     
-    if choice and choice != "None" and "기본" not in choice and "Base" not in choice:
+    if choice and "None" not in choice and "기본" not in choice and "Base" not in choice:
         m = re.search(r'[a-zA-Z0-9_]+', choice)
         if m:
             suffix = m.group(0).lower()
