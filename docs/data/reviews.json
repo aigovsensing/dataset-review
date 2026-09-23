@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-09-22T05:00:21.267958Z",
+  "exported_at": "2026-09-23T04:49:22.395721Z",
   "rows": [
     {
       "issue": 266,
@@ -4100,9 +4100,9 @@
       "litigation_basis": "",
       "author": "soemthlng",
       "created_at": "2026-09-08T06:50:35Z",
-      "updated_at": "2026-09-08T06:51:13Z",
+      "updated_at": "2026-09-22T07:26:20Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/159",
-      "state": "open",
+      "state": "closed",
       "comments": 2
     },
     {
@@ -4138,9 +4138,9 @@
       "litigation_basis": "",
       "author": "soemthlng",
       "created_at": "2026-09-08T06:46:41Z",
-      "updated_at": "2026-09-08T06:47:19Z",
+      "updated_at": "2026-09-22T07:26:25Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/158",
-      "state": "open",
+      "state": "closed",
       "comments": 2
     },
     {
@@ -4176,9 +4176,9 @@
       "litigation_basis": "",
       "author": "soemthlng",
       "created_at": "2026-09-08T06:41:51Z",
-      "updated_at": "2026-09-08T06:42:26Z",
+      "updated_at": "2026-09-22T07:26:15Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/157",
-      "state": "open",
+      "state": "closed",
       "comments": 2
     },
     {
@@ -4214,9 +4214,9 @@
       "litigation_basis": "",
       "author": "soemthlng",
       "created_at": "2026-09-08T06:40:09Z",
-      "updated_at": "2026-09-08T06:40:44Z",
+      "updated_at": "2026-09-22T07:24:17Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/156",
-      "state": "open",
+      "state": "closed",
       "comments": 2
     },
     {
