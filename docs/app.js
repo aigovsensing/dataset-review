@@ -466,16 +466,15 @@
     });
   }
 
-  // ---- Reset: 입력 내용을 비우고 #request 페이지로 새로 접속 ----
-  const resetBtn = $("#reset-btn");
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
-      const form = $("#review-form");
+  // ---- Reset: 입력 내용을 비우고 해당 검토 요청 페이지(#request / #paper-request)로 새로 접속 ----
+  document.querySelectorAll("[data-reset-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const form = document.getElementById(btn.dataset.resetForm);
       if (form) form.reset(); // 새로고침 시 브라우저의 입력값 복원 방지
-      location.href = location.origin + location.pathname + "#request";
+      location.href = tabUrl(btn.dataset.resetTab);
       location.reload(); // 해시만 바뀌면 페이지가 다시 로드되지 않으므로 강제 새로고침
     });
-  }
+  });
 
   // ═══════════════ 논문 리뷰 (paper) ═══════════════
   const paperTemplate = cfg.paperTemplate || "paper-review.yml";
