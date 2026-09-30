@@ -21,6 +21,13 @@ body:
     validations:
       required: true
   - type: textarea
+    id: extra-notes
+    attributes:
+      label: 설명 (Description)
+      description: 검토 시 참고할 특이사항이나 요청사항이 있다면 입력합니다.
+    validations:
+      required: false
+  - type: textarea
     id: related-datasets
     attributes:
       label: 관련 / 원본 데이터셋
@@ -86,13 +93,6 @@ body:
         - "사용 안 함 (None)"
         - "Heejin"
       default: 0
-  - type: textarea
-    id: extra-notes
-    attributes:
-      label: 설명 (Description)
-      description: 검토 시 참고할 특이사항이나 요청사항이 있다면 입력합니다.
-    validations:
-      required: false
   - type: markdown
     attributes:
       value: |
