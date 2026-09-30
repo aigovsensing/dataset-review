@@ -525,7 +525,7 @@
         "",
         `논문 제목: ${v.title || "(미입력 — 원문에서 확인)"}`,
         `논문 PDF / 웹사이트 URL: ${v.url || "(미입력)"}`,
-        `추가 참고 사항: ${v.notes || "-"}`,
+        `설명 (Description): ${v.notes || "-"}`,
       ];
       $("#paper-preview-body").textContent = lines.join("\n");
       $("#paper-preview").open = true;
