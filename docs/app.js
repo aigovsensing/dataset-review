@@ -454,12 +454,12 @@
         `제목: [데이터셋검토] ${values["dataset-name"] || ""}`,
         "",
         `데이터셋 명칭: ${values["dataset-name"] || "(미입력)"}`,
+        `설명 (Description): ${values["extra-notes"] || "-"}`,
         `관련 / 원본 데이터셋: ${values["related-datasets"] || "-"}`,
         `논문 주소: ${values["paper-urls"] || "-"}`,
         `데이터셋 저장소: ${values["dataset-repo-url"] || "-"}`,
         `소스코드 저장소: ${values["code-repo-url"] || "-"}`,
         `관련 소송 (CourtListener): ${values["litigation-url"] || "-"}`,
-        `추가 참고 사항: ${values["extra-notes"] || "-"}`,
       ];
       $("#preview-body").textContent = lines.join("\n");
       $("#preview").open = true;
