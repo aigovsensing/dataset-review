@@ -471,6 +471,9 @@
     btn.addEventListener("click", () => {
       const form = document.getElementById(btn.dataset.resetForm);
       if (form) form.reset(); // 새로고침 시 브라우저의 입력값 복원 방지
+      // 새로고침 후 이전 스크롤 위치가 복원되지 않고 페이지 맨 위에서 시작하도록 한다.
+      if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+      window.scrollTo(0, 0);
       location.href = tabUrl(btn.dataset.resetTab);
       location.reload(); // 해시만 바뀌면 페이지가 다시 로드되지 않으므로 강제 새로고침
     });
