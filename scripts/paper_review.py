@@ -37,6 +37,8 @@ PAPER_PROMPT_PATH = REPO_ROOT / "prompt-book" / "system_prompt_paper_review.md"
 PAPER_FIELD_LABELS = {
     "논문 제목": "paper_title",
     "논문 PDF / 웹사이트 URL": "paper_url",
+    "설명 (Description)": "extra_notes",
+    # 구버전 폼 호환: 과거 이슈의 "추가 참고 사항" 도 계속 인식
     "추가 참고 사항": "extra_notes",
 }
 NO_RESPONSE_MARKERS = {"_No response_", "_없음_", "N/A", "없음", ""}
@@ -149,7 +151,7 @@ def build_paper_prompt(name: str, fields: dict[str, str], mode: str, url: str) -
     else:
         lines.append("- 논문 원문 PDF 가 이 요청에 첨부되어 있다. 첨부 PDF 를 직접 판독하라.")
     if fields.get("extra_notes"):
-        lines.append(f"- 추가 참고 사항: {fields['extra_notes']}")
+        lines.append(f"- 설명 (Description): {fields['extra_notes']}")
     lines += [
         "",
         "[자의적 해석 금지 — 신뢰성 필수] 근거 없는 해석·추리를 사실처럼 쓰지 말 것. 큰따옴표 원문 인용은 "

@@ -46,7 +46,7 @@ body:
   - type: textarea
     id: extra-notes
     attributes:
-      label: 추가 참고 사항
+      label: 설명 (Description)
       description: 검토 시 참고할 특이사항이나 요청사항이 있다면 입력합니다.
     validations:
       required: false

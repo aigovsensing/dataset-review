@@ -57,6 +57,8 @@ FIELD_LABELS = {
     # 구버전 폼 호환: 과거 이슈의 "공식 홈페이지 / 저장소 URL" 도 계속 인식
     "공식 홈페이지 / 저장소 URL": "homepage_url",
     "관련 소송 (CourtListener URL)": "litigation_url",
+    "설명 (Description)": "extra_notes",
+    # 구버전 폼 호환: 과거 이슈의 "추가 참고 사항" 도 계속 인식
     "추가 참고 사항": "extra_notes",
     "시스템 프롬프트 선택": "system_prompt",
 }
@@ -308,7 +310,7 @@ def build_user_prompt(title: str, fields: dict[str, str]) -> str:
             docket = f" (docket #{cl['docket_id']})" if cl.get("docket_id") else ""
             lines.append(f"  · URL 에서 파악되는 사건명(추정): {cl['case_name']}{docket}")
     if fields.get("extra_notes"):
-        lines.append(f"- 추가 참고 사항: {fields['extra_notes']}")
+        lines.append(f"- 설명 (Description): {fields['extra_notes']}")
     if fields.get("litigation_url"):
         lines.append(
             "\n[중요] 관련 소송 URL 이 제공되었다. 이 데이터셋은 해당 소송과 연관된 것으로 검토 요청되었으므로, "
