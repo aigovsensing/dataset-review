@@ -28,6 +28,20 @@ body:
     validations:
       required: false
   - type: textarea
+    id: dataset-repo-url
+    attributes:
+      label: 데이터셋 저장소 URL
+      description: >
+        데이터셋이 공개된 저장소 URL. 라이선스 판정의 **1차 근거**입니다(데이터셋 자체의 라이선스 기준).
+        여러 개면 줄바꿈으로 구분합니다.
+      placeholder: |
+        https://huggingface.co/datasets/...
+        https://www.kaggle.com/datasets/...
+        https://zenodo.org/...
+        https://datasetsearch.research.google.com/...
+    validations:
+      required: false
+  - type: textarea
     id: related-datasets
     attributes:
       label: 관련 / 원본 데이터셋
@@ -42,20 +56,6 @@ body:
       description: 데이터셋 논문 주소(arXiv, DOI 등). 여러 개면 줄바꿈으로 구분합니다.
       placeholder: |
         https://arxiv.org/abs/xxxx.xxxxx
-    validations:
-      required: false
-  - type: textarea
-    id: dataset-repo-url
-    attributes:
-      label: 데이터셋 저장소 URL
-      description: >
-        데이터셋이 공개된 저장소 URL. 라이선스 판정의 **1차 근거**입니다(데이터셋 자체의 라이선스 기준).
-        여러 개면 줄바꿈으로 구분합니다.
-      placeholder: |
-        https://huggingface.co/datasets/...
-        https://www.kaggle.com/datasets/...
-        https://zenodo.org/...
-        https://datasetsearch.research.google.com/...
     validations:
       required: false
   - type: textarea
