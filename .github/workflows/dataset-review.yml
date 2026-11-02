@@ -100,11 +100,24 @@ jobs:
         continue-on-error: true
 
       - name: 검토 결과 이슈 댓글 등록
+        id: post_comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+        # `gh issue comment` 는 GraphQL 을 쓰는데, GitHub GraphQL 일시 오류("Something went
+        # wrong while executing your query")로 검토는 끝났는데 결과 댓글만 유실된 적이 있다.
+        # REST API 로 등록하고 일시 오류에 대비해 최대 4회 재시도한다.
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file review.md
+          for i in 1 2 3 4; do
+            if gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments" \
+                 -F body=@review.md --silent; then
+              exit 0
+            fi
+            echo "::warning::검토 결과 댓글 등록 실패 ($i/4) → $((i * 5))초 후 재시도"
+            sleep $((i * 5))
+          done
+          echo "::error::검토 결과 댓글을 등록하지 못했습니다(GitHub API 오류)."
+          exit 1
 
       - name: 라벨 정리
         if: always()
@@ -112,10 +125,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           REVIEW_OUTCOME: ${{ steps.run_review.outcome }}
+          COMMENT_OUTCOME: ${{ steps.post_comment.outcome }}
         run: |
           gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "reviewing" || true
           gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "rerun-review" || true
-          if [ "$REVIEW_OUTCOME" = "success" ]; then
+          # 검토가 성공했더라도 결과 댓글 등록이 실패했으면 reviewed 로 표시하지 않는다.
+          if [ "$REVIEW_OUTCOME" = "success" ] && [ "$COMMENT_OUTCOME" = "success" ]; then
             gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "reviewed" || true
           else
             gh issue edit "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "review-failed" || true

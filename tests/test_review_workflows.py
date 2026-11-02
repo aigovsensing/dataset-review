@@ -34,7 +34,12 @@ class ReviewWorkflowTest(unittest.TestCase):
             with self.subTest(workflow=path.name):
                 self.assertRegex(text, r"types:\s*\[opened, labeled\]")
                 self.assertIn("github.event.label.name == 'rerun-review'", text)
-                self.assertIn('--body-file review.md', text)
+                # 결과 댓글은 REST API + 재시도로 등록(GraphQL 일시 오류로 댓글 유실 방지).
+                self.assertIn('issues/$ISSUE_NUMBER/comments', text)
+                self.assertIn('-F body=@review.md', text)
+                self.assertNotIn('--body-file review.md', text)
+                # 댓글 등록 실패 시 reviewed 로 표시하지 않는다.
+                self.assertIn('COMMENT_OUTCOME: ${{ steps.post_comment.outcome }}', text)
                 self.assertIn('--remove-label "rerun-review"', text)
 
     def test_gemini_secrets_are_explicitly_mapped(self) -> None:
