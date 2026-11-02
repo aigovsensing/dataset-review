@@ -854,7 +854,7 @@ def demote_body_headings(body: str) -> str:
     return _BODY_HEADING_RE.sub(lambda m: f"**{m.group(1).strip()}**" if m.group(1).strip() else "", body)
 
 
-REVIEW_TITLE = "# 🐶 비글 · 오픈 데이터셋 법적 리스크 검토 결과"
+REVIEW_TITLE = "# 🐶 똘똘이 비글 · 오픈 데이터셋 법적 리스크 검토 결과"
 
 
 def hoist_review_title(body: str) -> tuple[str, str]:
