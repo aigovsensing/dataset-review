@@ -854,6 +854,22 @@ def demote_body_headings(body: str) -> str:
     return _BODY_HEADING_RE.sub(lambda m: f"**{m.group(1).strip()}**" if m.group(1).strip() else "", body)
 
 
+REVIEW_TITLE = "# 🐶 비글 · 오픈 데이터셋 법적 리스크 검토 결과"
+
+
+def hoist_review_title(body: str) -> tuple[str, str]:
+    """본문 배너의 제목(H1) 줄을 떼어 (제목, 나머지 본문) 으로 돌려준다.
+
+    이슈 댓글이 항상 제목으로 시작하고, 그 아래에 경고·검토 모델 정보·비글 이미지·
+    대상 데이터셋 순으로 오도록 호출부에서 제목을 맨 앞에 다시 배치하는 데 쓴다.
+    제목이 없으면 ("", body) 를 그대로 돌려준다.
+    """
+    marker = REVIEW_TITLE + "\n\n"
+    if marker not in body:
+        return "", body
+    return REVIEW_TITLE + "\n", body.replace(marker, "", 1)
+
+
 def restructure_review(text: str, name: str) -> str:
     """모델 출력을 스캔하기 쉬운 형태로 재구성.
 
@@ -870,7 +886,7 @@ def restructure_review(text: str, name: str) -> str:
     verdict_line = f"{emoji} **{verdict}**" if verdict else "📋 (판정 확인 불가)"
     banner = (
         f'<img src="{BEAGLE_IMG}" align="right" width="76" alt="비글(Beagle)" />\n\n'
-        "# 🐶 비글 · 오픈 데이터셋 법적 리스크 검토 결과\n\n"
+        f"{REVIEW_TITLE}\n\n"
         f"> **대상 데이터셋** &nbsp;`{name or '확인 불가'}`\n"
         f"> **내부 검토 결과** &nbsp;{verdict_line}\n"
     )
@@ -1370,7 +1386,9 @@ def run_review(title: str, body: str, api_key: str) -> str:
         text = separate_adjacent_citations(text)  # 붙은 번호 인용을 콤마로 분리
         text = number_source_list(text)          # '5. 근거 및 출처' 목록에 1) 2) 3) 번호 매김
         text = restructure_review(text, name)
-    parts = [model_header, text]
+    # 출력 순서: 제목 → 검토 모델 정보 → 비글 이미지·대상 데이터셋 → 본문
+    title, text = hoist_review_title(text)
+    parts = [p for p in (title, model_header, text) if p]
     if sources:
         # 본문 [N] 각주와 번호가 일치하는 단일 '근거 및 출처' 목록. (모델이 쓴 동명 섹션은
         # restructure_review 에서 생략 — 번호 체계가 달라 중복·혼란을 유발하므로.)
@@ -1628,7 +1646,10 @@ def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
                 f"<sub>⚠️ 자동 생성 (model: <code>{resolved}</code>, {mode}) · "
                 "미검증 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
             )
-            return enforce_length_limit("\n\n".join((warning, header, text + source_details, footer)))
+            # 출력 순서: 제목 → 경고 → 검토 모델 정보 → 비글 이미지·대상 데이터셋 → 본문
+            title, text = hoist_review_title(text)
+            blocks = [b for b in (title.strip(), warning, header, text + source_details, footer) if b]
+            return enforce_length_limit("\n\n".join(blocks))
         except Exception as exc:  # noqa: BLE001 - 다음 PLAIN 모델로 폴백
             last_exc = exc
             print(f"[diag] ungrounded_fallback model={model} 실패({type(exc).__name__}: "
