@@ -109,6 +109,37 @@ collection_check/judgment, privacy_check/judgment, litigation(소송 여부), au
 - 최신 형식(불릿·4열 표)과 구버전(파이프 표) 검토 댓글을 모두 파싱합니다. 매우 오래된 일부 형식은
   판정·데이터셋만 채워질 수 있으며, 해당 이슈를 `rerun-review` 로 재검토하면 항목 필드까지 채워집니다.
 
+## 검토 결과를 다른 Markdown 페이지에 옮기기 (순수 Markdown 변환)
+
+이슈 댓글의 검토 결과는 GitHub 이 허용하는 일부 HTML(`<details>`·`<summary>`·`<sub>`·`<code>`·
+`<b>`·`<br>`·`<img>`, `&nbsp;`)을 써서 접기·작은 글씨·오른쪽 이미지를 표현합니다. 그런데 많은
+일반 Markdown 페이지(위키·블로그·노트 앱 등)는 **보안상 원시 HTML 을 막아** 태그가 글자 그대로
+보입니다. 또 복사·붙여넣기 중에 따옴표가 `“ ”` 로 바뀌면 `<img src=“…”>` 처럼 속성이 깨져,
+HTML 을 허용하는 페이지에서도 해석되지 않습니다.
+
+옮길 때는 아래 변환기로 **HTML 이 전혀 없는 순수 Markdown** 으로 바꿔 붙여 넣으세요.
+
+```bash
+# 이슈의 최신 검토 결과 댓글을 받아 바로 변환 (공개 저장소는 토큰 불필요)
+python scripts/portable_markdown.py --issue 350 -o 350.md
+
+# 이미 복사해 둔 파일/클립보드 내용 변환
+python scripts/portable_markdown.py review.md > portable.md
+pbpaste | python scripts/portable_markdown.py -        # macOS 클립보드
+```
+
+| GitHub 댓글(HTML) | 변환 결과(순수 Markdown) |
+| --- | --- |
+| `<img src="…" alt="비글">` | `![비글](…)` (오른쪽 정렬·크기 지정은 빠짐) |
+| `<details><summary>⚖️ 소송 리스크</summary> … </details>` | `### ⚖️ 소송 리스크` + 본문 (접기 대신 펼친 제목) |
+| `<sub>…</sub>` | `*…*` (기울임) |
+| `<code>…</code>` / `<b>…</b>` | `` `…` `` / `**…**` |
+| `<br>` / `&nbsp;` | 줄바꿈(인용문 `>` 유지) / 공백 |
+
+- 태그 안의 둥근 따옴표(`“ ” ‘ ’`)는 자동으로 곧은 따옴표로 고친 뒤 변환합니다(본문 문장은 그대로).
+- 표·링크·인용문·목록 등 순수 Markdown 부분은 바꾸지 않습니다.
+- GitHub 이슈 댓글 자체는 그대로 두므로, GitHub 에서는 지금처럼 접기·작은 글씨가 유지됩니다.
+
 ## 라벨
 
 | 라벨 | 의미 |
