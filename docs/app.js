@@ -569,10 +569,13 @@
           const st = i.state === "closed" ? "닫힘" : "열림";
           const title = escapeHtml(String(i.title || "").replace(/^\s*\[논문검토\]\s*/, "")) || ("#" + i.number);
           return (
+            `<div class="result-item">` +
             `<a class="paper-item" href="${i.html_url}" target="_blank" rel="noopener">` +
             `<span class="pi-title">📄 ${title}</span>` +
             `<span class="pi-meta">${badge}<span class="dim">#${i.number} · ${date} · ${st}</span></span>` +
-            `</a>`
+            `</a>` +
+            mdCopyButton(i) +
+            `</div>`
           );
         }).join("");
       })
@@ -960,11 +963,14 @@
         if (i.state) meta.push(i.state === "closed" ? "닫힘" : "열림");
         if (typeof i.comments === "number") meta.push(`댓글 ${i.comments}`);
         return (
+          `<div class="result-item">` +
           `<a class="result-row" href="${i.html_url}" target="_blank" rel="noopener">` +
           `<span class="result-title">#${i.number} ${escapeHtml(i.title)}</span>` +
           `<span class="result-meta">${statusBadge(i.labels)}` +
           `<span class="dim">${meta.join(" · ")}</span></span>` +
-          `</a>`
+          `</a>` +
+          mdCopyButton(i) +
+          `</div>`
         );
       })
       .join("");
@@ -1029,6 +1035,171 @@
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
     }[c]));
   }
+
+  // ==========================================================================
+  //  📋 일반 Markdown 복사 — 검토 결과 댓글을 HTML 없는 순수 Markdown 으로 변환해 복사
+  //  GitHub 은 Markdown 안의 일부 HTML(<details>/<summary>/<sub>/<code>/<b>/<br>/<img>,
+  //  &nbsp;)을 해석하지만 많은 일반 Markdown 페이지는 이를 막아 태그가 그대로 보인다.
+  //  변환 규칙은 scripts/portable_markdown.py 와 동일하다(두 곳을 함께 고칠 것).
+  // ==========================================================================
+  const PM_SMART_QUOTES = { "“": '"', "”": '"', "„": '"', "″": '"', "‘": "'", "’": "'", "′": "'" };
+  function pmAttrs(tag) {
+    const out = {};
+    const re = /([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+    let m;
+    while ((m = re.exec(tag))) {
+      out[m[1].toLowerCase()] = m[2] !== undefined ? m[2] : m[3] !== undefined ? m[3] : m[4];
+    }
+    return out;
+  }
+  function pmStripTags(s) {
+    return String(s).replace(/<[^>]+>/g, "");
+  }
+  function toPortableMarkdown(md) {
+    let t = String(md || "").replace(/\r\n/g, "\n");
+    // 태그 안의 둥근 따옴표만 곧은 따옴표로(본문 문장은 그대로).
+    t = t.replace(/<[^<>\n]+>/g, (tag) => tag.replace(/[“”„″‘’′]/g, (c) => PM_SMART_QUOTES[c]));
+    // <img src alt> → ![alt](src)
+    t = t.replace(/<img\b[^>]*?\/?>/gi, (tag) => {
+      const a = pmAttrs(tag);
+      const src = (a.src || "").trim();
+      if (!src) return "";
+      const alt = (a.alt || "").trim().replace(/\[/g, "(").replace(/\]/g, ")");
+      return `![${alt}](${src})`;
+    });
+    // <details><summary>제목</summary> → 중첩 깊이에 맞춘 제목(### / ####), </details> 제거
+    let depth = 0;
+    t = t.replace(
+      /<details\b[^>]*>\s*(?:<summary\b[^>]*>([\s\S]*?)<\/summary>)?|<\/details\s*>/gi,
+      (m, summary) => {
+        if (/^<\/details/i.test(m)) { depth = Math.max(0, depth - 1); return "\n"; }
+        const level = Math.min(3 + depth, 6);
+        depth += 1;
+        if (summary === undefined) return "";
+        const title = pmStripTags(summary).replace(/\s+/g, " ").trim();
+        return title ? `\n\n${"#".repeat(level)} ${title}\n\n` : "";
+      }
+    );
+    t = t.replace(/<summary\b[^>]*>([\s\S]*?)<\/summary>/gi, (m, x) => `**${pmStripTags(x).trim()}**`);
+    // 인라인 태그
+    t = t.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, (m, x) => {
+      const inner = pmStripTags(x);
+      return inner.includes("`") ? "`` " + inner + " ``" : "`" + inner + "`";
+    });
+    const wrap = (mark) => (m, x) => { const v = x.trim(); return v ? mark + v + mark : ""; };
+    t = t.replace(/<(?:b|strong)\b[^>]*>([\s\S]*?)<\/(?:b|strong)>/gi, wrap("**"));
+    t = t.replace(/<(?:i|em)\b[^>]*>([\s\S]*?)<\/(?:i|em)>/gi, wrap("*"));
+    t = t.replace(/<(?:sub|sup|small)\b[^>]*>([\s\S]*?)<\/(?:sub|sup|small)>/gi, wrap("*"));
+    // <br> → 줄바꿈(인용문 안이면 '>' 접두어 유지)
+    t = t.split("\n").map((line) => {
+      if (!/<br\s*\/?>/i.test(line)) return line;
+      const pm = /^(\s*(?:>\s*)+)/.exec(line);
+      const prefix = pm ? pm[1].trimEnd() + " " : "";
+      const parts = line.split(/<br\s*\/?>/i).map((x) => x.trim());
+      const rest = parts.slice(1).filter(Boolean).map((x) => prefix + x);
+      return rest.length ? [parts[0]].concat(rest).join("  \n") : parts[0];
+    }).join("\n");
+    t = t.replace(/&nbsp;|&#160;/g, " ");
+    t = t.replace(/[ \t]+\n/g, (m) => (m.startsWith("  ") ? "  \n" : "\n"));
+    t = t.replace(/\n{3,}/g, "\n\n");
+    return t.trim() + "\n";
+  }
+
+  // 검토 '결과' 댓글인지(시작 알림·실패 댓글 제외). 데이터셋·논문 검토 공통.
+  function isReviewResultBody(body) {
+    const b = String(body || "");
+    if (b.includes("검토를 시작합니다") || /^##\s*⚠️ 자동 .*검토 실패/m.test(b)) return false;
+    // 현재 형식(제목·**검토 모델) + 예전 형식(**모델 정보 · 꼬리말 "자동 생성 (model:") 모두 인식.
+    return ["법적 리스크 검토 결과", "**검토 모델", "**모델 정보", "자동 생성 (model:"].some((k) => b.includes(k));
+  }
+
+  // 이슈의 가장 최근 검토 결과 댓글 본문(없으면 "").
+  async function fetchLatestReviewBody(number) {
+    let body = "";
+    for (let page = 1; page <= 10; page++) {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/issues/${number}/comments?per_page=100&page=${page}`,
+        { headers: apiHeaders() }
+      );
+      if (!res.ok) throw new Error("comments " + res.status);
+      const items = await res.json();
+      (items || []).forEach((c) => { if (isReviewResultBody(c.body)) body = c.body; });
+      if (!items || items.length < 100) break;
+    }
+    return body;
+  }
+
+  // 클립보드 복사(→ 실패 시 구형 execCommand → 그래도 실패하면 .md 파일 다운로드).
+  async function copyOrDownload(text, filename) {
+    if (await copyText(text)) return "copied";
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      if (ok) return "copied";
+    } catch (e) {
+      /* 다운로드로 폴백 */
+    }
+    const url = URL.createObjectURL(new Blob([text], { type: "text/markdown;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return "downloaded";
+  }
+
+  function labelNames(issue) {
+    return (issue.labels || []).map((l) => (typeof l === "string" ? l : l.name));
+  }
+  // '검토 완료' 이슈에만 복사 버튼을 붙인다(결과 댓글이 있는 경우).
+  function mdCopyButton(issue) {
+    if (labelNames(issue).indexOf("reviewed") < 0) return "";
+    return (
+      `<button type="button" class="btn small md-copy" data-issue="${issue.number}" ` +
+      `title="일반 Markdown 페이지(위키·블로그·노트 등)에 붙여 넣을 수 있도록 HTML 없는 Markdown 으로 복사합니다" ` +
+      `aria-label="#${issue.number} 검토 결과를 일반 Markdown 으로 복사">📋 일반 Markdown 복사</button>`
+    );
+  }
+
+  const mdCache = {};
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest && e.target.closest(".md-copy");
+    if (!btn || btn.disabled) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const n = btn.dataset.issue;
+    const label = btn.dataset.label || btn.textContent;
+    btn.dataset.label = label;
+    btn.disabled = true;
+    btn.textContent = "⏳ 불러오는 중…";
+    try {
+      let md = mdCache[n];
+      if (!md) {
+        const body = await fetchLatestReviewBody(n);
+        if (!body) throw new Error("no-result");
+        md = toPortableMarkdown(body);
+        mdCache[n] = md;
+      }
+      const how = await copyOrDownload(md, `review-${n}.md`);
+      btn.textContent = how === "copied" ? "✅ 복사됨" : "⬇️ 파일로 저장됨";
+    } catch (err) {
+      btn.textContent = err && err.message === "no-result" ? "⚠️ 검토 결과 없음" : "⚠️ 불러오기 실패";
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = btn.dataset.label; }, 2500);
+    }
+  });
+  // 브라우저 콘솔·테스트에서 재사용할 수 있도록 노출.
+  window.toPortableMarkdown = toPortableMarkdown;
 
   // 컨트롤 이벤트 바인딩
   const searchEl = $("#results-search");

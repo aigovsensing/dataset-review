@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import dataset_review as R  # noqa: E402
-from portable_markdown import to_portable_markdown  # noqa: E402
+from portable_markdown import is_review_result_body, to_portable_markdown  # noqa: E402
 
 IMG = "https://raw.githubusercontent.com/aigovsensing/dataset-review/main/docs/beagle.png"
 LEFTOVER_HTML = re.compile(r"<[a-zA-Z/][^>]*>|&[a-z]+;")
@@ -54,6 +54,22 @@ class PortableMarkdownTest(unittest.TestCase):
         self.assertIsNone(LEFTOVER_HTML.search(out), out)
         self.assertIn(R.REVIEW_TITLE, out)
         self.assertIn(f"]({R.BEAGLE_IMG})", out)
+
+    def test_review_result_detection(self) -> None:
+        self.assertTrue(is_review_result_body(R.REVIEW_TITLE + "\n> 🤖 **검토 모델** `m`"))
+        self.assertTrue(is_review_result_body("> 🤖 **검토 모델** &nbsp;`m`\n논문 본문"))  # 논문 검토
+        self.assertTrue(is_review_result_body("**모델 정보:** `gemini-3.6-flash`\n## 종합의견"))  # 예전 형식
+        self.assertFalse(is_review_result_body("🤖 자동 논문 법무 검토를 시작합니다. 잠시만 기다려 주세요"))
+        self.assertFalse(is_review_result_body("🤖 자동 법적 리스크 검토를 시작합니다."))
+        self.assertFalse(is_review_result_body("## ⚠️ 자동 법적 리스크 검토 실패\n\n오류"))
+        self.assertFalse(is_review_result_body("## ⚠️ 자동 논문 법무 검토 실패\n\n오류"))
+
+    def test_js_converter_mirrors_python(self) -> None:
+        # 홈페이지(docs/app.js)의 변환기가 같은 규칙을 쓰는지(핵심 정규식이 존재하는지) 확인.
+        js = (Path(__file__).resolve().parents[1] / "docs" / "app.js").read_text(encoding="utf-8")
+        for needle in ("function toPortableMarkdown", "function isReviewResultBody",
+                       'class="btn small md-copy"', "**검토 모델", "검토를 시작합니다"):
+            self.assertIn(needle, js)
 
 
 if __name__ == "__main__":

@@ -31,9 +31,18 @@ import sys
 import urllib.request
 
 DEFAULT_REPO = os.environ.get("GITHUB_REPOSITORY") or "aigovsensing/dataset-review"
-# 검토 결과 댓글 식별 문자열(데이터셋 검토·논문 검토 공통으로 포함되는 문구).
-REVIEW_MARKERS = ("법적 리스크 검토 결과", "법무 검토 결과", "검토 결과")
+# 검토 '결과' 댓글 식별(시작 알림·실패 댓글 제외). 데이터셋·논문 검토 공통이며,
+# 홈페이지 '📋 일반 Markdown 복사' 버튼(docs/app.js isReviewResultBody)과 같은 규칙이다.
+# 현재 형식(제목·**검토 모델) + 예전 형식(**모델 정보 · 꼬리말 "자동 생성 (model:") 모두 인식.
+REVIEW_MARKERS = ("법적 리스크 검토 결과", "**검토 모델", "**모델 정보", "자동 생성 (model:")
 START_NOTICE = "검토를 시작합니다"
+_FAILURE_RE = re.compile(r"^##\s*⚠️ 자동 .*검토 실패", re.M)
+
+
+def is_review_result_body(body: str) -> bool:
+    if START_NOTICE in body or _FAILURE_RE.search(body):
+        return False
+    return any(k in body for k in REVIEW_MARKERS)
 
 _SMART_QUOTES = str.maketrans({"“": '"', "”": '"', "„": '"', "″": '"', "‘": "'", "’": "'", "′": "'"})
 _TAG_RE = re.compile(r"<[^<>\n]+>")
@@ -156,7 +165,7 @@ def fetch_latest_review(issue: int, repo: str = DEFAULT_REPO) -> str:
             items = json.load(r)
         for c in items:
             b = c.get("body") or ""
-            if START_NOTICE not in b and any(k in b for k in REVIEW_MARKERS):
+            if is_review_result_body(b):
                 body = b  # 마지막(최신) 검토 결과를 사용
         if len(items) < 100:
             break
