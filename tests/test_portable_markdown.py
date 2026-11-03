@@ -53,7 +53,7 @@ class PortableMarkdownTest(unittest.TestCase):
         out = to_portable_markdown(body)
         self.assertIsNone(LEFTOVER_HTML.search(out), out)
         self.assertIn(R.REVIEW_TITLE, out)
-        self.assertIn(f"]({R.BEAGLE_IMG})", out)
+        self.assertNotIn("beagle", out)  # 마스코트 이미지는 출력하지 않는다
 
     def test_review_result_detection(self) -> None:
         self.assertTrue(is_review_result_body(R.REVIEW_TITLE + "\n> 🤖 **검토 모델** `m`"))

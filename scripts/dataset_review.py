@@ -39,13 +39,6 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 
-# 비글 마스코트 이미지(이슈 댓글용). GitHub 댓글은 camo 프록시가 SVG 를 잘 렌더링하지
-# 못하므로 PNG(raw URL)를 사용한다. 저장소/브랜치는 GITHUB_REPOSITORY 로부터 유도.
-_REPO = os.environ.get("GITHUB_REPOSITORY") or "aigovsensing/dataset-review"
-BEAGLE_IMG = (
-    os.environ.get("BEAGLE_IMG_URL")
-    or f"https://raw.githubusercontent.com/{_REPO}/main/docs/beagle.png"
-)
 
 # 이슈 폼(dataset-review.yml)의 라벨 → 내부 필드 키 매핑
 FIELD_LABELS = {
@@ -860,7 +853,7 @@ REVIEW_TITLE = "# 🐶 똘똘이 비글 · 오픈 데이터셋 법적 리스크 
 def hoist_review_title(body: str) -> tuple[str, str]:
     """본문 배너의 제목(H1) 줄을 떼어 (제목, 나머지 본문) 으로 돌려준다.
 
-    이슈 댓글이 항상 제목으로 시작하고, 그 아래에 경고·검토 모델 정보·비글 이미지·
+    이슈 댓글이 항상 제목으로 시작하고, 그 아래에 경고·검토 모델 정보·
     대상 데이터셋 순으로 오도록 호출부에서 제목을 맨 앞에 다시 배치하는 데 쓴다.
     제목이 없으면 ("", body) 를 그대로 돌려준다.
     """
@@ -884,8 +877,9 @@ def restructure_review(text: str, name: str) -> str:
     text = ensure_detail_section_header(text)
     verdict, emoji = detect_verdict(text)
     verdict_line = f"{emoji} **{verdict}**" if verdict else "📋 (판정 확인 불가)"
+    # 마스코트 이미지(<img align="right">)는 넣지 않는다: 댓글 원문(편집 화면)과 다른 웹페이지로
+    # 복사했을 때 HTML 태그가 그대로 노출되어 지저분했다.
     banner = (
-        f'<img src="{BEAGLE_IMG}" align="right" width="76" alt="비글(Beagle)" />\n\n'
         f"{REVIEW_TITLE}\n\n"
         f"> **대상 데이터셋** &nbsp;`{name or '확인 불가'}`\n"
         f"> **내부 검토 결과** &nbsp;{verdict_line}\n"

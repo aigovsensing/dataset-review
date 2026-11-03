@@ -19,8 +19,10 @@ class ReviewLayoutTest(unittest.TestCase):
         title, rest = R.hoist_review_title(body)
         self.assertEqual(title.strip(), R.REVIEW_TITLE)
         self.assertNotIn(R.REVIEW_TITLE, rest)
-        # 남은 본문은 비글 이미지 → 대상 데이터셋 순서로 시작한다.
-        self.assertLess(rest.index("beagle"), rest.index("대상 데이터셋"))
+        # 남은 본문은 대상 데이터셋 배너로 시작하고, 비글 이미지(<img>)는 더 이상 출력하지 않는다.
+        self.assertTrue(rest.lstrip().startswith("> **대상 데이터셋**"))
+        self.assertNotIn("<img", body)
+        self.assertNotIn("beagle", body)
 
     def test_hoist_without_title_is_noop(self) -> None:
         self.assertEqual(R.hoist_review_title("plain text"), ("", "plain text"))
@@ -30,8 +32,7 @@ class ReviewLayoutTest(unittest.TestCase):
         out = "\n\n".join((title.strip(), "> ⚠️ 경고", "> 🤖 **검토 모델**", rest))
         self.assertTrue(out.startswith(R.REVIEW_TITLE))
         self.assertLess(out.index("⚠️ 경고"), out.index("검토 모델"))
-        self.assertLess(out.index("검토 모델"), out.index("beagle"))
-        self.assertLess(out.index("beagle"), out.index("대상 데이터셋"))
+        self.assertLess(out.index("검토 모델"), out.index("대상 데이터셋"))
         self.assertEqual(out.count(R.REVIEW_TITLE), 1)
 
 
