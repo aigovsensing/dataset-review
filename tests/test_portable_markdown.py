@@ -64,26 +64,6 @@ class PortableMarkdownTest(unittest.TestCase):
         self.assertFalse(is_review_result_body("## ⚠️ 자동 법적 리스크 검토 실패\n\n오류"))
         self.assertFalse(is_review_result_body("## ⚠️ 자동 논문 법무 검토 실패\n\n오류"))
 
-    def test_js_converter_mirrors_python(self) -> None:
-        # 홈페이지(docs/app.js)의 변환기가 같은 규칙을 쓰는지(핵심 정규식이 존재하는지) 확인.
-        js = (Path(__file__).resolve().parents[1] / "docs" / "app.js").read_text(encoding="utf-8")
-        for needle in ("function toPortableMarkdown", "function isReviewResultBody",
-                       'class="btn small md-copy"', "**검토 모델", "검토를 시작합니다"):
-            self.assertIn(needle, js)
-
-    def test_rich_clipboard_support_is_present(self) -> None:
-        # 리치 편집기(SunEditor 등)용 HTML + 일반 텍스트용 Markdown 을 함께 복사하는 경로.
-        js = (Path(__file__).resolve().parents[1] / "docs" / "app.js").read_text(encoding="utf-8")
-        for needle in (
-            "function toPortableHtml",          # GitHub 렌더 HTML 정리
-            'querySelectorAll("hr")',           # <hr> 뒤 내용이 버려지는 편집기 대응
-            "application/vnd.github.full+json",  # body_html 수신
-            "new ClipboardItem",                # text/html + text/plain 동시 복사
-            '"text/html"', '"text/plain"',
-            "markdown-accessiblity",            # GitHub 전용 래퍼 언급(제거 대상)
-        ):
-            self.assertIn(needle, js)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,8 +31,7 @@ import sys
 import urllib.request
 
 DEFAULT_REPO = os.environ.get("GITHUB_REPOSITORY") or "aigovsensing/dataset-review"
-# 검토 '결과' 댓글 식별(시작 알림·실패 댓글 제외). 데이터셋·논문 검토 공통이며,
-# 홈페이지 '📋 일반 Markdown 복사' 버튼(docs/app.js isReviewResultBody)과 같은 규칙이다.
+# 검토 '결과' 댓글 식별(시작 알림·실패 댓글 제외). 데이터셋·논문 검토 공통.
 # 현재 형식(제목·**검토 모델) + 예전 형식(**모델 정보 · 꼬리말 "자동 생성 (model:") 모두 인식.
 REVIEW_MARKERS = ("법적 리스크 검토 결과", "**검토 모델", "**모델 정보", "자동 생성 (model:")
 START_NOTICE = "검토를 시작합니다"

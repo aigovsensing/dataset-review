@@ -108,7 +108,7 @@ python scripts/dataset_review.py     # review.md 생성
 | 문서 | 내용 |
 | --- | --- |
 | [설정 (Setup)](documents/setup.md) | API 키·라벨·Pages·Actions 권한·접근 암호·재배포 등 1회 설정 상세 |
-| [사용 (Usage)](documents/usage.md) | 검토 요청·결과 열람·대시보드·재검토, 입력 팁, 논문(arXiv) 분석 방식, CSV 내보내기, **다른 웹페이지로 복사·붙여넣기(HTML·Markdown 동시 복사)**, 라벨 |
+| [사용 (Usage)](documents/usage.md) | 검토 요청·결과 열람·대시보드·재검토, 입력 팁, 논문(arXiv) 분석 방식, CSV 내보내기, **다른 Markdown 페이지로 옮기기(명령줄 변환)**, 라벨 |
 | [구조와 동작 (Architecture)](documents/architecture.md) | 데이터 흐름·동작 흐름 다이어그램, 설계 특징, 자의적 해석 금지 원칙, 구성 요소 |
 | [모델·무료 쿼터·비용 (Models & Quota)](documents/models-and-quota.md) | 무료 운영 설계, 모델 선택/폴백, 무료 티어 모델, 503 자동 복구, **하이브리드 2패스**, 예상 비용 |
 | [소송 리스크 검토](documents/litigation.md) | AI 학습 데이터 무단 활용 소송 조사·근거 강도 분류 방식 |
