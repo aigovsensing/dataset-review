@@ -7,6 +7,8 @@
   <meta name="description" content="똘똘이 비글(Beagle) — 오픈 데이터셋과 연구논문의 라이선스·데이터·개인정보·저작권 법적 리스크를 킁킁대며 자동 검토합니다." />
   <link rel="icon" type="image/svg+xml" href="beagle.svg" />
   <link rel="stylesheet" href="style.css" />
+  <script src="i18n-en.js"></script>
+  <script src="i18n.js"></script>
   <script>
     // 렌더링 깜빡임(FOUC) 방지: 저장된/시스템 테마를 렌더 전에 적용.
     (function () {
@@ -48,6 +50,11 @@
   </div>
   <header class="site-header">
     <div class="wrap">
+      <!-- 언어 전환: 한국어 ↔ English (docs/i18n.js). translate="no": 번역 대상에서 제외 -->
+      <div class="lang-switch" role="group" aria-label="Language / 언어" translate="no">
+        <button type="button" class="lang-btn" data-set-lang="ko" lang="ko" title="한국어로 보기">한국어</button>
+        <button type="button" class="lang-btn" data-set-lang="en" lang="en" title="View in English">English</button>
+      </div>
       <button id="theme-toggle" class="theme-toggle" type="button"
               aria-label="낮/밤 테마 전환" title="낮/밤 테마 전환">
         <svg class="icon icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
@@ -461,6 +468,7 @@
   </footer>
 
   <script src="config.js"></script>
+  <script>I18N.init();</script>
   <script src="app.js"></script>
 </body>
 </html>

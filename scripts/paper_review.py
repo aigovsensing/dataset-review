@@ -27,6 +27,7 @@ import urllib.request
 from pathlib import Path
 
 import dataset_review as R  # 공용 헬퍼 재사용 (scripts/ 가 sys.path[0] 이므로 import 가능)
+import review_translate as RT  # 영어 요청 지원(번역·합성)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
@@ -41,6 +42,8 @@ PAPER_FIELD_LABELS = {
     # 구버전 폼 호환: 과거 이슈의 "추가 참고 사항" 도 계속 인식
     "추가 참고 사항": "extra_notes",
 }
+# 영어 이슈 양식(.github/ISSUE_TEMPLATE/paper-review-en.yml)의 라벨도 같은 내부 키로 매핑한다.
+PAPER_FIELD_LABELS.update(RT.EN_PAPER_FIELD_LABELS)
 NO_RESPONSE_MARKERS = {"_No response_", "_없음_", "N/A", "없음", ""}
 
 # 내려받는 PDF 크기 상한. 이 값 이하이면 요청에 inline 으로 첨부하고, 초과하면 Files API 로 업로드.
@@ -66,7 +69,7 @@ def parse_paper_body(body: str) -> dict[str, str]:
 def derive_paper_title(title: str, fields: dict[str, str]) -> str:
     name = (fields.get("paper_title") or "").strip()
     if not name and title:
-        name = re.sub(r"^\s*\[논문검토\]\s*", "", title).strip()
+        name = re.sub(r"^\s*\[(?:논문검토|Paper ?Review)\]\s*", "", title, flags=re.I).strip()
     return name
 
 
@@ -444,7 +447,8 @@ def main() -> int:
 
     if not result and last_exc:
         result = (
-            "## ⚠️ 자동 논문 법무 검토 실패\n\n"
+            (RT.english_failure_notice(last_exc) if RT.detect_language(body) == "en" else "")
+            + "## ⚠️ 자동 논문 법무 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{R.safe_exception_text(last_exc, used_key)}\n```\n\n"
             + R.classify_failure(last_exc, used_key, used_var)
@@ -454,7 +458,16 @@ def main() -> int:
         print(result, file=sys.stderr)
         return 1
 
-    result += R.key_rotation_note(failed_vars, active_var)
+    ko_note = R.key_rotation_note(failed_vars, active_var)
+    if RT.detect_language(body) == "en":
+        # 영어 요청: 한국어 정본을 영어로 번역해 위에 두고 한국어 원문은 접어 함께 게시(집계는 한국어 원문 파싱).
+        en, _model = RT.translate_to_english(result, api_keys)
+        if en:
+            result = RT.compose_bilingual(en + RT.key_rotation_note_en(failed_vars, active_var), result + ko_note)
+        else:
+            result = RT.english_unavailable_notice() + result + ko_note
+    else:
+        result += ko_note
     output_path.write_text(result, encoding="utf-8")
     print(f"논문 검토 결과를 {output_path} 에 저장했습니다 ({len(result)} chars).")
     return 0

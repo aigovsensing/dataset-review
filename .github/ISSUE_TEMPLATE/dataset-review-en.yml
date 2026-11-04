@@ -1,0 +1,104 @@
+name: Legal risk review request (open dataset) — English
+description: Request an automated legal-risk review (license, data creation method, personal information) of an open dataset. The result is posted in English.
+title: "[Dataset Review] "
+labels: ["dataset-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Open dataset legal-risk review request
+        Fill in the information below and the automated review agent (Gemini + Google Search) will review
+        **license / data creation & collection method / personal information**, then post the result
+        as a comment on this issue — **in English** (the Korean original is included in a collapsed section).
+
+        > This review is a reference for internal pre-screening of risk and does not replace legal advice.
+  - type: input
+    id: dataset-name
+    attributes:
+      label: Dataset name
+      description: The official name of the open dataset to review
+      placeholder: e.g. CelebA, LAION-5B, COCO, Common Voice
+    validations:
+      required: true
+  - type: textarea
+    id: extra-notes
+    attributes:
+      label: Description
+      description: Anything special or any request to take into account in the review.
+    validations:
+      required: false
+  - type: textarea
+    id: dataset-repo-url
+    attributes:
+      label: Dataset repository URL
+      description: >
+        URL of the repository where the dataset is published. This is the **primary basis** for the license
+        verdict (the dataset's own license). Separate several URLs with line breaks.
+      placeholder: |
+        https://huggingface.co/datasets/...
+        https://www.kaggle.com/datasets/...
+        https://zenodo.org/...
+        https://datasetsearch.research.google.com/...
+    validations:
+      required: false
+  - type: textarea
+    id: related-datasets
+    attributes:
+      label: Related / source datasets
+      description: If this dataset is built on an upstream (source) dataset, enter it here.
+      placeholder: e.g. Based on COCO 2017, partly uses ImageNet
+    validations:
+      required: false
+  - type: textarea
+    id: paper-urls
+    attributes:
+      label: Paper URL
+      description: URL of the dataset paper (arXiv, DOI, etc.). Separate several URLs with line breaks.
+      placeholder: |
+        https://arxiv.org/abs/xxxx.xxxxx
+    validations:
+      required: false
+  - type: textarea
+    id: code-repo-url
+    attributes:
+      label: Source code repository URL
+      description: >
+        URL of the source code repository that uses or implements the dataset (for reference). The code license may
+        differ from the dataset license; the review judges by the **dataset license**.
+      placeholder: |
+        https://github.com/...
+        https://gitlab.com/...
+        https://dev.azure.com/...
+        https://bitbucket.org/...
+    validations:
+      required: false
+  - type: textarea
+    id: litigation-url
+    attributes:
+      label: Related lawsuit (CourtListener URL)
+      description: >
+        If the dataset is the subject of a lawsuit over unauthorized use as AI training data, enter the docket
+        (complaint) URL. The review will also examine "how the plaintiff established infringement (strength of
+        evidence: strong/medium/weak)" with quotes and a summary of the complaint.
+      placeholder: |
+        https://www.courtlistener.com/docket/...
+    validations:
+      required: false
+  - type: dropdown
+    id: system-prompt
+    attributes:
+      label: Select system prompt
+      description: >
+        Choose the system prompt (prompt-book/*.md) used for the review. The default is "Base".
+        (Files are in prompt-book/.)
+      options:
+        - "Base — system_prompt_dataset_review_base.md"
+        - "Heejin — system_prompt_dataset_review_heejin.md"
+        - "None (Base is used)"
+      default: 0
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        When you submit, the `dataset-review` label is applied automatically and the review starts.
+        A review usually takes 1–3 minutes.

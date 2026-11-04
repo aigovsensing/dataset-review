@@ -1,6 +1,11 @@
 (function () {
   "use strict";
 
+  // 언어/지역(docs/i18n.js): 날짜·시간 표기에 사용. i18n.js 가 없으면 한국어.
+  const LOCALE = (window.I18N && window.I18N.locale) || "ko-KR";
+  const IS_EN = !!(window.I18N && window.I18N.lang === "en");
+  const t = (window.I18N && window.I18N.t) || ((s, v) => (v ? s.replace(/\{(\w+)\}/g, (m, k) => (v[k] !== undefined ? v[k] : m)) : s));
+
   const cfg = window.DATASET_REVIEW_CONFIG || {};
   const { owner, repo, template, label } = cfg;
   const repoUrl = `https://github.com/${owner}/${repo}`;
@@ -234,9 +239,9 @@
     if (!menu) return;
     const rows = shareTargets().map((it) =>
       `<div class="share-row">` +
-      `<span class="sr-label">${escapeHtml(it.label)}</span>` +
+      `<span class="sr-label">${escapeHtml(t(it.label))}</span>` +
       `<input class="sr-url" type="text" readonly value="${escapeHtml(it.url)}" ` +
-      `aria-label="${escapeHtml(it.label)} 링크" />` +
+      `aria-label="${escapeHtml(t("{label} 링크", { label: t(it.label) }))}" />` +
       `<button class="btn primary small sr-copy" type="button">복사</button>` +
       `</div>`
     ).join("");
@@ -271,8 +276,8 @@
       const ok = await copyText(url);
       if (!ok && inp) { inp.focus(); inp.select(); } // 폴백: 직접 복사(Ctrl/⌘+C)
       if (msg) msg.textContent = ok
-        ? `복사되었습니다 — ${label} 링크`
-        : `링크가 선택되었습니다. Ctrl/⌘+C 로 복사하세요.`;
+        ? t("복사되었습니다 — {label} 링크", { label })
+        : t("링크가 선택되었습니다. Ctrl/⌘+C 로 복사하세요.");
     });
     // 바깥 클릭 시 닫기
     document.addEventListener("click", (e) => {
@@ -294,9 +299,9 @@
   // ---- 이슈 폼 prefill URL 생성 ----
   function buildIssueUrl(values) {
     const params = new URLSearchParams();
-    params.set("template", template);
+    params.set("template", IS_EN && cfg.templateEn ? cfg.templateEn : template);
     const name = values["dataset-name"] || "";
-    params.set("title", `[데이터셋검토] ${name}`.trim());
+    params.set("title", `${t("[데이터셋검토]")} ${name}`.trim());
     fieldIds.forEach((id) => {
       if (values[id]) params.set(id, values[id]);
     });
@@ -310,7 +315,7 @@
   }
   // 이슈 제목 "[데이터셋검토] {명칭}"(구: "[검토]")에서 데이터셋 명칭만 추출.
   function datasetFromTitle(title) {
-    const m = /^\s*\[(?:데이터셋검토|검토)\]\s*(.*)$/.exec(String(title || ""));
+    const m = /^\s*\[(?:데이터셋검토|검토|Dataset ?Review)\]\s*(.*)$/i.exec(String(title || ""));
     return (m ? m[1] : String(title || "")).trim();
   }
 
@@ -349,7 +354,7 @@
         if (hit) {
           return {
             number: hit.issue,
-            title: hit.dataset ? `[데이터셋검토] ${hit.dataset}` : `#${hit.issue}`,
+            title: hit.dataset ? `${t("[데이터셋검토]")} ${hit.dataset}` : `#${hit.issue}`,
             url: hit.url || `${repoUrl}/issues/${hit.issue}`,
           };
         }
@@ -411,7 +416,7 @@
       const values = collectValues();
       const name = values["dataset-name"];
       if (!name) {
-        alert("데이터셋 명칭을 입력해 주세요.");
+        alert(t("데이터셋 명칭을 입력해 주세요."));
         return;
       }
       clearRequestNotice();
@@ -451,15 +456,15 @@
     previewBtn.addEventListener("click", () => {
       const values = collectValues();
       const lines = [
-        `제목: [데이터셋검토] ${values["dataset-name"] || ""}`,
+        `${t("제목")}: ${t("[데이터셋검토]")} ${values["dataset-name"] || ""}`,
         "",
-        `데이터셋 명칭: ${values["dataset-name"] || "(미입력)"}`,
-        `설명 (Description): ${values["extra-notes"] || "-"}`,
-        `데이터셋 저장소: ${values["dataset-repo-url"] || "-"}`,
-        `관련 / 원본 데이터셋: ${values["related-datasets"] || "-"}`,
-        `논문 주소: ${values["paper-urls"] || "-"}`,
-        `소스코드 저장소: ${values["code-repo-url"] || "-"}`,
-        `관련 소송 (CourtListener): ${values["litigation-url"] || "-"}`,
+        `${t("데이터셋 명칭")}: ${values["dataset-name"] || t("(미입력)")}`,
+        `${t("설명 (Description)")}: ${values["extra-notes"] || "-"}`,
+        `${t("데이터셋 저장소")}: ${values["dataset-repo-url"] || "-"}`,
+        `${t("관련 / 원본 데이터셋")}: ${values["related-datasets"] || "-"}`,
+        `${t("논문 주소")}: ${values["paper-urls"] || "-"}`,
+        `${t("소스코드 저장소")}: ${values["code-repo-url"] || "-"}`,
+        `${t("관련 소송 (CourtListener)")}: ${values["litigation-url"] || "-"}`,
       ];
       $("#preview-body").textContent = lines.join("\n");
       $("#preview").open = true;
@@ -496,8 +501,8 @@
   // 이슈 폼(paper-review.yml) prefill URL. 필드 id: paper-title / paper-url / extra-notes
   function buildPaperIssueUrl(v) {
     const params = new URLSearchParams();
-    params.set("template", paperTemplate);
-    params.set("title", `[논문검토] ${v.title || ""}`.trim());
+    params.set("template", IS_EN && cfg.paperTemplateEn ? cfg.paperTemplateEn : paperTemplate);
+    params.set("title", `${t("[논문검토]")} ${v.title || ""}`.trim());
     if (v.title) params.set("paper-title", v.title);
     if (v.url) params.set("paper-url", v.url);
     if (v.notes) params.set("extra-notes", v.notes);
@@ -510,7 +515,7 @@
       e.preventDefault();
       const v = paperValues();
       if (!v.url) {
-        alert("논문 PDF 또는 웹사이트 URL 을 입력해 주세요.");
+        alert(t("논문 PDF 또는 웹사이트 URL 을 입력해 주세요."));
         return;
       }
       window.open(buildPaperIssueUrl(v), "_blank", "noopener");
@@ -521,11 +526,11 @@
     paperPreviewBtn.addEventListener("click", () => {
       const v = paperValues();
       const lines = [
-        `제목: [논문검토] ${v.title || ""}`,
+        `${t("제목")}: ${t("[논문검토]")} ${v.title || ""}`,
         "",
-        `논문 제목: ${v.title || "(미입력 — 원문에서 확인)"}`,
-        `논문 PDF / 웹사이트 URL: ${v.url || "(미입력)"}`,
-        `설명 (Description): ${v.notes || "-"}`,
+        `${t("논문 제목")}: ${v.title || t("(미입력 — 원문에서 확인)")}`,
+        `${t("논문 PDF / 웹사이트 URL")}: ${v.url || t("(미입력)")}`,
+        `${t("설명 (Description)")}: ${v.notes || "-"}`,
       ];
       $("#paper-preview-body").textContent = lines.join("\n");
       $("#paper-preview").open = true;
@@ -560,14 +565,14 @@
           return;
         }
         box.innerHTML = rows.map((i) => {
-          const date = i.created_at ? new Date(i.created_at).toLocaleDateString("ko-KR") : "";
+          const date = i.created_at ? new Date(i.created_at).toLocaleDateString(LOCALE) : "";
           const labels = (i.labels || []).map((l) => (typeof l === "string" ? l : l.name));
           let badge = '<span class="pbadge warn">대기</span>';
           if (labels.indexOf("reviewed") > -1) badge = '<span class="pbadge ok">✅ 검토 완료</span>';
           else if (labels.indexOf("review-failed") > -1) badge = '<span class="pbadge fail">⚠️ 실패</span>';
           else if (labels.indexOf("reviewing") > -1) badge = '<span class="pbadge warn">⏳ 검토 중</span>';
-          const st = i.state === "closed" ? "닫힘" : "열림";
-          const title = escapeHtml(String(i.title || "").replace(/^\s*\[논문검토\]\s*/, "")) || ("#" + i.number);
+          const st = t(i.state === "closed" ? "닫힘" : "열림");
+          const title = escapeHtml(String(i.title || "").replace(/^\s*\[(?:논문검토|Paper ?Review)\]\s*/i, "")) || ("#" + i.number);
           return (
             `<a class="paper-item" href="${i.html_url}" target="_blank" rel="noopener">` +
             `<span class="pi-title">📄 ${title}</span>` +
@@ -638,7 +643,7 @@
     const selfgen = n((r) => r.data_type === "자체 생성");
     const privacy = n((r) => r.privacy === "포함");
     const copyright = n((r) => r.copyright === "검토 필요");
-    const latest = paperDash.exportedAt ? new Date(paperDash.exportedAt).toLocaleString("ko-KR") : "-";
+    const latest = paperDash.exportedAt ? new Date(paperDash.exportedAt).toLocaleString(LOCALE) : "-";
 
     // 데이터 유형 구성 막대
     const DT_ORDER = ["외부 Dataset", "자체 생성", "혼합", "미사용", "확인 불가"];
@@ -722,7 +727,7 @@
     const rows = all.slice(start, start + paperDash.pageSize);
     updatePaperPager(total, pages);
     tbody.innerHTML = rows.map((r, idx) => {
-      const date = r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "-";
+      const date = r.created_at ? new Date(r.created_at).toLocaleDateString(LOCALE) : "-";
       const main =
         `<tr class="ds-row" data-pidx="${idx}">` +
         `<td><span class="ds-link">${escapeHtml(r.title || ("#" + r.issue))}</span></td>` +
@@ -748,7 +753,7 @@
     if (total <= 0) { pager.hidden = true; return; }
     pager.hidden = false;
     const info = $("#paper-dash-info");
-    if (info) info.textContent = `${paperDash.page} / ${pages} 페이지 · 총 ${total}편`;
+    if (info) info.textContent = t("{p} / {n} 페이지 · 총 {total}편", { p: paperDash.page, n: pages, total });
     const prev = $("#paper-dash-prev");
     const next = $("#paper-dash-next");
     if (prev) prev.disabled = paperDash.page <= 1;
@@ -828,7 +833,7 @@
   function fmtTime(epochSeconds) {
     if (!epochSeconds) return "";
     try {
-      return new Date(epochSeconds * 1000).toLocaleTimeString("ko-KR");
+      return new Date(epochSeconds * 1000).toLocaleTimeString(LOCALE);
     } catch (e) {
       return "";
     }
@@ -840,30 +845,29 @@
     let openAuth = false;
     if (status === 401) {
       // 잘못되었거나 만료된 토큰
-      msg =
-        "GitHub 토큰이 유효하지 않거나 만료되었습니다 (401). '🔑 인증'에서 토큰을 다시 입력하거나 삭제하세요.";
+      msg = t("GitHub 토큰이 유효하지 않거나 만료되었습니다 (401). '🔑 인증'에서 토큰을 다시 입력하거나 삭제하세요.");
       openAuth = true;
       setAuthStatus("토큰이 유효하지 않습니다 (401). 다시 입력하거나 삭제하세요.", "err");
     } else if (status === 403 && rateRemaining === "0") {
-      const resetTxt = rateReset ? ` 약 ${fmtTime(rateReset)}에 초기화됩니다.` : "";
+      const resetTxt = rateReset ? t(" 약 {time}에 초기화됩니다.", { time: fmtTime(rateReset) }) : "";
       if (hasToken) {
         msg =
-          "인증 상태에서도 API 요청 한도(시간당 5,000회)를 초과했습니다." +
+          t("인증 상태에서도 API 요청 한도(시간당 5,000회)를 초과했습니다.") +
           resetTxt +
-          " 잠시 후 다시 시도하거나 아래 링크를 이용하세요.";
+          t(" 잠시 후 다시 시도하거나 아래 링크를 이용하세요.");
       } else {
         msg =
-          "GitHub 비인증 API 요청 한도(IP당 시간당 60회)를 초과했습니다." +
+          t("GitHub 비인증 API 요청 한도(IP당 시간당 60회)를 초과했습니다.") +
           resetTxt +
-          " 회사 공용 IP를 공유하는 환경에서는 한도가 빠르게 소진될 수 있습니다. " +
-          "위 '🔑 인증'에서 본인의 GitHub 토큰을 입력하면 시간당 5,000회로 늘릴 수 있습니다. " +
-          "또는 아래 링크에서 직접 확인하세요.";
+          t(" 회사 공용 IP를 공유하는 환경에서는 한도가 빠르게 소진될 수 있습니다. ") +
+          t("위 '🔑 인증'에서 본인의 GitHub 토큰을 입력하면 시간당 5,000회로 늘릴 수 있습니다. ") +
+          t("또는 아래 링크에서 직접 확인하세요.");
         openAuth = true;
       }
     } else if (status === 403) {
-      msg = "GitHub API 접근이 거부되었습니다 (403). 잠시 후 다시 시도하거나 아래 링크를 이용하세요.";
+      msg = t("GitHub API 접근이 거부되었습니다 (403). 잠시 후 다시 시도하거나 아래 링크를 이용하세요.");
     } else {
-      msg = `목록을 불러오지 못했습니다 (GitHub API ${status || "오류"}).`;
+      msg = t("목록을 불러오지 못했습니다 (GitHub API {status}).", { status: status || t("오류") });
     }
 
     // 인증이 도움이 되는 상황이면 토큰 패널을 자동으로 펼친다
@@ -888,7 +892,7 @@
       if (r.status && r.status !== "pending") labels.push({ name: r.status });
       return {
         number: r.issue,
-        title: r.dataset ? `[데이터셋검토] ${r.dataset}` : `#${r.issue}`,
+        title: r.dataset ? `${t("[데이터셋검토]")} ${r.dataset}` : `#${r.issue}`,
         html_url: r.url,
         created_at: r.created_at,
         state: r.state, // 구버전 JSON 엔 없을 수 있음(그때는 상태·댓글 표기 생략)
@@ -908,12 +912,15 @@
         const rows = (data && data.rows) || [];
         if (!rows.length) throw new Error("reviews.json empty");
         const when = data.exported_at
-          ? new Date(data.exported_at).toLocaleString("ko-KR")
+          ? new Date(data.exported_at).toLocaleString(LOCALE)
           : "";
         setNotice(
           notice +
-            `<p class="dim" style="margin-top:14px">📁 GitHub API 대신 자동 집계 데이터로 표시합니다` +
-            `${when ? ` (${when} 기준, 매일 갱신)` : ""}.</p>`
+            `<p class="dim" style="margin-top:14px">${escapeHtml(
+              when
+                ? t("📁 GitHub API 대신 자동 집계 데이터로 표시합니다 ({when} 기준, 매일 갱신).", { when })
+                : t("📁 GitHub API 대신 자동 집계 데이터로 표시합니다.")
+            )}</p>`
         );
         setIssues(issuesFromRows(rows));
       });
@@ -925,8 +932,8 @@
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
       if (cached && Array.isArray(cached.issues) && cached.issues.length) {
-        const when = new Date(cached.t).toLocaleString("ko-KR");
-        notice += `<p class="dim" style="margin-top:14px">📁 아래는 마지막으로 불러온 캐시 목록입니다 (${when} 기준, 최신이 아닐 수 있음).</p>`;
+        const when = new Date(cached.t).toLocaleString(LOCALE);
+        notice += `<p class="dim" style="margin-top:14px">${escapeHtml(t("📁 아래는 마지막으로 불러온 캐시 목록입니다 ({when} 기준, 최신이 아닐 수 있음).", { when }))}</p>`;
         cachedIssues = cached.issues;
       }
     } catch (e) {
@@ -956,9 +963,9 @@
     return items
       .map((i) => {
         // 메타는 있는 값만 이어붙인다(JSON 폴백엔 state·comments 가 없을 수 있음).
-        const meta = [new Date(i.created_at).toLocaleString("ko-KR")];
-        if (i.state) meta.push(i.state === "closed" ? "닫힘" : "열림");
-        if (typeof i.comments === "number") meta.push(`댓글 ${i.comments}`);
+        const meta = [new Date(i.created_at).toLocaleString(LOCALE)];
+        if (i.state) meta.push(t(i.state === "closed" ? "닫힘" : "열림"));
+        if (typeof i.comments === "number") meta.push(t("댓글 {n}", { n: i.comments }));
         return (
           `<a class="result-row" href="${i.html_url}" target="_blank" rel="noopener">` +
           `<span class="result-title">#${i.number} ${escapeHtml(i.title)}</span>` +
@@ -1002,7 +1009,7 @@
     if (!allIssues.length) {
       listEl.innerHTML = '<p class="dim">아직 검토 요청이 없습니다. 첫 검토를 요청해 보세요.</p>';
     } else if (!total) {
-      listEl.innerHTML = `<p class="dim">"${escapeHtml(searchTerm)}" 에 대한 검색 결과가 없습니다.</p>`;
+      listEl.innerHTML = `<p class="dim">${escapeHtml(t('"{q}" 에 대한 검색 결과가 없습니다.', { q: searchTerm }))}</p>`;
     } else {
       const start = (currentPage - 1) * pageSize;
       listEl.innerHTML = rowsHtml(filtered.slice(start, start + pageSize));
@@ -1017,7 +1024,7 @@
         const info = $("#page-info");
         const prev = $("#page-prev");
         const next = $("#page-next");
-        if (info) info.textContent = `${currentPage} / ${pages} 페이지 · 총 ${total}건`;
+        if (info) info.textContent = t("{p} / {n} 페이지 · 총 {total}건", { p: currentPage, n: pages, total });
         if (prev) prev.disabled = currentPage <= 1;
         if (next) next.disabled = currentPage >= pages;
       }
@@ -1157,7 +1164,7 @@
     if (!latest) {
       rows.forEach((r) => { if ((r.updated_at || "") > latest) latest = r.updated_at; });
     }
-    const latestTxt = latest ? new Date(latest).toLocaleString("ko-KR") : "-";
+    const latestTxt = latest ? new Date(latest).toLocaleString(LOCALE) : "-";
 
     // 세부 메뉴(섹션) 목록. html 이 빈 문자열이면(예: 소송 이력 없음) 메뉴에서 제외한다.
     const sections = [
@@ -1333,7 +1340,7 @@
     const countEl = $("#lit-search-count");
     if (countEl) {
       const q = (dashState.litSearch || "").trim();
-      countEl.textContent = q ? `${total}건 검색됨 / 전체 ${litRows.length}건` : `총 ${litRows.length}건`;
+      countEl.textContent = q ? t("{total}건 검색됨 / 전체 {all}건", { total, all: litRows.length }) : t("총 {all}건", { all: litRows.length });
     }
     updateLitPager(total, pages);
   }
@@ -1346,7 +1353,7 @@
     const info = $("#lit-page-info");
     const prev = $("#lit-prev");
     const next = $("#lit-next");
-    if (info) info.textContent = `${dashState.litPage} / ${pages} 페이지 · 총 ${total}건`;
+    if (info) info.textContent = t("{p} / {n} 페이지 · 총 {total}건", { p: dashState.litPage, n: pages, total });
     if (prev) prev.disabled = dashState.litPage <= 1;
     if (next) next.disabled = dashState.litPage >= pages;
   }
@@ -1812,7 +1819,7 @@
     const info = $("#dash-page-info");
     const prev = $("#dash-prev");
     const next = $("#dash-next");
-    if (info) info.textContent = `${dashState.page} / ${pages} 페이지 · 총 ${total}건`;
+    if (info) info.textContent = t("{p} / {n} 페이지 · 총 {total}건", { p: dashState.page, n: pages, total });
     if (prev) prev.disabled = dashState.page <= 1;
     if (next) next.disabled = dashState.page >= pages;
   }
@@ -1838,7 +1845,7 @@
 
     tbody.innerHTML = rows.map((r, idx) => {
       const vm = verdictMeta(r.verdict);
-      const date = r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : "-";
+      const date = r.created_at ? new Date(r.created_at).toLocaleDateString(LOCALE) : "-";
       const litig = r.litigation === "있음"
         ? `<span class="vbadge fail">있음</span>`
         : `<span class="dim">-</span>`;

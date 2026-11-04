@@ -9,6 +9,9 @@ window.DATASET_REVIEW_CONFIG = {
   // 연구논문 리뷰용 템플릿 / 라벨
   paperTemplate: "paper-review.yml",
   paperLabel: "paper-review",
+  // English 모드에서 사용할 영어 이슈 양식(영어 라벨 → 검토 결과도 영어로 게시)
+  templateEn: "dataset-review-en.yml",
+  paperTemplateEn: "paper-review-en.yml",
 
   // ── 간이 접근 암호(약한 게이트) ──────────────────────────────────────
   // 정적 페이지라 실제 보안이 아니라 "아무나 접속" 차단용 최소 장치입니다.

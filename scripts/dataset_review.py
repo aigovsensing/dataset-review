@@ -36,6 +36,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from review_translate import EN_DATASET_FIELD_LABELS
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 
@@ -55,6 +57,9 @@ FIELD_LABELS = {
     "추가 참고 사항": "extra_notes",
     "시스템 프롬프트 선택": "system_prompt",
 }
+
+# 영어 이슈 양식(.github/ISSUE_TEMPLATE/dataset-review-en.yml)의 라벨도 같은 내부 키로 매핑한다.
+FIELD_LABELS.update(EN_DATASET_FIELD_LABELS)
 
 NO_RESPONSE_MARKERS = {"_No response_", "_없음_", "N/A", "없음", ""}
 
@@ -237,7 +242,7 @@ def derive_dataset_name(title: str, fields: dict[str, str]) -> str:
     """폼의 데이터셋 명칭을 우선 사용하고, 없으면 제목에서 접두어를 제거해 추정."""
     name = fields.get("dataset_name", "").strip()
     if not name and title:
-        name = re.sub(r"^\s*\[(?:데이터셋검토|검토)\]\s*", "", title).strip()
+        name = re.sub(r"^\s*\[(?:데이터셋검토|검토|Dataset ?Review)\]\s*", "", title, flags=re.I).strip()
     return name
 
 
@@ -1708,6 +1713,8 @@ def classify_failure(exc: Exception, api_key: str = "", var_name: str = "") -> s
 
 
 def main() -> int:
+    import review_translate as RT  # 영어 요청 지원(번역·합성)
+
     output_path = Path(os.environ.get("REVIEW_OUTPUT", "review.md"))
     title = os.environ.get("ISSUE_TITLE", "")
     body = os.environ.get("ISSUE_BODY", "")
@@ -1767,7 +1774,8 @@ def main() -> int:
 
     if not result and last_exc:
         result = (
-            "## ⚠️ 자동 법적 리스크 검토 실패\n\n"
+            (RT.english_failure_notice(last_exc) if RT.detect_language(body) == "en" else "")
+            + "## ⚠️ 자동 법적 리스크 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{safe_exception_text(last_exc, used_key)}\n```\n\n"
             + classify_failure(last_exc, used_key, used_var)
@@ -1777,7 +1785,17 @@ def main() -> int:
         print(result, file=sys.stderr)
         return 1
 
-    result += key_rotation_note(failed_vars, active_var)
+    ko_note = key_rotation_note(failed_vars, active_var)
+    if RT.detect_language(body) == "en":
+        # 영어 요청: 한국어 정본을 영어로 번역해 위에 두고, 한국어 원문은 접어서 함께 게시한다
+        # (대시보드·CSV 집계는 한국어 원문을 파싱한다). 번역 실패 시 한국어 정본만 게시.
+        en, _model = RT.translate_to_english(result, api_keys)
+        if en:
+            result = RT.compose_bilingual(en + RT.key_rotation_note_en(failed_vars, active_var), result + ko_note)
+        else:
+            result = RT.english_unavailable_notice() + result + ko_note
+    else:
+        result += ko_note
     output_path.write_text(result, encoding="utf-8")
     print(f"검토 결과를 {output_path} 에 저장했습니다 ({len(result)} chars).")
     return 0

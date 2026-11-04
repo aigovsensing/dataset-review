@@ -55,10 +55,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-label "reviewing" --repo "$GITHUB_REPOSITORY" || true
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --body "🤖 자동 법적 리스크 검토를 시작합니다. 잠시만 기다려 주세요 (보통 1~3분 소요)."
+          # 영어 이슈 양식(### Dataset name / ### Paper PDF …)으로 만든 이슈면 영어로 안내한다.
+          if printf '%s' "$ISSUE_BODY" | grep -qE '^### (Dataset name|Paper title|Paper PDF / website URL)[[:space:]]*$'; then
+            MSG="🤖 The automated legal-risk review has started. Please wait a moment (usually 1–3 minutes)."
+          else
+            MSG="🤖 자동 법적 리스크 검토를 시작합니다. 잠시만 기다려 주세요 (보통 1~3분 소요)."
+          fi
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$MSG"
 
       - name: 법적 리스크 검토 실행
         id: run_review
