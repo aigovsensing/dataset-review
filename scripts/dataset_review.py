@@ -175,6 +175,17 @@ def collect_api_keys(
     return keys
 
 
+def grounding_disabled(environ: dict[str, str] | None = None) -> bool:
+    """GEMINI_GROUNDING=off(또는 0/false/no) 이면 Google Search 그라운딩 시도를 건너뛴다.
+
+    무료 키는 모든 모델에서 그라운딩이 막혀(2.5 퇴역, 3.x 무료 한도 없음) 키×모델 수만큼 429 를
+    소모한 뒤에야 PLAIN 으로 내려간다. 이를 알고 있는 운영자는 이 값으로 곧바로 PLAIN +
+    1차 자료 조회 경로를 쓸 수 있다. 기본(auto)은 기존처럼 그라운딩을 먼저 시도한다.
+    """
+    env = os.environ if environ is None else environ
+    return (env.get("GEMINI_GROUNDING") or "").strip().lower() in ("off", "0", "false", "no", "disabled")
+
+
 def key_rotation_note(failed_names: list[str], active_name: str = "") -> str:
     """Build a GitHub-comment-safe key rotation audit using names only."""
     if not failed_names:
@@ -1777,7 +1788,14 @@ def main() -> int:
     failed_vars: list[str] = []
     active_var = ""
 
-    for i, (var_name, key) in enumerate(api_keys):
+    skip_grounding = grounding_disabled()
+    if skip_grounding:
+        print("[diag] GEMINI_GROUNDING=off → 그라운딩 시도를 건너뛰고 PLAIN + 1차 자료 조회로 진행합니다.",
+              file=sys.stderr)
+        last_exc = RuntimeError("grounding disabled by GEMINI_GROUNDING=off")
+        last_exc.code = 429  # type: ignore[attr-defined] - PLAIN 폴백 허용 조건(should_try_ungrounded_fallback)
+
+    for i, (var_name, key) in enumerate([] if skip_grounding else api_keys):
         try:
             result = run_review(title, body, key)
             active_var = var_name

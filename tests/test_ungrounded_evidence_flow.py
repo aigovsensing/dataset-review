@@ -115,3 +115,19 @@ class UngroundedEvidenceFlowTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GroundingSwitchTests(unittest.TestCase):
+    def test_grounding_disabled_values(self):
+        import dataset_review as dr
+        for v in ("off", "OFF", "0", "false", "no"):
+            self.assertTrue(dr.grounding_disabled({"GEMINI_GROUNDING": v}), v)
+        for v in ("", "auto", "on", None):
+            env = {} if v is None else {"GEMINI_GROUNDING": v}
+            self.assertFalse(dr.grounding_disabled(env), v)
+
+    def test_skip_exception_allows_plain_fallback(self):
+        import dataset_review as dr
+        exc = RuntimeError("x")
+        exc.code = 429
+        self.assertTrue(dr.should_try_ungrounded_fallback(exc))

@@ -89,6 +89,9 @@ jobs:
           # 1차 자료 직접 조회(scripts/evidence_sources.py)가 GitHub API 를 호출할 때 쓰는 기본 토큰(읽기 전용).
           # 없으면 비인증 한도(IP당 시간당 60회)라 공유 러너에서 금방 소진된다.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 그라운딩 사용 여부. 'off' 면 Google Search 그라운딩 시도를 건너뛰고 곧바로 PLAIN + 1차 자료
+          # 직접 조회로 검토한다(무료 키는 그라운딩이 전 모델에서 막혀 429 캐스케이드만 소모). 미설정=auto.
+          GEMINI_GROUNDING: ${{ vars.GEMINI_GROUNDING || '' }}
           # 기본(1차) 검토 모델. 저장소 변수 vars.GEMINI_DEFAULT_MODEL 이 없으면 최신 Flash 별칭.
           # (특정 버전 고정은 이 변수로 지정.)
           GEMINI_DEFAULT_MODEL: ${{ vars.GEMINI_DEFAULT_MODEL || 'gemini-flash-latest' }}
