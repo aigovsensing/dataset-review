@@ -1590,6 +1590,17 @@ def gather_evidence(title: str, body: str, fields: dict[str, str], name: str):
     return result
 
 
+def unread_request_urls(fields: dict[str, str], primary: list[tuple[str, str, str]]) -> list[str]:
+    """요청에 포함됐지만 조회되지 않은(차단·JS 렌더링 등) 일반 웹페이지 URL 목록."""
+    try:
+        import evidence_sources as ES
+        got = {e[1].rstrip("/") for e in primary}
+        return [u for u in ES.extract_urls(fields)[:8]
+                if ES.classify_url(u)[0] == "generic" and u.rstrip("/") not in got]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
     """Google Search 없이 참고용 검토를 생성하는 명시적 최후 폴백.
 
@@ -1619,7 +1630,17 @@ def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
             "\n\n[근거 사용 규칙] 위 자료만 외부 근거로 사용할 수 있다. 근거 문장 끝에 반드시 [N]을 붙이고, "
             "라이선스·출처·개인정보 사실은 자료에 적힌 값을 그대로 인용하라(예: 'license=cc-by-4.0'). "
             "'이름 검색 후보(공식 여부 미확인)'로 표시된 자료는 요청한 데이터셋과 같은 것인지 확인되지 않았으므로 "
-            "단정하지 말고 그 점을 밝혀라. 자료가 뒷받침하지 않는 내용은 확인 불가로 표시하라. URL을 새로 만들지 마라."
+            "단정하지 말고 그 점을 밝혀라. 자료가 뒷받침하지 않는 내용은 확인 불가로 표시하라. URL을 새로 만들지 마라.\n"
+            "[저장소 라이선스 주의] GitHub/Hugging Face 저장소의 LICENSE 는 '코드' 또는 '그 저장소 배포본'의 라이선스일 수 있고, "
+            "원본 데이터셋의 라이선스와 다를 수 있다. 데이터 자체의 라이선스를 별도 자료가 확인해 주지 않으면 "
+            "'원본 데이터 라이선스는 확인 불가 — 공식 약관 직접 확인 필요'로 표시하고, 저장소 라이선스를 데이터 라이선스로 단정하지 마라. "
+            "근거에 없는 공식 약관 URL을 인용하지 마라."
+        )
+    unread = unread_request_urls(fields, primary)
+    if unread:
+        evidence_prompt += (
+            "\n\n[조회하지 못한 URL] 요청에 포함됐지만 자동 조회가 되지 않아(접근 차단·동적 페이지 등) 내용을 모르는 URL: "
+            + ", ".join(unread) + " — 이 URL의 내용(특히 라이선스·약관)을 추측해 인용하지 말고, 해당 사실은 '확인 불가'로 표시하라."
         )
 
     user_prompt = build_user_prompt(title, fields) + evidence_prompt + (

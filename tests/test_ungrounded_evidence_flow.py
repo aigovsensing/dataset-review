@@ -131,3 +131,12 @@ class GroundingSwitchTests(unittest.TestCase):
         exc = RuntimeError("x")
         exc.code = 429
         self.assertTrue(dr.should_try_ungrounded_fallback(exc))
+
+
+class UnreadUrlTests(unittest.TestCase):
+    def test_unread_generic_urls_listed(self):
+        fields = {"homepage_url": "https://materialsproject.org/",
+                  "dataset_repo_url": "https://github.com/a/b"}
+        primary = [("GitHub", "https://github.com/a/b", "x")]
+        self.assertEqual(R.unread_request_urls(fields, primary), ["https://materialsproject.org/"])
+        self.assertEqual(R.unread_request_urls(fields, primary + [("p", "https://materialsproject.org", "y")]), [])
