@@ -1,12 +1,12 @@
 {
-  "exported_at": "2026-11-12T02:16:27.739609Z",
+  "exported_at": "2026-11-12T02:27:31.321566Z",
   "rows": [
     {
       "issue": 385,
       "dataset": "Materials Project",
       "verdict": "",
       "model": "",
-      "status": "pending",
+      "status": "reviewed",
       "review_confidence": "",
       "license_check": "",
       "license_judgment": "",
@@ -34,17 +34,17 @@
       "litigation_basis": "",
       "author": "leemgs",
       "created_at": "2026-11-12T02:14:28Z",
-      "updated_at": "2026-11-12T02:14:28Z",
+      "updated_at": "2026-11-12T02:25:01Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/385",
       "state": "open",
-      "comments": 0
+      "comments": 2
     },
     {
       "issue": 384,
       "dataset": "Open Catalyst 2020",
       "verdict": "사용 가능",
       "model": "",
-      "status": "reviewing",
+      "status": "reviewed",
       "review_confidence": "",
       "license_check": "CC BY 4.0",
       "license_judgment": "리스크 없음",
@@ -72,10 +72,10 @@
       "litigation_basis": "",
       "author": "leemgs",
       "created_at": "2026-11-12T02:14:10Z",
-      "updated_at": "2026-11-12T02:14:28Z",
+      "updated_at": "2026-11-12T02:14:44Z",
       "url": "https://github.com/aigovsensing/dataset-review/issues/384",
       "state": "open",
-      "comments": 1
+      "comments": 2
     },
     {
       "issue": 383,
