@@ -1,0 +1,38 @@
+name: Gemini 도구 사용 가능 여부 진단 (수동 실행)
+
+# 수동 실행 전용. 키 × 모델 × (PLAIN / google_search 그라운딩 / url_context) 를 아주 작은 요청으로 실측해
+# 실행 요약(Summary)에 표로 남긴다. API 키 값은 출력하지 않고 Secret 변수명만 표기한다.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "점검할 모델(쉼표 구분). 비우면 기본 목록"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v5
+
+      - name: Python 설정
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: 실측 실행
+        env:
+          # 새 키는 여기에 NAME: ${{ secrets.NAME }} 한 줄을 추가한다(다른 워크플로와 같은 규칙).
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_AIGOVSENSING: ${{ secrets.GEMINI_API_KEY_AIGOVSENSING }}
+          GEMINI_API_KEY_AITSEC2025: ${{ secrets.GEMINI_API_KEY_AITSEC2025 }}
+          GEMINI_API_KEY_GEUNSIKLIM: ${{ secrets.GEMINI_API_KEY_GEUNSIKLIM }}
+          GEMINI_API_KEY_LEEMGS: ${{ secrets.GEMINI_API_KEY_LEEMGS }}
+          PROBE_MODELS: ${{ github.event.inputs.models }}
+          PROBE_DELAY: "3"
+        run: python tools/gemini_capability_probe.py
