@@ -127,7 +127,8 @@ def main() -> int:
     if not keys:
         print("점검할 GEMINI_API_KEY* 환경변수가 없습니다.", file=sys.stderr)
         return 1
-    models = [m.strip() for m in os.environ.get("PROBE_MODELS", DEFAULT_MODELS).split(",") if m.strip()]
+    # 워크플로가 빈 입력을 빈 문자열("")로 넘기므로 `or` 로 기본값을 적용한다(get 기본값은 빈 문자열을 못 거른다).
+    models = [m.strip() for m in (os.environ.get("PROBE_MODELS") or DEFAULT_MODELS).split(",") if m.strip()]
     delay = float(os.environ.get("PROBE_DELAY", "3"))
     lines: list[str] = []
 
@@ -142,6 +143,9 @@ def main() -> int:
         kind = "AQ." if key.startswith("AQ.") else ("AIza" if key.startswith("AIza") else "기타")
         avail = list_models(key)
         out(f"### 🔑 {', '.join(f'`{n}`' for n in names)}  <sub>형식 `{kind}…` · 길이 {len(key)} · 지문 {fp} · 모델 {len(avail)}개 조회됨</sub>")
+        out("")
+        gem = sorted(n for n in avail if n.startswith(("gemini-", "gemma-")))
+        out(f"<details><summary>이 키로 조회되는 gemini/gemma 모델 {len(gem)}개</summary>\n\n`{'`, `'.join(gem)}`\n\n</details>")
         out("")
         out("| 모델 | 목록에 있음 | PLAIN | SEARCH(그라운딩) | URLCTX | 비고 |")
         out("| --- | :-: | --- | --- | --- | --- |")
