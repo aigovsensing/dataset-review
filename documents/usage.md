@@ -89,6 +89,11 @@ URL 이 구체적일수록 검토 품질이 올라갑니다. 여러 개는 줄�
 "Gemini 에게 이 논문을 찾아 근거로 쓰라"는 **지시의 입력**으로 쓰이고, 실제 논문 읽기·분석은
 Gemini 의 Google 검색 그라운딩이 수행하며, 코드는 그 앞뒤(URL 추출·인용 링크화·출처 첨부)를 담당합니다.
 
+> **무료 키(그라운딩 불가) 경로:** Google Search 그라운딩을 쓸 수 없으면, 위 방식 대신 코드가 입력한 URL(arXiv·
+> Hugging Face·GitHub·Zenodo·DOI·홈페이지)과 공개 API 에서 원문 발췌를 직접 가져와 `[N]` 근거로 모델에 제공하고
+> (`scripts/evidence_sources.py`), 결과 하단에 "📚 직접 조회한 근거 자료"를 첨부합니다. 위에서 언급한 arXiv 초록 주입
+> 루프 문제는 이 경로에서 '신뢰할 수 없는 데이터' 프레이밍과 분량 제한(자료당 2,800자·전체 30,000자)으로 방지합니다.
+
 ## 검토 결과 내보내기 (CSV · 대시보드/집계용)
 
 모든 검토 결과를 **CSV/JSON 으로 집계**할 수 있습니다. [`scripts/export_dataset_reviews.py`](../scripts/export_dataset_reviews.py)

@@ -12,8 +12,12 @@
 
 </div>
 
-Request a review of an open dataset (or a research paper) through a GitHub issue and **Gemini (with Google Search
-grounding)** reviews it automatically and posts the result as an issue comment. It runs with **no backend server** — only
+Request a review of an open dataset (or a research paper) through a GitHub issue and **Gemini** reviews it
+automatically and posts the result as an issue comment. With a paid key it uses Google Search grounding; with a free
+key (where grounding is unavailable) it directly fetches **primary sources** — the URLs you supply plus Hugging Face,
+GitHub LICENSE/README, arXiv, Zenodo, Crossref and Wikipedia — and cites them as `[N]`. Lawsuits and the latest
+controversies cannot be verified without search and are reported as "unverifiable". Set the repository variable
+`GEMINI_GROUNDING=off` on free keys to skip the grounding attempts that always return 429. It runs with **no backend server** — only
 **GitHub Pages + GitHub Actions + the free Google AI Studio API**.
 
 > This review is a **reference for internal pre-screening of risk**. It does not replace legal advice or legal judgment.

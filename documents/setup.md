@@ -35,6 +35,12 @@
 
 ✅ 확인: `./tools/gemini_api_key_test.sh <API_KEY>` 실행 → 초록색 ✓ 가 나오면 키 정상.
 
+### 1-0. 무료 키 운영 팁 (그라운딩 생략)
+
+무료 키는 Google Search 그라운딩이 전 모델에서 막혀 있습니다. **Settings → Secrets and variables → Actions →
+Variables** 에 `GEMINI_GROUNDING` = `off` 를 추가하면 키×모델 429 캐스케이드를 건너뛰고 곧바로 "PLAIN + 1차 자료
+직접 조회"로 검토합니다(추가 설정·키 불필요). 키별 가용성은 Actions 탭 → **Gemini 도구 진단** 수동 실행으로 확인합니다.
+
 ### 1-1. 외부 Google 검색 보강 설정 (선택·기존 사용자 전용)
 
 Gemini 내장 그라운딩이 모든 키에서 실패했을 때 PLAIN 결과에 실제 검색 결과를 제공하려면 Actions에

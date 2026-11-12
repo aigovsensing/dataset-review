@@ -46,9 +46,18 @@ GitHub 이슈로 요청하면 **Gemini** 가 자동 검토해 결과를 이슈 �
 > [모델·쿼터 가이드](documents/models-and-quota.md). 무료 티어에서 3.x 결과를 받는
 > [하이브리드 2패스](documents/models-and-quota.md#무료로-3x-결과-받기--하이브리드-2패스-gemini_writer_model)도 여기 있습니다.
 
-#### Gemini 검색 그라운딩을 쓸 수 없을 때 (선택)
+#### Gemini 검색 그라운딩을 쓸 수 없을 때 (무료 키 기본 동작)
 
-모든 Gemini 검색 그라운딩 호출이 쿼터·모델 가용성 문제로 실패해도 검토를 중단하지 않습니다.
+무료 키로는 Google Search 그라운딩을 쓸 수 없습니다(2026-11 실측: 3.x 무료 한도 0, 2.5 신규 퇴역).
+이때 검토를 중단하거나 근거 없이 쓰지 않고, 프로그램이 **요청에 포함된 URL과 공개 API
+(Hugging Face · GitHub LICENSE/README · arXiv · Zenodo · Crossref · 홈페이지 · Wikipedia)에서 1차 자료를
+직접 조회**해 `[N]` 근거로 모델에 제공합니다(`scripts/evidence_sources.py`, 키 불필요). 결과 하단에
+"📚 직접 조회한 근거 자료" 목록이 붙고, 조회하지 못한 사항(특히 소송·최신 논란)은 "확인 불가"로 표시됩니다.
+무료 키 환경에서는 저장소 변수 `GEMINI_GROUNDING=off` 를 지정하면 429만 소모하는 그라운딩 시도를 건너뛰어
+더 빨라집니다(유료 키를 쓰면 지정하지 마세요). 상세·실측표는
+[모델·쿼터 가이드](documents/models-and-quota.md#-무료-키로-웹검색-그라운딩이-가능한가-2026-11-실측).
+
+**(선택) 외부 검색 보강** — 모든 Gemini 검색 그라운딩 호출이 실패해도 검토를 중단하지 않습니다.
 기존 Google Programmable Search 사용자는 Actions에 `GOOGLE_SEARCH_API_KEY` Secret과
 `GOOGLE_SEARCH_ENGINE_ID` Variable을 등록해 두면, 프로그램이 **Google Custom Search JSON API로
 라이선스·개인정보·최신 소송/논란을 별도 검색**하고 그 결과의 제목·요약·URL만 PLAIN Gemini 모델에
@@ -100,6 +109,8 @@ python scripts/dataset_review.py     # review.md 생성
 ```
 
 키가 정상인지 먼저 확인: `./tools/gemini_api_key_test.sh <API_KEY>` → 초록색 ✓.
+키×모델별 도구(그라운딩·URL 읽기) 사용 가능 여부는 Actions 의 **Gemini 도구 진단**(수동 실행,
+`tools/gemini_capability_probe.py`)으로 실측할 수 있습니다(키 값은 출력하지 않음).
 
 ---
 

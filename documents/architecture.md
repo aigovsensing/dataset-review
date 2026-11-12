@@ -29,7 +29,8 @@ flowchart LR
 | [`docs/`](../docs/) | 🖥️ 입력·열람 | 검토 요청 폼 + 결과 게시판(검색·페이지네이션·낮밤 테마·접근 암호 게이트) |
 | [`.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE/dataset-review.yml) | 📨 접수 | 홈페이지가 prefill 하는 검토 요청 이슈 폼 |
 | [`.github/workflows/`](../.github/workflows/dataset-review.yml) | ⚙️ 자동화 | 이슈 감지 → 검토 실행 → 결과 댓글·라벨 처리(무료 쿼터 보호 포함) |
-| [`scripts/dataset_review.py`](../scripts/dataset_review.py) + [`system_prompt_dataset_review.md`](../prompt-book/system_prompt_dataset_review.md) | 🤖 검토 엔진 | Gemini(구글 검색 그라운딩) **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석 |
+| [`scripts/dataset_review.py`](../scripts/dataset_review.py) + [`system_prompt_dataset_review.md`](../prompt-book/system_prompt_dataset_review.md) | 🤖 검토 엔진 | Gemini **1회 호출**로 라이선스·수집방식·개인정보·소송 리스크 분석(유료 키: 구글 검색 그라운딩 / 무료 키: 1차 자료 직접 조회 근거) |
+| [`scripts/evidence_sources.py`](../scripts/evidence_sources.py) | 📚 근거 수집 | 그라운딩 불가 시 요청 URL·공개 API(HF·GitHub·arXiv·Zenodo·Crossref·Wikipedia)에서 원문을 직접 조회(SSRF 차단·프롬프트 인젝션 방어 포함) |
 
 ## 🔄 데이터 흐름 (Data Flow)
 
@@ -49,7 +50,7 @@ sequenceDiagram
     Note over A: 작성자 권한 검사 없음 — 누구나 요청 가능<br/>(dataset-review 라벨 이슈면 자동 실행)
     A->>I: ④ reviewing 라벨 + "검토 시작" 댓글
     A->>G: ⑤ scripts/dataset_review.py 실행
-    G->>G: ⑥ Gemini 1회 호출 (Google 검색 그라운딩)<br/>MAX_TOKENS 잘림 시 1회 자동 재생성
+    G->>G: ⑥ Gemini 1회 호출 (Google 검색 그라운딩)<br/>그라운딩 불가(무료 키) 시 → 1차 자료 직접 조회 + PLAIN 생성<br/>MAX_TOKENS 잘림 시 1회 자동 재생성
     alt 검토 성공
         G->>I: ⑦ 검토 보고서 댓글 등록 + reviewed 라벨
     else 검토 실패 (쿼터/오류)
@@ -146,4 +147,6 @@ flowchart TD
 | `scripts/dataset_review.py` | Gemini 호출 + 검토 보고서 생성 스크립트 |
 | `scripts/export_dataset_reviews.py` | 검토 결과 이슈를 파싱해 `docs/data/reviews.csv`·`reviews.json` 생성 |
 | `prompt-book/system_prompt_dataset_review.md` | 법적 리스크 검토 에이전트 시스템 프롬프트(검토 지침) |
+| `scripts/evidence_sources.py` | 그라운딩 없이 근거를 모으는 1차 자료 직접 조회(HF·GitHub·arXiv·Zenodo·Crossref·홈페이지·Wikipedia) |
 | `tools/gemini_api_key_test.sh` | Gemini API 키 동작을 curl 로 확인하는 진단 스크립트 |
+| `tools/gemini_capability_probe.py` + `.github/workflows/gemini-probe.yml` | 키×모델별 그라운딩·URL 읽기 가능 여부 실측(수동 실행, 키 값 미출력) |

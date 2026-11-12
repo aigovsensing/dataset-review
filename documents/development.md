@@ -26,6 +26,9 @@ python scripts/dataset_review.py            # review.md 생성
 
 - 검토 지침(시스템 프롬프트)은 `prompt-book/system_prompt_dataset_review.md` 에서 수정할 수 있습니다.
 - Gemini의 Google 검색 그라운딩을 사용하므로 검토 결과에는 참조한 공식 출처 URL이 함께 첨부됩니다.
+  그라운딩을 쓸 수 없으면(무료 키) 요청 URL·공개 API 에서 직접 조회한 자료가 근거로 첨부됩니다.
+  환경변수: `GEMINI_GROUNDING=off`(그라운딩 시도 생략), `EVIDENCE_PRIMARY_SOURCES=0`(1차 자료 조회 끄기),
+  `GITHUB_TOKEN`(GitHub API 한도 확보; Actions 에서는 자동 주입). 로그의 `[diag] primary_evidence` 줄에서 조회 결과를 확인합니다.
 - Actions 로그의 `[diag] finish_reason=... prompt=... output=...` 줄에서 토큰 사용량과 종료 사유를
   확인할 수 있어, 응답이 비거나 잘릴 때 원인을 진단할 수 있습니다.
 - API 키 동작 확인은 `tools/gemini_api_key_test.sh` 로 테스트할 수 있습니다.
