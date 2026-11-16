@@ -447,7 +447,7 @@ def main() -> int:
 
     if not result and last_exc:
         result = (
-            (RT.english_failure_notice(last_exc) if RT.detect_language(body) == "en" else "")
+            (RT.english_failure_notice(last_exc) if RT.wants_english(body) else "")
             + "## ⚠️ 자동 논문 법무 검토 실패\n\n"
             "검토 에이전트 실행 중 오류가 발생했습니다.\n\n"
             f"```\n{R.safe_exception_text(last_exc, used_key)}\n```\n\n"
@@ -459,7 +459,7 @@ def main() -> int:
         return 1
 
     ko_note = R.key_rotation_note(failed_vars, active_var)
-    if RT.detect_language(body) == "en":
+    if RT.wants_english(body):
         # 영어 요청: 한국어 정본을 영어로 번역해 위에 두고 한국어 원문은 접어 함께 게시(집계는 한국어 원문 파싱).
         en, _model = RT.translate_to_english(result, api_keys)
         if en:

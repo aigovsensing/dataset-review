@@ -83,6 +83,18 @@ def detect_language(body: str) -> str:
     return "ko"
 
 
+def english_output_enabled() -> bool:
+    """영어 검토 결과(번역) 출력 여부. 기본은 꺼짐 — 영어 이슈 양식으로 요청해도 결과는 한국어만 게시한다.
+
+    REVIEW_ENGLISH_OUTPUT=1(on/true/yes)일 때만 영어 번역본 + 한국어 원문 접이식 형태로 게시한다.
+    """
+    return (os.environ.get("REVIEW_ENGLISH_OUTPUT") or "").strip().lower() in ("1", "on", "true", "yes")
+
+
+def wants_english(body: str) -> bool:
+    return english_output_enabled() and detect_language(body) == "en"
+
+
 def _urls(text: str) -> set[str]:
     return {u.rstrip(".,;:") for u in URL_RE.findall(text)}
 

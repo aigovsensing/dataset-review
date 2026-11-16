@@ -56,10 +56,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_BODY: ${{ github.event.issue.body }}
+          REVIEW_ENGLISH_OUTPUT: ${{ vars.REVIEW_ENGLISH_OUTPUT || '' }}
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-label "reviewing" --repo "$GITHUB_REPOSITORY" || true
           # 영어 이슈 양식(### Dataset name / ### Paper PDF …)으로 만든 이슈면 영어로 안내한다.
-          if printf '%s' "$ISSUE_BODY" | grep -qE '^### (Dataset name|Paper title|Paper PDF / website URL)[[:space:]]*$'; then
+          if [ "$REVIEW_ENGLISH_OUTPUT" = "1" ] && printf '%s' "$ISSUE_BODY" | grep -qE '^### (Dataset name|Paper title|Paper PDF / website URL)[[:space:]]*$'; then
             MSG="🤖 The automated legal-risk review has started. Please wait a moment (usually 1–3 minutes)."
           else
             MSG="🤖 자동 법적 리스크 검토를 시작합니다. 잠시만 기다려 주세요 (보통 1~3분 소요)."
@@ -105,6 +106,8 @@ jobs:
           # 검토 결과 상단에 표시할 '서비스 티어' 라벨(선택, 표시용일 뿐 동작엔 무관).
           # 미설정('') 시 스크립트가 API 응답으로 자동 판별하고, 그래도 없으면 기본값 Free.
           GEMINI_SERVICE_TIER: ${{ vars.GEMINI_SERVICE_TIER || '' }}
+          # 영어 검토 결과(번역) 게시 여부. 기본(미설정)은 한국어만 게시. '1' 이면 영어 이슈 양식 요청에 영어 번역 추가.
+          REVIEW_ENGLISH_OUTPUT: ${{ vars.REVIEW_ENGLISH_OUTPUT || '' }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           REVIEW_OUTPUT: review.md

@@ -127,7 +127,7 @@ python scripts/dataset_review.py     # review.md 생성
 | [소송 리스크 검토](documents/litigation.md) | AI 학습 데이터 무단 활용 소송 조사·근거 강도 분류 방식 |
 | [트러블슈팅](documents/troubleshooting.md) | 검토 미실행·`review-failed`·GitHub API 403 등 문제 해결 |
 | [로컬 실행 / 개발](documents/development.md) | 로컬 실행법, 시스템 프롬프트 수정, 진단 로그 |
-| [영어 지원 (English)](documents/i18n.md) | 홈페이지 `한국어 \| English` 전환, 영어 이슈 양식·영어 검토 결과, 번역 사전 관리 |
+| [영어 지원 (English)](documents/i18n.md) | 홈페이지 `한국어 \| English` 전환, 영어 이슈 양식, 번역 사전 관리 (영어 검토 결과 출력은 기본 꺼짐 — 결과는 한국어만 게시, `REVIEW_ENGLISH_OUTPUT=1` 로 활성화) |
 
 **검토 유형 2가지:** 데이터셋 검토(`dataset-review` 라벨)와 연구논문 법무 검토(`paper-review` 라벨)를
 제공하며, 홈페이지 상단의 **🗂️ 데이터셋 / 📄 논문** 전환 버튼으로 각 요청 폼·결과 목록을 이용합니다.

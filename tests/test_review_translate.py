@@ -195,12 +195,13 @@ class ComposeAndExportCompatibilityTest(unittest.TestCase):
 class MainFlowTest(unittest.TestCase):
     """main() 전체 흐름(키 순회 → 검토 → 번역 → 합성 → review.md 저장)을 가짜 Gemini 로 검증."""
 
-    def run_main(self, module, runner_name: str, ko_result: str, issue_body: str, translate):
+    def run_main(self, module, runner_name: str, ko_result: str, issue_body: str, translate, english=True):
         import tempfile
 
         out = Path(tempfile.mkstemp(suffix=".md")[1])
         self.addCleanup(lambda: out.unlink(missing_ok=True))
-        env = {"REVIEW_OUTPUT": str(out), "ISSUE_TITLE": "t", "ISSUE_BODY": issue_body}
+        env = {"REVIEW_OUTPUT": str(out), "ISSUE_TITLE": "t", "ISSUE_BODY": issue_body,
+               "REVIEW_ENGLISH_OUTPUT": "1" if english else ""}
         with mock.patch.dict(os.environ, env), \
                 mock.patch.object(R, "collect_api_keys", lambda *a, **k: [("GEMINI_API_KEY", "k")]), \
                 mock.patch.object(module, runner_name, lambda *a, **k: ko_result), \
@@ -208,6 +209,16 @@ class MainFlowTest(unittest.TestCase):
             rc = module.main()
         self.assertEqual(rc, 0)
         return out.read_text(encoding="utf-8")
+
+    def test_english_request_is_korean_only_by_default(self) -> None:
+        """기본값(REVIEW_ENGLISH_OUTPUT 미설정)에서는 영어 이슈 양식 요청이어도 한국어만 게시한다."""
+        def boom(*a, **k):
+            raise AssertionError("번역 호출이 일어나면 안 된다")
+        for module, runner, ko in ((R, "run_review", KO_DATASET),):
+            text = self.run_main(module, runner, ko, "### Dataset name\n\nBooks3", boom, english=False)
+            self.assertTrue(text.startswith(ko.strip()[:20]))
+            self.assertNotIn("Smarty Beagle", text)
+            self.assertNotIn("<summary>🇰🇷", text)
 
     def test_english_dataset_request_gets_english_on_top_and_korean_original_folded(self) -> None:
         text = self.run_main(R, "run_review", KO_DATASET, "### Dataset name\n\nBooks3",
