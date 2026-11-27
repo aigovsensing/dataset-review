@@ -75,6 +75,14 @@ class UngroundedEvidenceFlowTest(unittest.TestCase):
         self.assertIn("https://huggingface.co/datasets/stanfordnlp/imdb", out)   # 실제 출처 링크가 달린다
         self.assertNotIn("검색 없음", out)
 
+    def test_footer_uses_no_github_only_html(self) -> None:
+        """<sub>/<code>/<details> 는 GitHub 이슈에서만 호환되므로 쓰지 않는다(푸터는 표준 Markdown 이탤릭)."""
+        for primary in (EVIDENCE, []):
+            out, _ = self.run_flow(primary)
+            for tag in ("<sub", "</sub", "<code", "</code", "<details", "<summary", "<br"):
+                self.assertNotIn(tag, out)
+            self.assertIn("_⚠️ 자동 생성 (model: `", out)
+
     def test_citations_become_links_to_the_collected_sources(self) -> None:
         out, _ = self.run_flow(EVIDENCE)
         self.assertIn("[1](https://huggingface.co/datasets/stanfordnlp/imdb)", out)

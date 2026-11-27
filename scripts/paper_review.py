@@ -369,9 +369,9 @@ def run_paper_review(title: str, body: str, api_key: str) -> str:
     # 상단 정보 박스 — 한눈에 읽히도록 아이콘+라벨로 한 줄씩 분리(블록쿼트, 줄끝 두 칸=줄바꿈).
     hdr = [f"🤖 **검토 모델** &nbsp;`{resolved_model}`"]
     if used_model != model:
-        hdr.append(f"<sub>⚠️ 요청 `{model}` → 폴백(쿼터 소진/불가), 실제 사용 `{used_model}`</sub>")
+        hdr.append(f"_⚠️ 요청 `{model}` → 폴백(쿼터 소진/불가), 실제 사용 `{used_model}`_")
     elif resolved_model != model:
-        hdr.append(f"<sub>요청 `{model}` → 실제 버전 `{resolved_model}`</sub>")
+        hdr.append(f"_요청 `{model}` → 실제 버전 `{resolved_model}`_")
     hdr.append(f"🏷️ **서비스 티어** &nbsp;`{service_tier}`")
     hdr.append(f"📄 **원문 판독 방식** &nbsp;{source_note}")
     hdr.append(f"🔗 **대상** &nbsp;{url}")
@@ -398,8 +398,8 @@ def run_paper_review(title: str, body: str, api_key: str) -> str:
         )
     parts.append(
         "\n---\n"
-        f"<sub>🤖 자동 생성 (model: <code>{resolved_model}</code>) · "
-        "본 논문 법무 검토는 회사 내부 사전 리스크 검토용 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
+        f"_🤖 자동 생성 (model: `{resolved_model}`) · "
+        "본 논문 법무 검토는 회사 내부 사전 리스크 검토용 참고 자료이며 법률 자문을 대체하지 않습니다._"
     )
     return R.enforce_length_limit("\n".join(parts))
 

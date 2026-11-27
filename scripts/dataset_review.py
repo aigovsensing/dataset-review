@@ -1365,7 +1365,7 @@ def run_review(title: str, body: str, api_key: str) -> str:
     # 요청 모델이 폴백된 경우에만 사유를 작게 한 줄(평소엔 노출 안 함).
     if used_model != model and requested_fail_reason:
         hdr.append(
-            f"<sub>⚠️ 요청 `{model}` → 폴백({requested_fail_reason}), 실제 사용 `{used_model}`</sub>"
+            f"_⚠️ 요청 `{model}` → 폴백({requested_fail_reason}), 실제 사용 `{used_model}`_"
         )
     hdr.append(f"🏷️ **서비스 티어** &nbsp;`{service_tier}`")
     # 블록쿼트로 상단 정보 박스처럼, 각 줄 끝 두 칸으로 줄바꿈(<br>) 처리.
@@ -1413,15 +1413,15 @@ def run_review(title: str, body: str, api_key: str) -> str:
         )
     if final_used:
         gen_note = (
-            f"근거 수집: <code>{resolved_model}</code>+Google Search grounding → "
-            f"최종 작성: <code>{final_used}</code>(그라운딩 없음, 하이브리드 2패스)"
+            f"근거 수집: `{resolved_model}`+Google Search grounding → "
+            f"최종 작성: `{final_used}`(그라운딩 없음, 하이브리드 2패스)"
         )
     else:
-        gen_note = f"model: <code>{resolved_model}</code>, Google Search grounding"
+        gen_note = f"model: `{resolved_model}`, Google Search grounding"
     parts.append(
         "\n---\n"
-        f"<sub>🤖 자동 생성 ({gen_note}) · "
-        "본 검토는 회사 내부 사전 리스크 검토용 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
+        f"_🤖 자동 생성 ({gen_note}) · "
+        "본 검토는 회사 내부 사전 리스크 검토용 참고 자료이며 법률 자문을 대체하지 않습니다._"
     )
     return enforce_length_limit("\n".join(parts))
 
@@ -1710,8 +1710,8 @@ def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
                 )
             footer = (
                 "\n---\n"
-                f"<sub>⚠️ 자동 생성 (model: <code>{resolved}</code>, {mode}) · "
-                "미검증 참고 자료이며 법률 자문을 대체하지 않습니다.</sub>"
+                f"_⚠️ 자동 생성 (model: `{resolved}`, {mode}) · "
+                "미검증 참고 자료이며 법률 자문을 대체하지 않습니다._"
             )
             # 출력 순서: 제목 → 경고 → 검토 모델 정보 → 비글 이미지·대상 데이터셋 → 본문
             title, text = hoist_review_title(text)
@@ -1738,7 +1738,7 @@ def classify_failure(exc: Exception, api_key: str = "", var_name: str = "") -> s
     key_name = f"`{var_name}`" if var_name else "(알 수 없음)"
     key_note = (
         f"\n\n> 🔑 **실패한 API 키 Secret 변수:** {key_name} "
-        "<br><sub>Secret 값은 보안을 위해 표시하지 않습니다.</sub>"
+        "_(Secret 값은 보안을 위해 표시하지 않습니다.)_"
     )
 
     if is_transient(exc):
