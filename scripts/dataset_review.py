@@ -850,13 +850,13 @@ def opinion_conclusion(lead: str) -> str:
     return " ".join(lead[matches[-1].end():].split()).strip()
 
 
-# 접이식 상세 본문 안의 마크다운 헤딩(#..######)을 잡아 볼드 라벨로 낮춘다.
-# (details 의 summary 는 볼드라, 본문에 H3 등이 오면 자식이 부모보다 커 보이는 역전이 생김)
+# 상세 섹션 본문 안의 마크다운 헤딩(#..######)을 잡아 볼드 라벨로 낮춘다.
+# (섹션 헤딩 ## 아래에 H1~H3 가 오면 자식이 부모보다 커 보이는 역전이 생김)
 _BODY_HEADING_RE = re.compile(r"^[ \t]*#{1,6}[ \t]+(.*?)[ \t]*#*[ \t]*$", re.MULTILINE)
 
 
 def demote_body_headings(body: str) -> str:
-    """상세 섹션 본문의 헤딩을 볼드 텍스트로 낮춰, summary 보다 커 보이지 않게 한다.
+    """상세 섹션 본문의 헤딩을 볼드 텍스트로 낮춰, 섹션 헤딩보다 커 보이지 않게 한다.
 
     예) '### 라이선스' → '**라이선스**'. 목록·인용 등 다른 서식은 그대로 둔다.
     """
@@ -886,8 +886,8 @@ def restructure_review(text: str, name: str) -> str:
     - 배너 바로 아래에 '종합의견' 표(복사·붙여넣기용 요약)를 펼친 상태로 노출.
     - '1. 요약 결론' 은 이 표의 원천이라 내용이 겹치므로, 표를 그 섹션에서 만든 경우
       별도 블록으로 다시 보여주지 않는다(중복 제거).
-    - 상세/소송/근거 섹션은 앞 번호 없이 아이콘+제목의 접이식(<details>)으로 정리하고
-      첫 상세 섹션만 펼친다(번호가 2부터 시작해 보이는 혼란 방지).
+    - 상세/소송/근거 섹션은 앞 번호 없이 아이콘+제목의 표준 Markdown 헤딩(##)으로 정리한다
+      (접기 없음 — <details> 는 GitHub 이슈 외 뷰어에서 호환되지 않는다).
     - 예상 형식(## N. 제목)이 아니면 원문을 그대로 두어 안전하게 처리한다.
     """
     text = ensure_detail_section_header(text)
@@ -940,12 +940,10 @@ def restructure_review(text: str, name: str) -> str:
             # 일치하는 통합 '근거 및 출처' 목록을 자동으로 붙이므로, 번호 체계가 다른 모델
             # 목록을 함께 두면 중복·혼란을 유발한다.
             continue
-        # 상세/소송: 앞 번호 없이 아이콘+제목만. 전부 기본 접힘(<details>) 상태로 둔다.
-        # 본문 헤딩은 볼드로 낮춰 summary(라이선스 등 하위 제목이 더 커 보이는 역전) 방지.
-        blocks.append(
-            f"<details>\n<summary><b>{icon} {sec_title}</b></summary>\n\n"
-            f"{demote_body_headings(body)}\n\n</details>"
-        )
+        # 상세/소송: 앞 번호 없이 아이콘+제목만, 접기 없이 표준 Markdown 헤딩(##)으로 펼쳐 둔다.
+        # (<details>/<summary> 는 GitHub 이슈에서만 접히고 다른 Markdown 뷰어에서는 호환되지 않는다.)
+        # 본문 헤딩은 볼드로 낮춰 섹션 헤딩(##)보다 커 보이는 역전을 방지.
+        blocks.append(f"## {icon} {sec_title}\n\n{demote_body_headings(body)}")
 
     pieces = [banner, "---"]
     if lead:
@@ -1403,11 +1401,10 @@ def run_review(title: str, body: str, api_key: str) -> str:
         # 본문 [N] 각주와 번호가 일치하는 단일 '근거 및 출처' 목록. (모델이 쓴 동명 섹션은
         # restructure_review 에서 생략 — 번호 체계가 달라 중복·혼란을 유발하므로.)
         parts.append(
-            f"\n<details>\n<summary><b>📚 근거 및 출처 — {len(sources)}건</b></summary>\n\n"
+            f"\n## 📚 근거 및 출처 — {len(sources)}건\n\n"
             "본문 문장 끝의 `[N]` 링크가 아래 같은 번호의 출처로 연결됩니다 "
             "(Google 검색 그라운딩 + 모델이 인용한 공식 자료).\n\n"
             + render_sources(sources)
-            + "\n\n</details>"
         )
     if truncated:
         parts.append(
@@ -1707,9 +1704,9 @@ def run_ungrounded_review(title: str, body: str, api_key: str) -> str:
                 note = ("요청 URL·공개 API 에서 직접 가져온 자료의 제목과 링크입니다(내용 발췌만 모델에 제공). "
                         if primary else "Google Programmable Search가 반환한 제목·요약·링크입니다. ")
                 source_details = (
-                    f"\n\n<details>\n<summary><b>📚 {heading} — {len(sources)}건</b></summary>\n\n"
+                    f"\n\n## 📚 {heading} — {len(sources)}건\n\n"
                     f"{note}원문 확인이 필요합니다.\n\n"
-                    + render_sources(sources) + "\n\n</details>"
+                    + render_sources(sources)
                 )
             footer = (
                 "\n---\n"

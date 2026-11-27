@@ -387,10 +387,9 @@ def run_paper_review(title: str, body: str, api_key: str) -> str:
     parts = [header, text]
     if sources:
         parts.append(
-            f"\n<details>\n<summary><b>🔎 참고 출처 — {len(sources)}건</b></summary>\n\n"
+            f"\n## 🔎 참고 출처 — {len(sources)}건\n\n"
             "본문 문장 끝의 `[N]` 링크는 아래 동일 번호 출처로 연결됩니다.\n\n"
             + R.render_sources(sources)
-            + "\n\n</details>"
         )
     if truncated:
         parts.append(

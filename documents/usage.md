@@ -116,6 +116,9 @@ collection_check/judgment, privacy_check/judgment, litigation(소송 여부), au
 
 ## 검토 결과를 다른 Markdown 페이지에 옮기기 (명령줄 변환)
 
+> **2026-11 변경:** 새 검토 결과 댓글은 `<details>`·`<summary>` 접기를 쓰지 않고 표준 Markdown 헤딩(`## ⚖️ 소송 리스크` 등)으로
+> 펼쳐 출력합니다(다른 Markdown 뷰어에서도 그대로 보임). 아래 설명은 **이전에 게시된 댓글**을 옮길 때 해당합니다.
+
 이슈 댓글의 검토 결과는 GitHub 이 허용하는 일부 HTML(`<details>`·`<summary>`·`<sub>`·`<code>`·
 `<b>`·`<br>`, `&nbsp;`)을 써서 접기·작은 글씨를 표현합니다. 이 원문을 그대로 복사해 다른 웹페이지에
 붙여 넣으면 `<details>…</details>` 가 **글자 그대로** 보이는 일이 있습니다. 텍스트로 붙이면 편집기가

@@ -23,7 +23,7 @@
 | 이슈 폼 파싱 (명칭·URL 추출) | `scripts/dataset_review.py` `parse_issue_body()` | 정규식 |
 | 입력 사전 검증 (빈 이슈 차단) | `scripts/dataset_review.py` `run_review()` | 필드 검사 — 검토할 정보가 없으면 **API 호출 없이** 즉시 실패 처리 |
 | 인용 번호 → 출처 링크 변환 | `scripts/dataset_review.py` `linkify_citations()` | 정규식 |
-| 보고서 재구성 (배지·접이식 섹션) | `scripts/dataset_review.py` `restructure_review()` | 문자열 처리 |
+| 보고서 재구성 (배지·헤딩 섹션) | `scripts/dataset_review.py` `restructure_review()` | 문자열 처리 |
 | 판정(✅/⚠️/⛔) 추출·배너 생성 | `scripts/dataset_review.py` `detect_verdict()` | 패턴 매칭 |
 | 검토 결과 목록·홈페이지 | `docs/` | 정적 페이지 + GitHub REST API (Gemini 무관) |
 | 라벨 관리·댓글 등록 | 워크플로 | `gh` CLI (Gemini 무관) |
